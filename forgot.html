@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reset your password — Sokoni</title>
+<meta name="description" content="Reset your Sokoni account password. A demonstration screen — no email is actually sent.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>&#128717;&#65039;</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="account">
+
+<div id="site-header"></div>
+
+<main class="auth-wrap">
+
+  <div class="auth-card">
+    <div class="steps-mini" aria-hidden="true">
+      <span class="active" data-step-dot="1"></span><span data-step-dot="2"></span><span data-step-dot="3"></span>
+    </div>
+
+    <!-- STEP 1 — ASK FOR EMAIL -->
+    <div id="step1">
+      <div class="auth-head">
+        <div class="verify-mark" id="keyMark"></div>
+        <h1>Forgot your password?</h1>
+        <p>No problem. Enter the email on your account and we'll send a reset link.</p>
+      </div>
+      <div id="msg1"></div>
+      <form class="auth-form" id="emailForm" novalidate>
+        <div class="field">
+          <label for="email">Email address</label>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit" id="sendBtn">Send reset link</button>
+      </form>
+      <p class="auth-alt">Remembered it? <a href="login.html">Back to sign in</a></p>
+    </div>
+
+    <!-- STEP 2 — SENT -->
+    <div id="step2" hidden>
+      <div class="auth-head">
+        <div class="verify-mark" id="mailMark"></div>
+        <h1>Check your inbox</h1>
+        <p>If an account exists for <b id="sentTo">your email</b>, a reset link is on its way. The link expires in 30 minutes.</p>
+      </div>
+      <div class="demo-note">
+        <span data-i="alert"></span>
+        <span>Demo environment — no email is actually sent. Continue straight to the reset screen below to see the flow.</span>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" type="button" id="openReset">Open the reset link</button>
+      <p class="resend">Didn't get it? <button type="button" id="resend">Resend email</button> \u00b7 <button type="button" id="backTo1">Use a different email</button></p>
+    </div>
+
+    <!-- STEP 3 — NEW PASSWORD -->
+    <div id="step3" hidden>
+      <div class="auth-head">
+        <span class="logo-mark" id="cardLogo"></span>
+        <h1>Choose a new password</h1>
+        <p>Set a new password for <b id="resetFor">your account</b>.</p>
+      </div>
+      <div id="msg3"></div>
+      <form class="auth-form" id="resetForm" novalidate>
+        <div class="field">
+          <label for="newPw">New password</label>
+          <div class="pw-wrap">
+            <input id="newPw" type="password" placeholder="At least 6 characters" autocomplete="new-password">
+            <button class="pw-toggle" type="button" id="pwToggle" aria-label="Show password"></button>
+          </div>
+          <div class="strength" id="strength"><i></i><i></i><i></i></div>
+          <div class="strength-label" id="strengthLabel">Use 6 or more characters</div>
+        </div>
+        <div class="field">
+          <label for="confirmPw">Confirm new password</label>
+          <input id="confirmPw" type="password" placeholder="Repeat the new password" autocomplete="new-password">
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit" id="resetBtn">Update password</button>
+      </form>
+    </div>
+
+    <!-- STEP 4 — DONE -->
+    <div id="step4" hidden>
+      <div class="auth-head">
+        <div class="verify-mark">&#10003;</div>
+        <h1>Password updated</h1>
+        <p id="doneCopy">Your password has been changed. You can now sign in with your new password.</p>
+      </div>
+      <a class="btn btn-primary btn-lg btn-block" href="login.html">Go to sign in</a>
+      <p class="auth-alt"><a href="account.html">Back to my account</a></p>
+    </div>
+
+  </div>
+
+</main>
+
+<div id="site-footer"></div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  var S = window.Sokoni;
+  document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
+  var LOGO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16l-1.4 12.2a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8Z"/><path d="M8.5 7V5.5a3.5 3.5 0 0 1 7 0V7"/></svg>';
+  var cl = document.getElementById('cardLogo'); if (cl) cl.innerHTML = LOGO;
+  var km = document.getElementById('keyMark'); if (km) km.innerHTML = S.icon('key');
+  var mm = document.getElementById('mailMark'); if (mm) mm.innerHTML = S.icon('mail');
+
+  var email = '';
+
+  function showMsg(elId, kind, text) {
+    document.getElementById(elId).innerHTML = '<div class="' + kind + '" style="margin-bottom:16px">' +
+      S.icon(kind === 'form-error' ? 'alert' : 'checkCircle') + '<span>' + S.esc(text) + '</span></div>';
+  }
+  function setModal(step) {
+    [1, 2, 3, 4].forEach(function (n) { document.getElementById('step' + n).hidden = n !== step; });
+    document.querySelectorAll('[data-step-dot]').forEach(function (d, i) { d.classList.toggle('active', i <= step - 1); });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  var pw = document.getElementById('newPw');
+  var toggle = document.getElementById('pwToggle');
+  function drawToggle() {
+    toggle.innerHTML = S.icon(pw.type === 'password' ? 'eye' : 'lock');
+    toggle.setAttribute('aria-label', pw.type === 'password' ? 'Show password' : 'Hide password');
+  }
+  toggle.addEventListener('click', function () { pw.type = pw.type === 'password' ? 'text' : 'password'; drawToggle(); });
+  drawToggle();
+
+  var strength = document.getElementById('strength');
+  var strengthLabel = document.getElementById('strengthLabel');
+  pw.addEventListener('input', function () {
+    var v = pw.value, score = 0;
+    if (v.length >= 6) score++;
+    if (v.length >= 10 || (/[0-9]/.test(v) && /[a-zA-Z]/.test(v))) score++;
+    if (/[^a-zA-Z0-9]/.test(v) && v.length >= 8) score++;
+    strength.className = 'strength' + (v ? ' s' + score : '');
+    strengthLabel.textContent = !v ? 'Use 6 or more characters'
+      : score <= 1 ? 'Weak — add numbers or mix case'
+      : score === 2 ? 'Okay — a little longer would be better'
+      : 'Strong password';
+  });
+
+  /* STEP 1 */
+  document.getElementById('emailForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    email = document.getElementById('email').value.trim();
+    if (!S.isEmail(email)) { showMsg('msg1', 'form-error', 'Please enter a valid email address.'); return; }
+    var btn = document.getElementById('sendBtn');
+    btn.disabled = true; btn.textContent = 'Sending\u2026';
+    setTimeout(function () {
+      btn.disabled = false; btn.textContent = 'Send reset link';
+      document.getElementById('sentTo').textContent = email;
+      document.getElementById('resetFor').textContent = email;
+      setModal(2);
+    }, 600);
+  });
+
+  /* STEP 2 */
+  document.getElementById('openReset').addEventListener('click', function () { setModal(3); });
+  document.getElementById('resend').addEventListener('click', function () {
+    showMsg('msg1', 'form-ok', 'Reset email sent again (demo).');
+    document.getElementById('msg1').innerHTML = '';
+    S.toast('Reset email sent again (demo)', 'mail');
+  });
+  document.getElementById('backTo1').addEventListener('click', function () { setModal(1); });
+
+  /* STEP 3 */
+  document.getElementById('resetForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var a = pw.value, b = document.getElementById('confirmPw').value;
+    if (!a || a.length < 6) { showMsg('msg3', 'form-error', 'Your new password must be at least 6 characters.'); return; }
+    if (a !== b) { showMsg('msg3', 'form-error', 'The two passwords do not match.'); return; }
+
+    var btn = document.getElementById('resetBtn');
+    btn.disabled = true; btn.textContent = 'Updating\u2026';
+    setTimeout(function () {
+      btn.disabled = false; btn.textContent = 'Update password';
+      var changed = S.setPassword(email, a);
+      document.getElementById('doneCopy').textContent = changed
+        ? 'Your password has been changed. Sign in with your new password.'
+        : 'Demo complete — no account matched that email, so nothing changed on the server. In a real store, the reset link would only work for a real account.';
+      setModal(4);
+    }, 650);
+  });
+
+  setModal(1);
+})();
+</script>
+</body>
+</html>

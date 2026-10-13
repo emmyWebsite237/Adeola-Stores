@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your account — Sokoni</title>
+<meta name="description" content="Your Sokoni account: profile, saved addresses, order history and wishlist.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>&#128717;&#65039;</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="account">
+
+<div id="site-header"></div>
+
+<section class="page-head">
+  <div class="wrap">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html">Home</a><span data-i="chevronRight"></span><span>Your account</span>
+    </nav>
+    <h1 id="pageTitle">Your account</h1>
+    <p class="sub" id="pageSub">Profile, addresses, orders and saved items — all in one place.</p>
+  </div>
+</section>
+
+<main id="accountApp" class="section"></main>
+
+<div id="site-footer"></div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  var S = window.Sokoni;
+  document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
+
+  var app = document.getElementById('accountApp');
+  var active = (location.hash || '#overview').replace('#', '');
+
+  var TABS = [
+    { key: 'overview',  icon: 'grid',     label: 'Overview' },
+    { key: 'orders',    icon: 'package',  label: 'Order history' },
+    { key: 'wishlist',  icon: 'heart',    label: 'Wishlist' },
+    { key: 'addresses', icon: 'mapPin',   label: 'Saved addresses' },
+    { key: 'profile',   icon: 'user',     label: 'Profile & security' }
+  ];
+
+  function user() { return S.currentUser(); }
+  function myOrders(u) {
+    return S.orders().filter(function (o) { return o.email === u.email; });
+  }
+
+  /* ---------- signed out ---------- */
+  function signedOutHTML() {
+    return '<div class="wrap"><div class="empty" style="padding:70px 30px;max-width:620px;margin:0 auto">' +
+      '<div style="width:84px;height:84px;border-radius:50%;background:var(--teal-soft);color:var(--teal-dark);display:grid;place-items:center;margin:0 auto 20px">' +
+      '<span style="width:38px;height:38px;display:block">' + S.icon('user') + '</span></div>' +
+      '<b>You are not signed in</b>' +
+      '<p style="margin:6px 0 4px">Sign in to see your order history, saved addresses and wishlist.</p>' +
+      '<div class="wl-cta">' +
+        '<a class="btn btn-primary btn-lg" href="login.html?next=account.html">' + S.icon('lock') + ' Sign in</a>' +
+        '<a class="btn btn-outline btn-lg" href="signup.html">' + S.icon('userPlus') + ' Create an account</a>' +
+      '</div>' +
+      '<p style="margin-top:20px;font-size:.85rem">Demo account: <b>alex@example.com</b> \u00b7 <b>demo1234</b></p>' +
+    '</div></div>';
+  }
+
+  /* ---------- order card ---------- */
+  function orderCardHTML(o, open) {
+    var lines = S.orderLines(o);
+    var total = S.orderTotal(o);
+    var idx = S.statusIndex(o.statusKey);
+    var done = o.statusKey === 'delivered';
+
+    var itemsHTML = lines.map(function (l) {
+      return '<div class="oc-item">' +
+        '<span class="oc-item-media"><a href="product.html?id=' + l.product.id + '"><img src="' + l.product.image + '" alt=""></a></span>' +
+        '<div><b><a href="product.html?id=' + l.product.id + '">' + S.esc(l.product.name) + '</a></b>' +
+          '<small>' + S.money(l.product.price) + ' \u00d7 ' + l.qty + '</small></div>' +
+        '<span class="amt">' + S.money(l.line) + '</span></div>';
+    }).join('');
+
+    var track = S.STATUS_FLOW.map(function (s, i) {
+      var cls = i < idx ? 'done' : (i === idx ? (done ? 'done' : 'current') : '');
+      return '<div class="tstep ' + cls + '"><div class="tstep-rail">' +
+        '<span class="tstep-dot">' + (i < idx ? S.icon('check') : '') + '</span><span class="tstep-line"></span></div>' +
+        '<div class="tstep-body"><b>' + s.label + '</b><small>' + s.blurb + '</small></div></div>';
+    }).join('');
+
+    return '<article class="order-card reveal' + (open ? ' in' : '') + '">' +
+      '<div class="oc-head">' +
+        '<div><span class="oc-code">' + o.code + '</span>' +
+          '<small>Placed ' + o.date + ' \u00b7 ' + S.orderCount(o) + ' item' + (S.orderCount(o) === 1 ? '' : 's') + '</small></div>' +
+        '<span class="status-pill ' + o.statusKey + '"><span class="sdot"></span>' + S.statusLabel(o.statusKey) + '</span>' +
+      '</div>' +
+      '<div class="oc-meta" style="padding:16px 22px;border-bottom:1px solid var(--line)">' +
+        '<div><small>Delivery to</small><b>' + S.esc(o.name) + '</b></div>' +
+        '<div><small>Method</small><b>' + S.esc(o.methodLabel) + '</b></div>' +
+        '<div><small>Payment</small><b>' + S.esc(o.payLabel) + '</b></div>' +
+        '<div><small>' + (done ? 'Delivered on' : 'Estimated arrival') + '</small><b>' + o.eta + '</b></div>' +
+      '</div>' +
+      '<div class="oc-items">' + itemsHTML + '</div>' +
+      '<div class="oc-track" id="track-' + o.code + '" style="display:' + (open ? 'block' : 'none') + '">' +
+        '<div class="track-steps">' + track + '</div>' +
+      '</div>' +
+      '<div class="oc-foot">' +
+        '<span class="oc-total">Order total <b>' + S.money(total) + '</b></span>' +
+        '<div class="oc-actions">' +
+          '<button class="btn btn-outline btn-sm" data-track="' + o.code + '">' + S.icon('truck') + ' ' + (open ? 'Hide tracking' : 'Track order') + '</button>' +
+          '<button class="btn btn-primary btn-sm" data-reorder="' + o.code + '">' + S.icon('refresh') + ' Buy again</button>' +
+        '</div>' +
+      '</div>' +
+    '</article>';
+  }
+
+  /* ---------- panels ---------- */
+  function panelOverview(u) {
+    var orders = myOrders(u);
+    var activeOrder = orders.filter(function (o) { return o.statusKey !== 'delivered' && o.statusKey !== 'cancelled'; })[0];
+    var wl = S.wishlist().length;
+    var addr = (u.addresses || []).length;
+
+    return '<div class="acct-panel' + (active === 'overview' ? ' active' : '') + '" id="panel-overview">' +
+      '<h2>Welcome back, ' + S.esc(u.firstName || 'there') + '</h2>' +
+      '<p class="lede">Here is a quick look at your account activity.</p>' +
+
+      '<div class="props" style="grid-template-columns:repeat(4,1fr);margin-bottom:26px">' +
+        '<div class="prop"><span class="prop-ico">' + S.icon('package') + '</span><div><b>' + orders.length + '</b><p>Order' + (orders.length === 1 ? '' : 's') + ' placed</p></div></div>' +
+        '<div class="prop"><span class="prop-ico">' + S.icon('heart') + '</span><div><b>' + wl + '</b><p>Saved item' + (wl === 1 ? '' : 's') + '</p></div></div>' +
+        '<div class="prop"><span class="prop-ico">' + S.icon('mapPin') + '</span><div><b>' + addr + '</b><p>Saved address' + (addr === 1 ? '' : 'es') + '</p></div></div>' +
+        '<div class="prop"><span class="prop-ico">' + S.icon('calendar') + '</span><div><b>' + S.esc(u.createdAt || 'Today') + '</b><p>Member since</p></div></div>' +
+      '</div>' +
+
+      (activeOrder
+        ? '<h3 style="margin-bottom:14px">On its way to you</h3>' + orderCardHTML(activeOrder, true)
+        : '<div class="empty" style="padding:40px 24px;margin-bottom:26px"><b>No active deliveries</b>' +
+          '<p style="margin-top:6px">When you place an order, you can follow it here.</p>' +
+          '<div class="wl-cta"><a class="btn btn-primary" href="products.html">Start shopping</a></div></div>') +
+
+      '<h3 style="margin:10px 0 14px">Quick actions</h3>' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
+        '<button class="btn btn-outline" data-panel="orders">' + S.icon('package') + ' All orders</button>' +
+        '<button class="btn btn-outline" data-panel="wishlist">' + S.icon('heart') + ' My wishlist</button>' +
+        '<button class="btn btn-outline" data-panel="addresses">' + S.icon('mapPin') + ' Manage addresses</button>' +
+        '<button class="btn btn-outline" data-panel="profile">' + S.icon('user') + ' Edit profile</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function panelOrders(u) {
+    var orders = myOrders(u);
+    return '<div class="acct-panel' + (active === 'orders' ? ' active' : '') + '" id="panel-orders">' +
+      '<h2>Order history</h2>' +
+      '<p class="lede">' + (orders.length ? orders.length + ' order' + (orders.length === 1 ? '' : 's') + ' on this account — included sample orders plus anything you have bought in this demo.' : 'No orders yet on this account.') + '</p>' +
+      (orders.length
+        ? orders.map(function (o) { return orderCardHTML(o, false); }).join('')
+        : '<div class="empty" style="padding:50px 24px"><b>Nothing here yet</b>' +
+          '<p style="margin:6px 0 4px">Place a demo order and it will appear in this list straight away.</p>' +
+          '<div class="wl-cta"><a class="btn btn-primary" href="products.html">Browse the catalogue</a></div></div>') +
+    '</div>';
+  }
+
+  function panelWishlist(u) {
+    var items = S.wishlist().map(function (id) { return S.getProduct(id); }).filter(Boolean);
+    return '<div class="acct-panel' + (active === 'wishlist' ? ' active' : '') + '" id="panel-wishlist">' +
+      '<h2>Wishlist</h2>' +
+      '<p class="lede">' + (items.length ? items.length + ' saved item' + (items.length === 1 ? '' : 's') + '. Tap a heart to remove.' : 'Nothing saved yet.') + '</p>' +
+      (items.length
+        ? '<div class="grid-products wishlist-grid" id="acctWish"></div>' +
+          '<div class="wl-cta" style="justify-content:flex-start"><a class="btn btn-outline" href="wishlist.html">' + S.icon('heart') + ' Open full wishlist page</a></div>'
+        : '<div class="empty" style="padding:50px 24px"><b>Your wishlist is empty</b>' +
+          '<p style="margin:6px 0 4px">Tap the heart on any product to save it for later.</p>' +
+          '<div class="wl-cta"><a class="btn btn-primary" href="products.html">Browse products</a></div></div>') +
+    '</div>';
+  }
+
+  function addressCardHTML(a) {
+    return '<div class="addr-card' + (a.isDefault ? ' default' : '') + '">' +
+      (a.isDefault ? '<span class="tag-def">Default</span>' : '') +
+      '<b>' + S.esc(a.label || 'Address') + '</b>' +
+      '<p>' + S.esc(a.name) + '<br>' + S.esc(a.line1) + '<br>' +
+        S.esc(a.city) + ', ' + S.esc(a.region) + (a.postal ? ' ' + S.esc(a.postal) : '') + '<br>' +
+        S.esc(a.country) + '<br>' + S.esc(a.phone || '') + '</p>' +
+      '<div class="addr-actions">' +
+        '<button data-defaddr="' + a.id + '">' + S.icon('check') + ' Set as default</button>' +
+        '<button class="danger" data-deladdr="' + a.id + '">' + S.icon('trash') + ' Remove</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function panelAddresses(u) {
+    var list = u.addresses || [];
+    return '<div class="acct-panel' + (active === 'addresses' ? ' active' : '') + '" id="panel-addresses">' +
+      '<h2>Saved addresses</h2>' +
+      '<p class="lede">We use your default address to prefill checkout.</p>' +
+      '<div class="addr-grid" id="addrGrid">' +
+        list.map(addressCardHTML).join('') +
+        '<button class="addr-add" id="addAddr" type="button">' + S.icon('plus') + '<span>Add a new address</span></button>' +
+      '</div>' +
+      '<div id="addrForm"></div>' +
+    '</div>';
+  }
+
+  function addressFormHTML() {
+    return '<div class="panel" style="margin-top:22px">' +
+      '<div class="panel-head"><b>New address</b>' +
+        '<button class="btn btn-ghost btn-sm" id="cancelAddr" type="button">' + S.icon('close') + ' Cancel</button></div>' +
+      '<div class="panel-body"><form id="newAddrForm" novalidate>' +
+        '<div class="form-grid">' +
+          '<div class="field"><label for="aLabel">Label</label><input id="aLabel" placeholder="Home, Work\u2026" value="Home"></div>' +
+          '<div class="field"><label for="aName">Recipient name</label><input id="aName" placeholder="Full name"></div>' +
+          '<div class="field full"><label for="aLine">Street address</label><input id="aLine" placeholder="27 Bourdillon Road"></div>' +
+          '<div class="field"><label for="aCity">City</label><input id="aCity" placeholder="Lagos"></div>' +
+          '<div class="field"><label for="aRegion">State / region</label><input id="aRegion" placeholder="Lagos State"></div>' +
+          '<div class="field"><label for="aPostal">Postal code</label><input id="aPostal" placeholder="101241"></div>' +
+          '<div class="field"><label for="aCountry">Country</label>' +
+            '<select id="aCountry"><option>Nigeria</option><option>Ghana</option><option>Kenya</option><option>South Africa</option></select></div>' +
+          '<div class="field"><label for="aPhone">Phone</label><input id="aPhone" placeholder="+234 800 000 0000"></div>' +
+        '</div>' +
+        '<button class="btn btn-primary" id="saveAddr" type="button" style="margin-top:18px">' + S.icon('check') + ' Save address</button>' +
+      '</form></div></div>';
+  }
+
+  function panelProfile(u) {
+    var verifiedBadge = u.verified
+      ? '<span class="status-pill delivered" style="margin-left:10px"><span class="sdot"></span>Email verified</span>'
+      : '<span class="status-pill packed" style="margin-left:10px"><span class="sdot"></span>Verification pending</span>';
+    return '<div class="acct-panel' + (active === 'profile' ? ' active' : '') + '" id="panel-profile">' +
+      '<h2>Profile &amp; security</h2>' +
+      '<p class="lede">Your details are stored only in this browser (localStorage) — nothing is sent to a server.</p>' +
+
+      '<div class="panel" style="margin-bottom:22px"><div class="panel-head"><b>Personal details</b>' + verifiedBadge + '</div>' +
+        '<div class="panel-body"><form id="profileForm" novalidate>' +
+          '<div class="form-grid">' +
+            '<div class="field"><label for="pFirst">First name</label><input id="pFirst" value="' + S.esc(u.firstName || '') + '"></div>' +
+            '<div class="field"><label for="pLast">Last name</label><input id="pLast" value="' + S.esc(u.lastName || '') + '"></div>' +
+            '<div class="field"><label for="pEmail">Email</label><input id="pEmail" type="email" value="' + S.esc(u.email) + '" readonly style="background:var(--bg);color:var(--muted)"></div>' +
+            '<div class="field"><label for="pPhone">Phone</label><input id="pPhone" value="' + S.esc(u.phone || '') + '"></div>' +
+            '<div class="field"><label for="pDob">Date of birth</label><input id="pDob" type="date" value="' + S.esc(u.dob || '') + '"></div>' +
+            '<div class="field" style="justify-content:flex-end">' +
+              '<label class="check-inline"><input type="checkbox" id="pMarketing"' + (u.marketing ? ' checked' : '') + '> <span>Send me deals and new arrivals</span></label>' +
+            '</div>' +
+          '</div>' +
+          '<button class="btn btn-primary" id="saveProfile" type="button" style="margin-top:18px">' + S.icon('check') + ' Save changes</button>' +
+        '</form></div>' +
+      '</div>' +
+
+      '<div class="panel"><div class="panel-head"><b>Change password</b></div>' +
+        '<div class="panel-body"><form id="pwForm" novalidate>' +
+          '<div class="form-grid">' +
+            '<div class="field full"><label for="pwCurrent">Current password</label><input id="pwCurrent" type="password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"></div>' +
+            '<div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" placeholder="At least 6 characters"></div>' +
+            '<div class="field"><label for="pwConfirm">Confirm new password</label><input id="pwConfirm" type="password" placeholder="Repeat it"></div>' +
+          '</div>' +
+          '<button class="btn btn-dark" id="savePw" type="button" style="margin-top:18px">' + S.icon('key') + ' Update password</button>' +
+        '</form></div>' +
+      '</div>' +
+
+      '<div class="form-error" style="margin-top:22px;background:var(--bg);color:var(--muted)">' +
+        S.icon('alert') + '<span>This is a demonstration store. Passwords and profile data live only in your browser\'s localStorage and are never transmitted anywhere.</span></div>' +
+    '</div>';
+  }
+
+  /* ---------- shell ---------- */
+  function shellHTML(u) {
+    var orders = myOrders(u);
+    var wl = S.wishlist().length;
+    var addr = (u.addresses || []).length;
+    var counts = { orders: orders.length, wishlist: wl, addresses: addr };
+
+    var nav = TABS.map(function (t) {
+      return '<button data-panel="' + t.key + '"' + (active === t.key ? ' class="active"' : '') + '>' +
+        S.icon(t.icon) + '<span>' + t.label + '</span>' +
+        (counts[t.key] != null ? '<span class="badge-n">' + counts[t.key] + '</span>' : '') + '</button>';
+    }).join('');
+
+    return '<div class="wrap"><div class="acct">' +
+      '<aside class="acct-side">' +
+        '<div class="acct-user">' +
+          '<span class="avatar-lg">' + S.esc((u.firstName || u.email || 'U').charAt(0).toUpperCase()) + '</span>' +
+          '<div><b>' + S.esc((u.firstName || '') + ' ' + (u.lastName || '')) + '</b>' +
+            '<small>' + S.esc(u.email) + '</small></div>' +
+        '</div>' +
+        '<nav class="acct-nav">' + nav + '</nav>' +
+        '<div class="acct-sep"></div>' +
+        '<button class="btn btn-outline btn-block" id="logoutBtn" type="button">' + S.icon('logOut') + ' Sign out</button>' +
+      '</aside>' +
+      '<div>' +
+        panelOverview(u) + panelOrders(u) + panelWishlist(u) + panelAddresses(u) + panelProfile(u) +
+      '</div>' +
+    '</div></div>';
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    var u = user();
+    if (!u) {
+      app.innerHTML = signedOutHTML();
+      document.getElementById('pageTitle').textContent = 'Your account';
+      document.getElementById('pageSub').textContent = 'Sign in to see your orders, addresses and wishlist.';
+      return;
+    }
+    document.getElementById('pageTitle').textContent = 'Hello, ' + (u.firstName || 'there');
+    document.getElementById('pageSub').textContent = 'Manage your profile, addresses, orders and saved items.';
+    app.innerHTML = shellHTML(u);
+    var wg = document.getElementById('acctWish');
+    if (wg) {
+      var items = S.wishlist().map(function (id) { return S.getProduct(id); }).filter(Boolean);
+      S.renderProducts('#acctWish', items);
+    }
+    S.refreshWishUI();
+    S.stagger('.order-card', .06);
+  }
+
+  function showPanel(key) {
+    active = key;
+    location.hash = key;
+    document.querySelectorAll('.acct-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'panel-' + key); });
+    document.querySelectorAll('.acct-nav button').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-panel') === key); });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ---------- events ---------- */
+  app.addEventListener('click', function (e) {
+    var nav = e.target.closest('[data-panel]');
+    if (nav) { showPanel(nav.getAttribute('data-panel')); return; }
+
+    if (e.target.closest('#logoutBtn')) {
+      S.logout();
+      S.toast('You have been signed out', 'logOut');
+      render();
+      return;
+    }
+
+    var tr = e.target.closest('[data-track]');
+    if (tr) {
+      var box = document.getElementById('track-' + tr.getAttribute('data-track'));
+      var open = box.style.display !== 'none';
+      box.style.display = open ? 'none' : 'block';
+      tr.innerHTML = S.icon('truck') + ' ' + (open ? 'Track order' : 'Hide tracking');
+      return;
+    }
+
+    var ro = e.target.closest('[data-reorder]');
+    if (ro) {
+      var code = ro.getAttribute('data-reorder');
+      var order = S.orders().filter(function (o) { return o.code === code; })[0];
+      if (order) {
+        order.items.forEach(function (it) { S.addToCart(it.id, it.qty); });
+        S.toast('Items added to your cart');
+        window.location.href = 'cart.html';
+      }
+      return;
+    }
+
+    var def = e.target.closest('[data-defaddr]');
+    if (def) {
+      var did = def.getAttribute('data-defaddr');
+      var u1 = user();
+      var addrs = (u1.addresses || []).map(function (a) { return { id: a.id, label: a.label, name: a.name, line1: a.line1, city: a.city, region: a.region, postal: a.postal, country: a.country, phone: a.phone, isDefault: a.id === did }; });
+      S.updateUser({ addresses: addrs });
+      S.toast('Default address updated');
+      render(); showPanel('addresses');
+      return;
+    }
+
+    var del = e.target.closest('[data-deladdr]');
+    if (del) {
+      var id = del.getAttribute('data-deladdr');
+      var u2 = user();
+      S.updateUser({ addresses: (u2.addresses || []).filter(function (a) { return a.id !== id; }) });
+      S.toast('Address removed');
+      render(); showPanel('addresses');
+      return;
+    }
+
+    if (e.target.closest('#addAddr')) {
+      document.getElementById('addrForm').innerHTML = addressFormHTML();
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      return;
+    }
+    if (e.target.closest('#cancelAddr')) { document.getElementById('addrForm').innerHTML = ''; return; }
+
+    if (e.target.closest('#saveAddr')) {
+      var get = function (i) { var el = document.getElementById(i); return el ? el.value.trim() : ''; };
+      var payload = {
+        id: 'addr-' + Date.now().toString(36),
+        label: get('aLabel') || 'Address', name: get('aName'), line1: get('aLine'),
+        city: get('aCity'), region: get('aRegion'), postal: get('aPostal'),
+        country: get('aCountry'), phone: get('aPhone'), isDefault: false
+      };
+      if (!payload.name || !payload.line1 || !payload.city) { S.toast('Please fill in name, street and city', 'bell'); return; }
+      var u3 = user();
+      var list = (u3.addresses || []).concat([payload]);
+      if (list.length === 1) list[0].isDefault = true;
+      S.updateUser({ addresses: list });
+      S.toast('Address saved');
+      render(); showPanel('addresses');
+      return;
+    }
+
+    if (e.target.closest('#saveProfile')) {
+      var g = function (i) { var el = document.getElementById(i); return el ? el.value.trim() : ''; };
+      S.updateUser({
+        firstName: g('pFirst'), lastName: g('pLast'), phone: g('pPhone'), dob: g('pDob'),
+        marketing: document.getElementById('pMarketing').checked
+      });
+      S.toast('Profile updated');
+      render(); showPanel('profile');
+      return;
+    }
+
+    if (e.target.closest('#savePw')) {
+      var u4 = user();
+      var cur = document.getElementById('pwCurrent').value;
+      var nw = document.getElementById('pwNew').value;
+      var cf = document.getElementById('pwConfirm').value;
+      if (cur !== u4.password) { S.toast('Current password is incorrect', 'bell'); return; }
+      if (!nw || nw.length < 6) { S.toast('New password must be at least 6 characters', 'bell'); return; }
+      if (nw !== cf) { S.toast('The new passwords do not match', 'bell'); return; }
+      S.setPassword(u4.email, nw);
+      S.toast('Password updated');
+      render(); showPanel('profile');
+      return;
+    }
+
+    /* removing a saved item from the account wishlist panel */
+    if (e.target.closest('[data-wish]')) {
+      setTimeout(function () { render(); showPanel('wishlist'); }, 0);
+    }
+  });
+
+  window.addEventListener('hashchange', function () { showPanel((location.hash || '#overview').replace('#', '')); });
+
+  render();
+  S.observeReveals();
+})();
+</script>
+</body>
+</html>

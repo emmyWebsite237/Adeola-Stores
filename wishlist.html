@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your wishlist — Sokoni</title>
+<meta name="description" content="Products you have saved for later on Sokoni.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>&#128717;&#65039;</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="wishlist">
+
+<div id="site-header"></div>
+
+<main>
+
+  <section class="page-head">
+    <div class="wrap">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="index.html">Home</a><span data-i="chevronRight"></span><span>Wishlist</span>
+      </nav>
+      <h1>Your wishlist</h1>
+      <p class="sub">Everything you have saved, in one place. Tap the heart on any product to add or remove it.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div id="wlApp"></div>
+    </div>
+  </section>
+
+</main>
+
+<div id="site-footer"></div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  var S = window.Sokoni;
+  document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
+
+  var app = document.getElementById('wlApp');
+
+  function render() {
+    var ids = S.wishlist();
+    var items = ids.map(function (id) { return S.getProduct(id); }).filter(Boolean);
+
+    if (!items.length) {
+      app.innerHTML = '<div class="empty" style="padding:70px 30px">' +
+        '<div style="width:84px;height:84px;border-radius:50%;background:var(--coral-soft);color:var(--coral);display:grid;place-items:center;margin:0 auto 20px">' +
+        '<span style="width:36px;height:36px;display:block">' + S.icon('heart') + '</span></div>' +
+        '<b>Your wishlist is empty</b>' +
+        '<p style="margin:6px 0 4px">Tap the heart on any product and it will show up here.</p>' +
+        '<div class="wl-cta"><a class="btn btn-primary btn-lg" href="products.html">' + S.icon('grid') + ' Browse the catalogue</a>' +
+        '<a class="btn btn-outline btn-lg" href="search.html">' + S.icon('search') + ' Search products</a></div>' +
+        '</div>';
+      S.updateBadge();
+      return;
+    }
+
+    var total = items.reduce(function (s, p) { return s + p.price; }, 0);
+    var saving = items.reduce(function (s, p) { return s + (p.oldPrice ? p.oldPrice - p.price : 0); }, 0);
+
+    app.innerHTML =
+      '<div class="wl-bar">' +
+        '<span class="count"><b>' + items.length + '</b> saved item' + (items.length === 1 ? '' : 's') +
+          ' \u00b7 total value <b>' + S.money(total) + '</b>' +
+          (saving > 0 ? ' \u00b7 you are saving <b style="color:var(--coral)">' + S.money(saving) + '</b>' : '') + '</span>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn btn-primary btn-sm" id="addAll" type="button">' + S.icon('cart') + ' Add all to cart</button>' +
+          '<button class="btn btn-outline btn-sm" id="clearWish" type="button">' + S.icon('trash') + ' Clear wishlist</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="grid-products wishlist-grid" id="wishGrid"></div>';
+
+    S.renderProducts('#wishGrid', items);
+    S.refreshWishUI();
+    S.stagger('.pcard', .05);
+  }
+
+  app.addEventListener('click', function (e) {
+    if (e.target.closest('#addAll')) {
+      var ids = S.wishlist();
+      ids.forEach(function (id) { S.addToCart(id, 1); });
+      S.toast(ids.length + ' item' + (ids.length === 1 ? '' : 's') + ' added to cart');
+      return;
+    }
+    if (e.target.closest('#clearWish')) {
+      S.wishlist().slice().forEach(function (id) { S.toggleWish(id); });
+      S.refreshWishUI();
+      S.toast('Wishlist cleared');
+      render();
+      return;
+    }
+    /* removing a saved item re-renders the grid so the card disappears */
+    if (e.target.closest('[data-wish]')) {
+      setTimeout(render, 0);
+    }
+  });
+
+  render();
+  S.observeReveals();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product — Sokoni</title>
+<meta name="description" content="Product details, specifications and customer reviews on Sokoni.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛍️</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="product">
+
+<div id="site-header"></div>
+
+<main id="pdp"></main>
+
+<section class="section section--tight">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div>
+        <span class="eyebrow">You may also like</span>
+        <h2>Related products</h2>
+      </div>
+      <a class="link-arrow" href="products.html">Browse everything <span data-i="arrowRight"></span></a>
+    </div>
+    <div class="grid-products" id="related"></div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  var S = window.Sokoni;
+
+  document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
+
+  var id = S.param('id');
+  var p = S.getProduct(id);
+  if (!p) p = S.PRODUCTS[0];
+
+  var d = S.discountOf(p);
+  var inStock = p.stock > 0;
+  var low = p.stock > 0 && p.stock <= 15;
+  var reviews = S.reviewsFor(p);
+  var breakdown = S.ratingBreakdown(p);
+  var thumbs = [p.image, p.scene].filter(Boolean);
+
+  document.title = p.name + ' — Sokoni';
+
+  var stockPill = !inStock
+    ? '<span class="stock-pill low"><span class="dot2"></span> Out of stock</span>'
+    : (low
+      ? '<span class="stock-pill low"><span class="dot2"></span> Only ' + p.stock + ' left</span>'
+      : '<span class="stock-pill"><span class="dot2"></span> In stock (' + p.stock + ')</span>');
+
+  var specRows = Object.keys(p.specs).map(function (k) {
+    return '<tr><td>' + S.esc(k) + '</td><td>' + S.esc(p.specs[k]) + '</td></tr>';
+  }).join('');
+
+  var featureItems = p.features.map(function (f) {
+    return '<li>' + S.icon('checkCircle') + '<span>' + S.esc(f) + '</span></li>';
+  }).join('');
+
+  /* rating bars */
+  var barsHTML = breakdown.map(function (pct, i) {
+    var star = 5 - i;
+    return '<div class="bar-row"><span>' + star + '★</span>' +
+      '<span class="bar-track"><span class="bar-fill" data-w="' + pct + '"></span></span>' +
+      '<span>' + pct + '%</span></div>';
+  }).join('');
+
+  /* reviews */
+  var reviewsHTML = reviews.map(function (r) {
+    var initial = r.name.charAt(0);
+    var full = Math.round(r.rating), t = '';
+    for (var i = 1; i <= 5; i++) {
+      t += '<span style="opacity:' + (i <= full ? 1 : .25) + '">' + S.icon('star') + '</span>';
+    }
+    return '<article class="review">' +
+      '<div class="review-top">' +
+        '<span class="avatar" style="background:' + r.color + '">' + initial + '</span>' +
+        '<div><b>' + S.esc(r.name) + ' <span class="verified">' + S.icon('checkCircle') + ' Verified purchase</span></b>' +
+        '<small>' + r.date + '</small></div>' +
+      '</div>' +
+      '<span class="stars"><span class="s-icons">' + t + '</span><span>' + S.esc(r.title) + '</span></span>' +
+      '<p>' + S.esc(r.text) + '</p>' +
+    '</article>';
+  }).join('');
+
+  var related = S.PRODUCTS.filter(function (x) { return x.category === p.category && x.id !== p.id; });
+  if (related.length < 4) {
+    related = related.concat(S.PRODUCTS.filter(function (x) { return x.id !== p.id && related.indexOf(x) === -1; }));
+  }
+  related = related.slice(0, 4);
+
+  document.getElementById('pdp').innerHTML = '' +
+  '<section class="page-head"><div class="wrap">' +
+    '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Home</a>' + S.icon('chevronRight') +
+    '<a href="products.html">Shop</a>' + S.icon('chevronRight') +
+    '<a href="products.html?cat=' + p.category + '">' + S.esc(S.catName(p.category)) + '</a>' + S.icon('chevronRight') +
+    '<span>' + S.esc(p.name) + '</span></nav>' +
+  '</div></section>' +
+
+  '<section class="section"><div class="wrap">' +
+    '<div class="pdp">' +
+
+      '<div class="gallery reveal">' +
+        '<div class="gallery-main"><img id="mainImg" src="' + p.image + '" alt="' + S.esc(p.name) + '"></div>' +
+        '<div class="gallery-thumbs" id="thumbs">' +
+          thumbs.map(function (src, i) {
+            return '<button class="thumb' + (i === 0 ? ' active' : '') + '" data-src="' + src + '" aria-label="View image ' + (i + 1) + '"><img src="' + src + '" alt=""></button>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+
+      '<div class="pdp-info reveal">' +
+        '<span class="pcard-cat">' + S.esc(p.brand) + ' · ' + S.esc(S.catName(p.category)) + '</span>' +
+        '<h1 style="margin-top:8px">' + S.esc(p.name) + '</h1>' +
+        '<div class="pdp-meta">' + S.starHTML(p.rating, p.reviewCount) + stockPill + '</div>' +
+
+        '<div class="pdp-price">' +
+          '<span class="price">' + S.money(p.price) + '</span>' +
+          (p.oldPrice ? '<span class="price-old">' + S.money(p.oldPrice) + '</span>' : '') +
+          (d ? '<span class="save">Save ' + d + '%</span>' : '') +
+        '</div>' +
+        '<p style="color:var(--muted);font-size:.86rem">Incl. VAT · Free delivery over ' + S.money(100) + '</p>' +
+
+        '<p class="pdp-desc">' + S.esc(p.description) + '</p>' +
+
+        '<ul class="feature-list">' + featureItems + '</ul>' +
+
+        '<div class="buy-row">' +
+          '<span class="qty">' +
+            '<button type="button" id="qMinus" aria-label="Decrease quantity">' + S.icon('minus') + '</button>' +
+            '<input type="number" id="pdpQty" value="1" min="1" max="99" inputmode="numeric" aria-label="Quantity">' +
+            '<button type="button" id="qPlus" aria-label="Increase quantity">' + S.icon('plus') + '</button>' +
+          '</span>' +
+          '<button class="btn btn-primary btn-lg" data-add="' + p.id + '" data-from="pdp"' + (inStock ? '' : ' disabled') + '>' + S.icon('cart') + ' Add to cart</button>' +
+          '<button class="btn btn-outline btn-lg" id="buyNow"' + (inStock ? '' : ' disabled') + '>' + S.icon('zap') + ' Buy now</button>' +
+          '<button class="btn btn-outline btn-lg" data-wish="' + p.id + '" aria-label="Save for later" style="padding:16px 18px">' + S.icon('heart') + '</button>' +
+        '</div>' +
+
+        '<div class="pdp-perks">' +
+          '<div class="perk">' + S.icon('truck') + '<div><b>Free delivery over ' + S.money(100) + '</b><small>Typical delivery 1–3 working days</small></div></div>' +
+          '<div class="perk">' + S.icon('refresh') + '<div><b>30-day returns</b><small>Send it back for a full refund</small></div></div>' +
+          '<div class="perk">' + S.icon('shield') + '<div><b>2-year warranty</b><small>Covered against manufacturing faults</small></div></div>' +
+          '<div class="perk">' + S.icon('headset') + '<div><b>Support 8am–8pm</b><small>Call, chat or email — real people</small></div></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="tabs">' +
+      '<div class="tabs-nav" role="tablist">' +
+        '<button class="active" data-tab="desc" role="tab">Description</button>' +
+        '<button data-tab="specs" role="tab">Specifications</button>' +
+        '<button data-tab="reviews" role="tab">Reviews (' + reviews.length + ')</button>' +
+        '<button data-tab="shipping" role="tab">Shipping &amp; returns</button>' +
+      '</div>' +
+
+      '<div class="tab-panel active" id="tab-desc" role="tabpanel">' +
+        '<h3 style="margin-bottom:12px">About this product</h3>' +
+        '<p style="color:var(--muted);max-width:75ch">' + S.esc(p.description) + '</p>' +
+        '<h3 style="margin:26px 0 14px">Highlights</h3>' +
+        '<ul class="feature-list">' + featureItems + '</ul>' +
+      '</div>' +
+
+      '<div class="tab-panel" id="tab-specs" role="tabpanel">' +
+        '<h3 style="margin-bottom:12px">Specifications</h3>' +
+        '<table class="spec-table">' + specRows + '</table>' +
+      '</div>' +
+
+      '<div class="tab-panel" id="tab-reviews" role="tabpanel">' +
+        '<div class="reviews">' +
+          '<div class="rating-summary">' +
+            '<div class="big">' + p.rating.toFixed(1) + '</div>' +
+            '<div class="s-icons">' + (function () {
+              var full = Math.round(p.rating), t = '';
+              for (var i = 1; i <= 5; i++) t += '<span style="opacity:' + (i <= full ? 1 : .25) + '">' + S.icon('star') + '</span>';
+              return t;
+            })() + '</div>' +
+            '<div style="color:var(--muted);font-size:.86rem">Based on ' + p.reviewCount + ' reviews</div>' +
+            '<div class="bars">' + barsHTML + '</div>' +
+            '<button class="btn btn-outline btn-block" style="margin-top:20px" id="writeReview" type="button">' + S.icon('award') + ' Write a review</button>' +
+          '</div>' +
+          '<div>' + reviewsHTML + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="tab-panel" id="tab-shipping" role="tabpanel">' +
+        '<div class="props" style="grid-template-columns:repeat(2,1fr)">' +
+          '<div class="prop"><span class="prop-ico">' + S.icon('truck') + '</span><div><b>Delivery</b><p>Free over ' + S.money(100) + '. Under that, a flat ' + S.money(9.9) + '. Most orders arrive in 1–3 working days.</p></div></div>' +
+          '<div class="prop"><span class="prop-ico">' + S.icon('refresh') + '</span><div><b>Returns</b><p>30 days from delivery, unused and in its original packaging. We arrange the pickup.</p></div></div>' +
+          '<div class="prop"><span class="prop-ico">' + S.icon('shield') + '</span><div><b>Warranty</b><p>2-year manufacturer warranty on all electronics and wearables.</p></div></div>' +
+          '<div class="prop"><span class="prop-ico">' + S.icon('creditCard') + '</span><div><b>Payment</b><p>Card, bank transfer or pay on delivery. All card payments are encrypted.</p></div></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+  '</div></section>';
+
+  S.renderProducts('#related', related);
+  S.observeReveals();
+
+  /* gallery */
+  document.getElementById('thumbs').addEventListener('click', function (e) {
+    var b = e.target.closest('.thumb');
+    if (!b) return;
+    document.getElementById('mainImg').src = b.getAttribute('data-src');
+    document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
+    b.classList.add('active');
+  });
+
+  /* tabs */
+  document.querySelector('.tabs-nav').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tab]');
+    if (!b) return;
+    var key = b.getAttribute('data-tab');
+    document.querySelectorAll('.tabs-nav button').forEach(function (x) { x.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function (x) { x.classList.remove('active'); });
+    b.classList.add('active');
+    document.getElementById('tab-' + key).classList.add('active');
+    if (key === 'reviews') {
+      requestAnimationFrame(function () {
+        document.querySelectorAll('#tab-reviews .bar-fill').forEach(function (f) {
+          f.style.width = f.getAttribute('data-w') + '%';
+        });
+      });
+    }
+    if (window.innerWidth < 700) b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  });
+
+  /* qty */
+  var qty = document.getElementById('pdpQty');
+  document.getElementById('qMinus').addEventListener('click', function () {
+    qty.value = Math.max(1, (parseInt(qty.value, 10) || 1) - 1);
+  });
+  document.getElementById('qPlus').addEventListener('click', function () {
+    qty.value = Math.min(99, (parseInt(qty.value, 10) || 1) + 1);
+  });
+  qty.addEventListener('change', function () {
+    var v = parseInt(this.value, 10);
+    if (isNaN(v) || v < 1) v = 1;
+    if (v > 99) v = 99;
+    this.value = v;
+  });
+
+  /* buy now */
+  document.getElementById('buyNow').addEventListener('click', function () {
+    S.addToCart(p.id, parseInt(qty.value, 10) || 1);
+    window.location.href = 'cart.html?checkout=1';
+  });
+
+  document.getElementById('writeReview').addEventListener('click', function () {
+    S.toast('Thanks! Review drafting is a demo feature.', 'award');
+  });
+
+  /* wishlist heart reflects saved state (the shared handler toggles it) */
+  S.refreshWishUI();
+})();
+</script>
+</body>
+</html>

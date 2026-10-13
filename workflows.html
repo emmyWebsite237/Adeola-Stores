@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflows &amp; Integrations — Sokoni</title>
+<meta name="description" content="How orders move from checkout to delivery on Sokoni, and the payments, logistics, messaging, analytics and marketplace integrations behind it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛍️</text></svg>">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .flow-hero .hero-badge { margin: 0 auto 22px; }
+  .arch-legend { display:flex; gap:18px; flex-wrap:wrap; margin-top:20px; font-size:.84rem; color:var(--muted); }
+  .arch-legend span { display:inline-flex; align-items:center; gap:8px; }
+  .arch-legend i { width:12px; height:12px; border-radius:4px; display:inline-block; }
+</style>
+</head>
+<body data-page="workflows">
+
+<div id="site-header"></div>
+
+<main>
+
+  <!-- HERO -->
+  <section class="flow-hero">
+    <div class="wrap">
+      <span class="hero-badge"><span class="pill-dot"></span><b>Under the hood</b> · sample architecture</span>
+      <h1>Workflows &amp; integrations</h1>
+      <p>How an order actually moves through Sokoni — from the moment you tap <em>Place order</em> to the parcel in your hands — and the systems that make it happen. Everything below is a demonstration setup.</p>
+    </div>
+  </section>
+
+  <!-- ORDER LIFECYCLE -->
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <span class="eyebrow">End-to-end</span>
+          <h2>The order lifecycle</h2>
+          <p>One connected chain. Each step fires automatically and notifies the next system, so nothing waits on a human unless it needs to.</p>
+        </div>
+      </div>
+
+      <div class="flow-canvas reveal">
+        <div class="flow-track" id="flowTrack"></div>
+
+        <div class="flow-branch">
+          <div class="branch-card">
+            <span class="bc-ico amber" data-bc="alert"></span>
+            <div><b>Exception path</b><p>Failed payment, out-of-stock or a failed delivery attempt pauses the order and raises a task for support.</p></div>
+          </div>
+          <div class="branch-card">
+            <span class="bc-ico teal" data-bc="refresh"></span>
+            <div><b>Returns branch</b><p>A return request re-opens the order, books a pickup and issues either a refund or a replacement.</p></div>
+          </div>
+          <div class="branch-card">
+            <span class="bc-ico coral" data-bc="chart"></span>
+            <div><b>Feedback loop</b><p>Delivery times, return reasons and review sentiment feed back into stock planning.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACCOUNT LIFECYCLE -->
+  <section class="section section--tight">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <span class="eyebrow">Accounts</span>
+          <h2>Sign-up → verify → login → account</h2>
+          <p>The customer account journey, from a first-time visitor to a dashboard holding order history. In this demo it runs entirely in the browser — no server, no data transmitted.</p>
+        </div>
+        <a class="link-arrow" href="signup.html">Try it yourself <span data-i="arrowRight"></span></a>
+      </div>
+
+      <div class="flow-canvas reveal">
+        <div class="flow-track" id="acctTrack"></div>
+
+        <div class="flow-branch">
+          <div class="branch-card">
+            <span class="bc-ico amber" data-bc="key"></span>
+            <div><b>Forgot password</b><p>A reset link takes the customer to a new-password screen, then straight back to sign in — without support ever getting involved.</p></div>
+          </div>
+          <div class="branch-card">
+            <span class="bc-ico teal" data-bc="lock"></span>
+            <div><b>Session &amp; sign-out</b><p>Signing in starts a session stored locally; the header switches to an account chip and signing out clears it.</p></div>
+          </div>
+          <div class="branch-card">
+            <span class="bc-ico coral" data-bc="alert"></span>
+            <div><b>Stored in your browser</b><p>Profile, addresses and orders live in <code>localStorage</code> only. Nothing is posted anywhere — this is a demonstration storefront.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAMPLE WORKFLOWS -->
+  <section class="section section--tight">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <span class="eyebrow">Automations</span>
+          <h2>Sample workflows</h2>
+          <p>Five flows that run every day. Each shows the trigger, the steps it runs, and what it hands off to next.</p>
+        </div>
+      </div>
+      <div class="wf-grid" id="wfGrid"></div>
+    </div>
+  </section>
+
+  <!-- INTEGRATIONS -->
+  <section class="section section--tight">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <span class="eyebrow">Connected systems</span>
+          <h2>Integrations</h2>
+          <p>The third-party services Sokoni plugs into. Sample names — swap in your own providers at any point.</p>
+        </div>
+      </div>
+      <div class="int-grid" id="intGrid"></div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="section section--tight">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <span class="eyebrow">System map</span>
+          <h2>How the pieces fit together</h2>
+          <p>Layers from the customer-facing storefront down to the systems of record.</p>
+        </div>
+      </div>
+      <div class="arch reveal">
+        <div class="arch-layer">
+          <span class="al-label">Experience</span>
+          <div class="arch-nodes">
+            <span class="arch-node hi">Web storefront</span>
+            <span class="arch-node">Mobile app</span>
+            <span class="arch-node">Seller centre</span>
+            <span class="arch-node">Support console</span>
+          </div>
+        </div>
+        <div class="arch-layer">
+          <span class="al-label">Orchestration</span>
+          <div class="arch-nodes">
+            <span class="arch-node hi">Order service</span>
+            <span class="arch-node">Inventory service</span>
+            <span class="arch-node">Payments service</span>
+            <span class="arch-node">Notification service</span>
+            <span class="arch-node">Returns service</span>
+          </div>
+        </div>
+        <div class="arch-layer">
+          <span class="al-label">Events</span>
+          <div class="arch-nodes">
+            <span class="arch-node hi">order.created</span>
+            <span class="arch-node">payment.captured</span>
+            <span class="arch-node">stock.reserved</span>
+            <span class="arch-node">shipment.updated</span>
+            <span class="arch-node">return.requested</span>
+          </div>
+        </div>
+        <div class="arch-layer" style="margin-bottom:0">
+          <span class="al-label">External</span>
+          <div class="arch-nodes">
+            <span class="arch-node">Payment gateways</span>
+            <span class="arch-node">Logistics partners</span>
+            <span class="arch-node">SMS &amp; email</span>
+            <span class="arch-node">Analytics</span>
+            <span class="arch-node">Marketplace APIs</span>
+          </div>
+        </div>
+        <div class="arch-legend">
+          <span><i style="background:var(--teal)"></i> Primary flow</span>
+          <span><i style="background:var(--surface);border:1px solid var(--line)"></i> Supporting component</span>
+          <span><i style="background:var(--ink)"></i> Events are published, not polled</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section section--tight">
+    <div class="wrap">
+      <div class="newsletter reveal">
+        <div>
+          <span class="eyebrow" style="color:rgba(255,255,255,.92)">Try it</span>
+          <h2>See the flow in action</h2>
+          <p>Place a demo order and watch it move through cart, delivery and payment — then land on an order confirmation. No real payment is taken.</p>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a class="btn btn-accent btn-lg" href="products.html">Shop the catalogue</a>
+          <a class="btn btn-lg" href="signup.html" style="background:rgba(255,255,255,.16);color:#fff">Create an account</a>
+          <a class="btn btn-lg" href="cart.html" style="background:rgba(255,255,255,.16);color:#fff">Go to cart</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="site-footer"></div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  var S = window.Sokoni;
+  document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
+
+  /* ---- order lifecycle track ---- */
+  var FLOW = [
+    { icon: 'cart', title: 'Order placed', sub: 'Checkout confirmed' },
+    { icon: 'creditCard', title: 'Payment', sub: 'Authorised & captured' },
+    { icon: 'box', title: 'Pack & dispatch', sub: 'Picked from warehouse' },
+    { icon: 'truck', title: 'Shipping', sub: 'Handed to courier' },
+    { icon: 'checkCircle', title: 'Delivered', sub: 'Confirmed at the door' }
+  ];
+  document.getElementById('flowTrack').innerHTML = FLOW.map(function (n, i) {
+    var node = '<div class="fnode reveal" style="--d:' + (i * .09).toFixed(2) + 's">' +
+      '<span class="fn-num">' + (i + 1) + '</span>' +
+      '<span class="fn-ico">' + S.icon(n.icon) + '</span><b>' + n.title + '</b><small>' + n.sub + '</small></div>';
+    var arrow = i < FLOW.length - 1 ? '<span class="farrow">' + S.icon('arrowRight') + '</span>' : '';
+    return node + arrow;
+  }).join('');
+
+  /* ---- account lifecycle track ---- */
+  var ACCT = [
+    { icon: 'userPlus', title: 'Create account', sub: 'Name, email, password' },
+    { icon: 'mail', title: 'Verify email', sub: '6-digit code checked' },
+    { icon: 'lock', title: 'Sign in', sub: 'Local session starts' },
+    { icon: 'grid', title: 'Account dashboard', sub: 'Profile & addresses' },
+    { icon: 'package', title: 'Order history', sub: 'Track & buy again' }
+  ];
+  document.getElementById('acctTrack').innerHTML = ACCT.map(function (n, i) {
+    var node = '<div class="fnode reveal" style="--d:' + (i * .09).toFixed(2) + 's">' +
+      '<span class="fn-num">' + (i + 1) + '</span>' +
+      '<span class="fn-ico">' + S.icon(n.icon) + '</span><b>' + n.title + '</b><small>' + n.sub + '</small></div>';
+    var arrow = i < ACCT.length - 1 ? '<span class="farrow">' + S.icon('arrowRight') + '</span>' : '';
+    return node + arrow;
+  }).join('');
+
+  /* ---- sample workflows ---- */
+  var WORKFLOWS = [
+    {
+      icon: 'truck', tag: 'Core', title: 'Order → payment → shipping → delivery',
+      desc: 'The main fulfilment chain, running from checkout confirmation to proof of delivery.',
+      steps: ['Order created and stock reserved', 'Payment authorised, then captured on dispatch', 'Warehouse pick, pack and label print', 'Courier assigned; tracking link sent', 'Delivery confirmed with photo evidence']
+    },
+    {
+      icon: 'box', tag: 'Sync', title: 'Inventory synchronisation',
+      desc: 'Keeps stock numbers truthful across the storefront, the warehouse and every marketplace.',
+      steps: ['Stock decremented the moment an order is placed', 'Low-stock threshold raises a reorder task', 'Hourly reconciliation against the warehouse system', 'Oversold orders auto-refund and notify', 'Duplicate listings across channels deduplicated']
+    },
+    {
+      icon: 'refresh', tag: 'Post-purchase', title: 'Returns & exchanges',
+      desc: 'A forgiving returns flow that resolves in a refund or a replacement, then learns from it.',
+      steps: ['Customer opens a return within 30 days', 'Reason captured and categorised', 'Pickup booked automatically with the courier', 'Item inspected at the warehouse', 'Refund or replacement issued; reason fed to analytics']
+    },
+    {
+      icon: 'userPlus', tag: 'Accounts', title: 'Customer accounts & onboarding',
+      desc: 'Takes a new visitor from sign-up to a verified account with order history, entirely on the client.',
+      steps: ['Account created with email and password', 'Six-digit verification code sent and checked', 'Session started and signed-in state stored locally', 'Profile, addresses and orders shown on the dashboard', 'Forgot-password flow resets the password in place']
+    },
+    {
+      icon: 'shield', tag: 'Trust', title: 'Fraud screening',
+      desc: 'Scores every order before capture so genuine customers pass fast and the rest are held.',
+      steps: ['Address and device signals scored', 'High-risk orders held for review', '3-D Secure step-up requested when needed', 'Geniune orders pass without friction', 'Confirmed fraud added to shared blocklist']
+    },
+    {
+      icon: 'bell', tag: 'Comms', title: 'Notifications & reminders',
+      desc: 'Keeps the customer informed with SMS, email and push at the moments that matter.',
+      steps: ['Order confirmation on payment', 'Dispatch notice with tracking link', 'Out-for-delivery reminder the morning of', 'Delivery confirmation with photo', 'Review request three days after arrival']
+    },
+    {
+      icon: 'chart', tag: 'Insight', title: 'Analytics & reporting',
+      desc: 'Turns order and delivery events into the numbers that guide buying and logistics.',
+      steps: ['Events streamed to the analytics warehouse', 'Daily revenue and conversion report', 'Delivery-time and return-rate dashboards', 'Stock-out prediction from sell-through', 'Weekly digest emailed to the team']
+    }
+  ];
+
+  document.getElementById('wfGrid').innerHTML = WORKFLOWS.map(function (w, i) {
+    return '<article class="wf-card reveal" style="--d:' + (i % 3 * .08).toFixed(2) + 's">' +
+      '<div class="wf-top"><span class="wf-ico">' + S.icon(w.icon) + '</span><span class="wf-tag">' + w.tag + '</span></div>' +
+      '<h3>' + w.title + '</h3>' +
+      '<p>' + w.desc + '</p>' +
+      '<div class="wf-steps">' + w.steps.map(function (s, j) {
+        return '<div class="wf-step"><span class="st">' + (j + 1) + '</span><span>' + s + '</span></div>';
+      }).join('') + '</div>' +
+    '</article>';
+  }).join('');
+
+  /* ---- integrations ---- */
+  var INTEGRATIONS = [
+    { name: 'PayStack', ini: 'PS', color: '#0ba4db', type: 'Payments', status: 'Connected', desc: 'Card, bank transfer and USSD payments with instant settlement.' },
+    { name: 'Flutterwave', ini: 'FW', color: '#f5a524', type: 'Payments', status: 'Connected', desc: 'Multi-currency checkout and payouts across African markets.' },
+    { name: 'Stripe', ini: 'St', color: '#635bff', type: 'Payments', status: 'Connected', desc: 'International card processing and subscription billing.' },
+    { name: 'SokoniPay', ini: 'SP', color: '#0f9d76', type: 'Payments', status: 'Connected', desc: 'Wallet and pay-on-delivery reconciliation for local orders.' },
+
+    { name: 'Sendr Logistics', ini: 'SL', color: '#3d5a80', type: 'Logistics', status: 'Connected', desc: 'Same-day and next-day courier network with live tracking.' },
+    { name: 'ParcelPro', ini: 'PP', color: '#e5484d', type: 'Logistics', status: 'Connected', desc: 'Bulk warehouse-to-customer shipping and label printing.' },
+    { name: 'TrackWise', ini: 'TW', color: '#0891b2', type: 'Logistics', status: 'Beta', desc: 'Unified tracking across multiple couriers with exception alerts.' },
+    { name: 'RouteGrid', ini: 'RG', color: '#7c5cff', type: 'Logistics', status: 'Connected', desc: 'Route optimisation and delivery-window scheduling.' },
+
+    { name: 'FlashSMS', ini: 'FS', color: '#f5a524', type: 'Notifications', status: 'Connected', desc: 'Transactional SMS for order, dispatch and delivery updates.' },
+    { name: 'MailFlow', ini: 'MF', color: '#0ba4db', type: 'Notifications', status: 'Connected', desc: 'Reliable transactional email with template management.' },
+    { name: 'PushPing', ini: 'PP', color: '#0f9d76', type: 'Notifications', status: 'Connected', desc: 'Mobile push notifications and in-app inbox messages.' },
+    { name: 'WhatsDesk', ini: 'WD', color: '#25a866', type: 'Notifications', status: 'Beta', desc: 'WhatsApp order updates and two-way support conversations.' },
+
+    { name: 'MetricHub', ini: 'MH', color: '#0d1b2a', type: 'Analytics', status: 'Connected', desc: 'Product analytics, funnels and cohort retention tracking.' },
+    { name: 'EventStream', ini: 'ES', color: '#7c5cff', type: 'Analytics', status: 'Connected', desc: 'Event pipeline to the warehouse for reporting and ML.' },
+    { name: 'HeatScope', ini: 'HS', color: '#e5484d', type: 'Analytics', status: 'Beta', desc: 'Session replays and heatmaps for storefront optimisation.' },
+
+    { name: 'MarketHub', ini: 'MH', color: '#3d5a80', type: 'Marketplace', status: 'Connected', desc: 'Publish listings and pull orders from external marketplaces.' },
+    { name: 'ShopLink', ini: 'SL', color: '#0f9d76', type: 'Marketplace', status: 'Connected', desc: 'Two-way stock and price sync with connected shops.' },
+    { name: 'CatalogSync', ini: 'CS', color: '#f5a524', type: 'Marketplace', status: 'Connected', desc: 'Product catalogue export, feed management and enrichment.' },
+    { name: 'AffiliateNet', ini: 'AN', color: '#0891b2', type: 'Marketplace', status: 'Beta', desc: 'Affiliate tracking, commission rules and payout reporting.' }
+  ];
+
+  document.getElementById('intGrid').innerHTML = INTEGRATIONS.map(function (it, i) {
+    return '<article class="int-card reveal" style="--d:' + (i % 4 * .06).toFixed(2) + 's">' +
+      '<div class="int-top">' +
+        '<span class="int-logo" style="background:' + it.color + '">' + it.ini + '</span>' +
+        '<div><b>' + it.name + '</b><small>' + it.type + '</small></div>' +
+      '</div>' +
+      '<p>' + it.desc + '</p>' +
+      '<div class="int-foot">' +
+        '<span class="status' + (it.status === 'Beta' ? ' beta' : '') + '"><span class="sdot"></span>' + it.status + '</span>' +
+        '<span class="int-type">' + it.type + '</span>' +
+      '</div>' +
+    '</article>';
+  }).join('');
+
+  /* exception-path icons */
+  var bcMap = { alert: 'bell', refresh: 'refresh', chart: 'chart', key: 'key', lock: 'lock', mail: 'mail' };
+  document.querySelectorAll('[data-bc]').forEach(function (e) { e.innerHTML = S.icon(bcMap[e.getAttribute('data-bc')]); });
+
+  S.observeReveals();
+})();
+</script>
+</body>
+</html>
