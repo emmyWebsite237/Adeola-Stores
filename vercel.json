@@ -1,0 +1,17 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/products", "destination": "/products.html" },
+    { "source": "/product", "destination": "/product.html" },
+    { "source": "/cart", "destination": "/cart.html" },
+    { "source": "/search", "destination": "/search.html" },
+    { "source": "/wishlist", "destination": "/wishlist.html" },
+    { "source": "/account", "destination": "/account.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/signup", "destination": "/signup.html" },
+    { "source": "/forgot", "destination": "/forgot.html" },
+    { "source": "/workflows", "destination": "/workflows.html" },
+    { "source": "/adeolaadaccess112", "destination": "/adeolaadaccess112.html" }
+  ]
+}

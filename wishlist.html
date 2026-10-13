@@ -3,107 +3,101 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Your wishlist — Sokoni</title>
-<meta name="description" content="Products you have saved for later on Sokoni.">
+<title>Your wishlist — Ladydee Minimart Store</title>
+<meta name="description" content="Items you have saved at Ladydee Minimart Store. Add them all to your cart in one tap.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>&#128717;&#65039;</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="wishlist">
 
 <div id="site-header"></div>
 
-<main>
+<section class="page-head">
+  <div class="wrap">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a><span data-i="chevronRight"></span><span>Wishlist</span>
+    </nav>
+    <h1>Your wishlist</h1>
+    <p class="sub" id="wishSub">Saved items you are thinking about.</p>
+  </div>
+</section>
 
-  <section class="page-head">
-    <div class="wrap">
-      <nav class="breadcrumb" aria-label="Breadcrumb">
-        <a href="index.html">Home</a><span data-i="chevronRight"></span><span>Wishlist</span>
-      </nav>
-      <h1>Your wishlist</h1>
-      <p class="sub">Everything you have saved, in one place. Tap the heart on any product to add or remove it.</p>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="wrap">
-      <div id="wlApp"></div>
-    </div>
-  </section>
-
+<main class="section">
+  <div class="wrap">
+    <div id="wishBar"></div>
+    <div class="pgrid" id="wishGrid"></div>
+  </div>
 </main>
 
 <div id="site-footer"></div>
 
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
+<script src="brevi.js"></script>
 <script>
 (function () {
-  var S = window.Sokoni;
+  var S = window.Ladydee;
+  S.mount('wishlist');
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
 
-  var app = document.getElementById('wlApp');
-
   function render() {
-    var ids = S.wishlist();
-    var items = ids.map(function (id) { return S.getProduct(id); }).filter(Boolean);
+    var ids = S.getWish();
+    var items = ids.map(function (id) { return S.product(id); }).filter(Boolean);
+
+    document.getElementById('wishSub').textContent = items.length
+      ? items.length + ' item' + (items.length === 1 ? '' : 's') + ' saved for later.'
+      : 'Nothing saved yet — tap the heart on any product to keep it here.';
 
     if (!items.length) {
-      app.innerHTML = '<div class="empty" style="padding:70px 30px">' +
-        '<div style="width:84px;height:84px;border-radius:50%;background:var(--coral-soft);color:var(--coral);display:grid;place-items:center;margin:0 auto 20px">' +
-        '<span style="width:36px;height:36px;display:block">' + S.icon('heart') + '</span></div>' +
-        '<b>Your wishlist is empty</b>' +
-        '<p style="margin:6px 0 4px">Tap the heart on any product and it will show up here.</p>' +
-        '<div class="wl-cta"><a class="btn btn-primary btn-lg" href="products.html">' + S.icon('grid') + ' Browse the catalogue</a>' +
-        '<a class="btn btn-outline btn-lg" href="search.html">' + S.icon('search') + ' Search products</a></div>' +
+      document.getElementById('wishBar').innerHTML = '';
+      document.getElementById('wishGrid').innerHTML =
+        '<div class="empty" style="grid-column:1/-1">' +
+          '<div style="width:84px;height:84px;border-radius:50%;background:var(--coral-soft);color:var(--coral);display:grid;place-items:center;margin:0 auto 20px">' +
+            '<span style="width:38px;height:38px;display:block">' + S.icon('heart') + '</span></div>' +
+          '<b>Your wishlist is empty</b>' +
+          '<p>Browse the shop and tap the heart on anything you want to come back to.</p>' +
+          '<a class="btn btn-primary btn-lg" href="/products">Start shopping</a>' +
         '</div>';
-      S.updateBadge();
       return;
     }
 
-    var total = items.reduce(function (s, p) { return s + p.price; }, 0);
-    var saving = items.reduce(function (s, p) { return s + (p.oldPrice ? p.oldPrice - p.price : 0); }, 0);
+    var total = items.reduce(function (n, p) { return n + p.price; }, 0);
+    var saved = items.reduce(function (n, p) { return n + (p.oldPrice ? p.oldPrice - p.price : 0); }, 0);
 
-    app.innerHTML =
-      '<div class="wl-bar">' +
-        '<span class="count"><b>' + items.length + '</b> saved item' + (items.length === 1 ? '' : 's') +
-          ' \u00b7 total value <b>' + S.money(total) + '</b>' +
-          (saving > 0 ? ' \u00b7 you are saving <b style="color:var(--coral)">' + S.money(saving) + '</b>' : '') + '</span>' +
+    document.getElementById('wishBar').innerHTML =
+      '<div class="deliv-banner" style="margin-bottom:26px">' +
+        '<span class="deliv-banner-ico" style="background:var(--coral);color:#fff">' + S.icon('heart') + '</span>' +
+        '<div><h3>' + items.length + ' saved item' + (items.length === 1 ? '' : 's') + '</h3>' +
+          '<p>Total value ' + S.money(total) + (saved ? ' · you would save ' + S.money(saved) + ' at today\'s prices' : '') + '</p></div>' +
         '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-          '<button class="btn btn-primary btn-sm" id="addAll" type="button">' + S.icon('cart') + ' Add all to cart</button>' +
-          '<button class="btn btn-outline btn-sm" id="clearWish" type="button">' + S.icon('trash') + ' Clear wishlist</button>' +
+          '<button class="btn btn-primary" id="addAll" type="button">' + S.icon('cart') + ' Add all to cart</button>' +
+          '<button class="btn btn-outline" id="clearWish" type="button">Clear wishlist</button>' +
         '</div>' +
-      '</div>' +
-      '<div class="grid-products wishlist-grid" id="wishGrid"></div>';
+      '</div>';
 
-    S.renderProducts('#wishGrid', items);
-    S.refreshWishUI();
-    S.stagger('.pcard', .05);
+    document.getElementById('wishGrid').innerHTML = items.map(function (p) { return S.productCard(p); }).join('');
+    S.observeReveals();
   }
 
-  app.addEventListener('click', function (e) {
+  document.getElementById('wishBar').addEventListener('click', function (e) {
     if (e.target.closest('#addAll')) {
-      var ids = S.wishlist();
-      ids.forEach(function (id) { S.addToCart(id, 1); });
-      S.toast(ids.length + ' item' + (ids.length === 1 ? '' : 's') + ' added to cart');
+      S.getWish().forEach(function (id) { S.addToCart(id, 1); });
+      S.toast('All saved items added to cart', 'cart');
+      S.refreshBadges();
       return;
     }
     if (e.target.closest('#clearWish')) {
-      S.wishlist().slice().forEach(function (id) { S.toggleWish(id); });
-      S.refreshWishUI();
-      S.toast('Wishlist cleared');
+      S.getWish().slice().forEach(function (id) { S.toggleWish(id); });
+      S.toast('Wishlist cleared', 'heart');
+      S.refreshBadges();
       render();
-      return;
-    }
-    /* removing a saved item re-renders the grid so the card disappears */
-    if (e.target.closest('[data-wish]')) {
-      setTimeout(render, 0);
     }
   });
 
+  document.addEventListener('ladydee:wish', render);
   render();
-  S.observeReveals();
 })();
 </script>
 </body>

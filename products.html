@@ -3,307 +3,230 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>All products — Sokoni</title>
-<meta name="description" content="Browse every Sokoni product. Filter by category, price and rating, then sort to find what you need.">
+<title>Shop all groceries — Ladydee Minimart Store</title>
+<meta name="description" content="Browse rice, beans, garri, cooking oil, noodles, beverages, household and baby essentials. Filter by category, price and rating.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛍️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="products">
 
 <div id="site-header"></div>
 
-<main>
+<section class="page-head">
+  <div class="wrap">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a><span data-i="chevronRight"></span><span id="crumb">Shop</span>
+    </nav>
+    <h1 id="pageTitle">All products</h1>
+    <p class="sub" id="pageSub">Everyday groceries, sealed and ready to deliver.</p>
+  </div>
+</section>
 
-  <section class="page-head">
-    <div class="wrap">
-      <nav class="breadcrumb" aria-label="Breadcrumb">
-        <a href="index.html">Home</a><span data-i="chevronRight"></span><span id="crumb">All products</span>
-      </nav>
-      <h1 id="pageTitle">All products</h1>
-      <p class="sub" id="pageSub">Every item in the Sokoni catalogue — filter it down to exactly what you're after.</p>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="wrap">
-      <div class="listing">
-
-        <!-- FILTERS -->
-        <aside class="filters" id="filters" aria-label="Product filters">
-          <div class="filters-head">
-            <b>Filters</b>
-            <button class="btn btn-ghost btn-sm" id="resetFilters" type="button">Reset</button>
+<main class="section">
+  <div class="wrap">
+    <div class="shop-layout">
+      <aside class="filters" id="filters" aria-label="Filters"></aside>
+      <div>
+        <div class="toolbar">
+          <span class="toolbar-count" id="count"></span>
+          <div class="toolbar-right">
+            <button class="btn btn-outline btn-sm filter-toggle" id="filterToggle" type="button"><span data-i="sliders"></span> Filters</button>
+            <select class="select" id="sort" aria-label="Sort products">
+              <option value="featured">Sort: Featured</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="rating">Highest rated</option>
+              <option value="discount">Biggest discount</option>
+              <option value="name">Name A–Z</option>
+            </select>
           </div>
-
-          <div class="filter-group">
-            <h4>Category</h4>
-            <div id="catFilters"></div>
-          </div>
-
-          <div class="filter-group">
-            <h4>Price</h4>
-            <div class="price-inputs">
-              <input type="number" id="minPrice" placeholder="Min" min="0" step="1" aria-label="Minimum price">
-              <span style="color:var(--muted-2)">–</span>
-              <input type="number" id="maxPrice" placeholder="Max" min="0" step="1" aria-label="Maximum price">
-            </div>
-            <input type="range" class="range" id="priceRange" min="0" max="1200" step="10" value="1200" aria-label="Maximum price slider">
-            <div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin-top:6px">
-              <span>$0</span><span id="rangeLabel">$1200</span>
-            </div>
-          </div>
-
-          <div class="filter-group">
-            <h4>Customer rating</h4>
-            <div id="ratingFilters"></div>
-          </div>
-
-          <div class="filter-group">
-            <h4>Offers</h4>
-            <label class="check"><input type="checkbox" id="onSale"> <span>On sale only</span></label>
-            <label class="check"><input type="checkbox" id="inStock"> <span>In stock</span></label>
-          </div>
-
-          <div class="filter-group">
-            <button class="btn btn-dark btn-block" id="applyFilters" type="button">Show results</button>
-          </div>
-        </aside>
-
-        <!-- RESULTS -->
-        <div>
-          <div class="toolbar">
-            <span class="count" id="resultCount">Loading products…</span>
-            <div style="display:flex;align-items:center;gap:10px">
-              <button class="btn btn-outline btn-sm filters-toggle" id="openFilters" type="button"><span data-i="filter"></span> Filters</button>
-              <div class="select-wrap">
-                <label for="sort" class="sr-only" style="position:absolute;left:-9999px">Sort by</label>
-                <select id="sort">
-                  <option value="featured">Sort: Featured</option>
-                  <option value="price-asc">Price: low to high</option>
-                  <option value="price-desc">Price: high to low</option>
-                  <option value="rating">Customer rating</option>
-                  <option value="discount">Biggest discount</option>
-                  <option value="name">Name: A to Z</option>
-                </select>
-                <span data-i="chevronDown"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="chips" id="chips"></div>
-          <div class="grid-products" id="grid" aria-live="polite"></div>
         </div>
-
+        <div class="chips" id="chips"></div>
+        <div class="pgrid" id="grid"></div>
+        <div class="pager" id="pager"></div>
       </div>
     </div>
-  </section>
-
+  </div>
 </main>
+
+<div class="drawer-scrim" id="filterScrim" hidden></div>
 
 <div id="site-footer"></div>
 
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
+<script src="brevi.js"></script>
 <script>
 (function () {
-  var S = window.Sokoni;
-
+  var S = window.Ladydee;
+  var MODE = 'products';
+  S.mount('products');
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
 
-  var state = {
-    cats: [], q: '', min: null, max: null, rating: 0, sale: false, inStock: false, sort: 'featured'
-  };
+  var PER = 9, PRICE_MAX = 80000;
+  var state = { cats: [], min: null, max: null, rating: 0, sale: false, stock: false, sort: 'featured', page: 1, q: '' };
+  var c = S.param('cat'); if (c) state.cats = c.split(',').filter(Boolean);
+  var q = S.param('q'); if (q) state.q = q;
+  var so = S.param('sort'); if (so) state.sort = so;
 
-  /* category checkboxes */
-  var catWrap = document.getElementById('catFilters');
-  catWrap.innerHTML = S.CATEGORIES.map(function (c) {
-    var n = S.PRODUCTS.filter(function (p) { return p.category === c.id; }).length;
-    return '<label class="check"><input type="checkbox" value="' + c.id + '" data-cat>' +
-      '<span>' + c.name + '</span><span class="count">' + n + '</span></label>';
-  }).join('');
+  function base() { return state.q ? S.searchProducts(state.q) : S.PRODUCTS.slice(); }
 
-  /* rating options */
-  var ratings = [4.5, 4, 3.5, 3];
-  function starsOnly(r) {
-    var full = Math.round(r);
-    var t = '';
-    for (var i = 1; i <= 5; i++) {
-      t += '<span style="opacity:' + (i <= full ? 1 : .28) + '">' + S.icon('star') + '</span>';
-    }
-    return '<span class="s-icons" style="color:var(--amber)">' + t + '</span>';
-  }
-  document.getElementById('ratingFilters').innerHTML = ratings.map(function (r) {
-    return '<label class="check"><input type="radio" name="rating" value="' + r + '" data-rating>' +
-      '<span style="display:inline-flex;align-items:center;gap:7px">' + starsOnly(r) +
-      '<span>' + r + ' &amp; up</span></span></label>';
-  }).join('') + '<label class="check"><input type="radio" name="rating" value="0" data-rating checked><span>Any rating</span></label>';
-
-  /* ---- read URL params ---- */
-  var urlCat = S.param('cat'), urlQ = S.param('q'), urlSort = S.param('sort');
-  if (urlCat) state.cats = urlCat.split(',').filter(Boolean);
-  if (urlQ) state.q = urlQ;
-  if (urlSort) state.sort = urlSort;
-
-  function syncInputs() {
-    document.querySelectorAll('[data-cat]').forEach(function (i) {
-      i.checked = state.cats.indexOf(i.value) > -1;
-    });
-    var sr = document.querySelector('[data-rating][value="' + state.rating + '"]');
-    if (sr) sr.checked = true;
-    document.getElementById('minPrice').value = state.min == null ? '' : state.min;
-    document.getElementById('maxPrice').value = state.max == null ? '' : state.max;
-    document.getElementById('sort').value = state.sort;
-    document.getElementById('onSale').checked = state.sale;
-    document.getElementById('inStock').checked = state.inStock;
-  }
-
-  /* ---- filtering + sorting ---- */
   function filtered() {
-    var out = S.PRODUCTS.slice();
-    if (state.cats.length) out = out.filter(function (p) { return state.cats.indexOf(p.category) > -1; });
-    if (state.q) {
-      var q = state.q.toLowerCase();
-      out = out.filter(function (p) {
-        return (p.name + ' ' + p.brand + ' ' + S.catName(p.category) + ' ' + p.short).toLowerCase().indexOf(q) > -1;
-      });
-    }
-    if (state.min != null) out = out.filter(function (p) { return p.price >= state.min; });
-    if (state.max != null) out = out.filter(function (p) { return p.price <= state.max; });
-    if (state.rating) out = out.filter(function (p) { return p.rating >= state.rating; });
-    if (state.sale) out = out.filter(function (p) { return !!p.oldPrice; });
-    if (state.inStock) out = out.filter(function (p) { return p.stock > 0; });
-
-    switch (state.sort) {
-      case 'price-asc':  out.sort(function (a, b) { return a.price - b.price; }); break;
-      case 'price-desc': out.sort(function (a, b) { return b.price - a.price; }); break;
-      case 'rating':     out.sort(function (a, b) { return b.rating - a.rating; }); break;
-      case 'discount':   out.sort(function (a, b) { return S.discountOf(b) - S.discountOf(a); }); break;
-      case 'name':       out.sort(function (a, b) { return a.name.localeCompare(b.name); }); break;
-    }
-    return out;
+    var list = base();
+    if (state.cats.length) list = list.filter(function (p) { return state.cats.indexOf(p.category) > -1; });
+    if (state.min != null) list = list.filter(function (p) { return p.price >= state.min; });
+    if (state.max != null) list = list.filter(function (p) { return p.price <= state.max; });
+    if (state.rating) list = list.filter(function (p) { return p.rating >= state.rating; });
+    if (state.sale) list = list.filter(function (p) { return !!p.oldPrice; });
+    if (state.stock) list = list.filter(function (p) { return p.stock > 0; });
+    return list;
   }
 
-  /* ---- render ---- */
-  function chips() {
-    var out = [];
-    state.cats.forEach(function (c) {
-      out.push(['cat:' + c, S.catName(c)]);
+  function sorted(list) {
+    var l = list.slice();
+    if (state.sort === 'price-asc') l.sort(function (a, b) { return a.price - b.price; });
+    else if (state.sort === 'price-desc') l.sort(function (a, b) { return b.price - a.price; });
+    else if (state.sort === 'rating') l.sort(function (a, b) { return b.rating - a.rating; });
+    else if (state.sort === 'discount') l.sort(function (a, b) { return S.discountOf(b) - S.discountOf(a); });
+    else if (state.sort === 'name') l.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    else l.sort(function (a, b) { return ((b.badge ? 1 : 0) - (a.badge ? 1 : 0)) || (b.rating - a.rating); });
+    return l;
+  }
+
+  function renderFilters() {
+    var all = base();
+    var counts = {};
+    S.CATEGORIES.forEach(function (cat) { counts[cat.id] = all.filter(function (p) { return p.category === cat.id; }).length; });
+    var html = '<div class="filters-head"><b>Filters</b><button class="btn btn-ghost btn-sm" id="clearFilters" type="button">Clear all</button></div>';
+    html += '<div class="fgroup"><h4>Category</h4>' + S.CATEGORIES.map(function (cat) {
+      return '<label class="fopt"><input type="checkbox" data-cat="' + cat.id + '"' + (state.cats.indexOf(cat.id) > -1 ? ' checked' : '') + '><span>' + S.esc(cat.name) + '</span><small>' + counts[cat.id] + '</small></label>';
+    }).join('') + '</div>';
+    html += '<div class="fgroup"><h4>Price (₦)</h4>' +
+      '<div class="price-inputs"><input type="number" id="pMin" placeholder="Min" value="' + (state.min != null ? state.min : '') + '" min="0" aria-label="Minimum price"><span>–</span><input type="number" id="pMax" placeholder="Max" value="' + (state.max != null ? state.max : '') + '" min="0" aria-label="Maximum price"></div>' +
+      '<input type="range" id="pRange" min="0" max="' + PRICE_MAX + '" step="500" value="' + (state.max != null ? state.max : PRICE_MAX) + '" aria-label="Maximum price slider">' +
+      '<div class="range-labels"><span>₦0</span><span id="rangeLabel">' + S.money(state.max != null ? state.max : PRICE_MAX) + '</span></div></div>';
+    html += '<div class="fgroup"><h4>Rating</h4>' + [4, 3, 2].map(function (r) {
+      return '<label class="star-filter"><input type="radio" name="rating" value="' + r + '"' + (state.rating === r ? ' checked' : '') + '>' + S.stars(r) + '<small>&amp; up</small></label>';
+    }).join('') + '<label class="star-filter"><input type="radio" name="rating" value="0"' + (!state.rating ? ' checked' : '') + '><span style="font-size:.86rem">Any rating</span></label></div>';
+    html += '<div class="fgroup"><h4>Offers</h4>' +
+      '<label class="fopt"><input type="checkbox" id="fSale"' + (state.sale ? ' checked' : '') + '><span>On sale</span></label>' +
+      '<label class="fopt"><input type="checkbox" id="fStock"' + (state.stock ? ' checked' : '') + '><span>In stock only</span></label></div>';
+    document.getElementById('filters').innerHTML = html;
+  }
+
+  function renderChips() {
+    var chips = [];
+    state.cats.forEach(function (id) {
+      chips.push('<span class="chip">' + S.esc(S.catName(id)) + '<button type="button" data-rmcat="' + id + '" aria-label="Remove ' + S.esc(S.catName(id)) + '">' + S.icon('close') + '</button></span>');
     });
-    if (state.q) out.push(['q', '“' + state.q + '”']);
     if (state.min != null || state.max != null) {
-      out.push(['price', 'Price ' + (state.min != null ? S.money(state.min) : '$0') + ' – ' + (state.max != null ? S.money(state.max) : 'any')]);
+      chips.push('<span class="chip">' + S.money(state.min || 0) + ' – ' + S.money(state.max != null ? state.max : PRICE_MAX) + '<button type="button" data-rmprice="1" aria-label="Remove price filter">' + S.icon('close') + '</button></span>');
     }
-    if (state.rating) out.push(['rating', state.rating + '★ & up']);
-    if (state.sale) out.push(['sale', 'On sale']);
-    if (state.inStock) out.push(['stock', 'In stock']);
-    document.getElementById('chips').innerHTML = out.map(function (c) {
-      return '<span class="chip">' + S.esc(c[1]) + '<button data-chip="' + c[0] + '" aria-label="Remove filter">' + S.icon('close') + '</button></span>';
-    }).join('');
+    if (state.rating) chips.push('<span class="chip">' + state.rating + '★ &amp; up<button type="button" data-rmrating="1" aria-label="Remove rating filter">' + S.icon('close') + '</button></span>');
+    if (state.sale) chips.push('<span class="chip">On sale<button type="button" data-rmsale="1" aria-label="Remove sale filter">' + S.icon('close') + '</button></span>');
+    if (state.stock) chips.push('<span class="chip">In stock<button type="button" data-rmstock="1" aria-label="Remove stock filter">' + S.icon('close') + '</button></span>');
+    if (chips.length) chips.push('<button class="chip-clear" type="button" id="chipClear">Clear all</button>');
+    document.getElementById('chips').innerHTML = chips.join('');
   }
 
   function render() {
-    var list = filtered();
-    S.renderProducts('#grid', list);
-    document.getElementById('resultCount').innerHTML = '<b>' + list.length + '</b> product' + (list.length === 1 ? '' : 's') + (state.q ? ' for “' + S.esc(state.q) + '”' : '');
-    chips();
-    S.stagger('.pcard', .04);
+    var list = sorted(filtered());
+    var pages = Math.max(1, Math.ceil(list.length / PER));
+    if (state.page > pages) state.page = pages;
+    var slice = list.slice((state.page - 1) * PER, state.page * PER);
 
-    var title = state.cats.length === 1 ? S.catName(state.cats[0]) : 'All products';
-    document.getElementById('crumb').textContent = title;
-    document.getElementById('pageTitle').textContent = state.q ? 'Results for “' + state.q + '”' : title;
-    document.getElementById('pageSub').textContent = state.cats.length === 1
-      ? 'Everything in ' + S.catName(state.cats[0]) + ' — filter by price and rating to narrow it down.'
-      : 'Every item in the Sokoni catalogue — filter it down to exactly what you\u2019re after.';
+    document.getElementById('count').innerHTML = list.length
+      ? 'Showing <b>' + slice.length + '</b> of <b>' + list.length + '</b> product' + (list.length === 1 ? '' : 's')
+      : 'No products match these filters';
+
+    document.getElementById('grid').innerHTML = slice.length
+      ? slice.map(function (p) { return S.productCard(p); }).join('')
+      : '<div class="empty" style="grid-column:1/-1"><b>Nothing found</b><p>Try widening the price range or clearing a filter.</p><button class="btn btn-primary" type="button" id="emptyClear">Clear all filters</button></div>';
+
+    var pager = '';
+    if (pages > 1) {
+      pager += '<button type="button" data-page="' + (state.page - 1) + '"' + (state.page === 1 ? ' disabled' : '') + ' aria-label="Previous page">' + S.icon('chevronLeft') + '</button>';
+      for (var i = 1; i <= pages; i++) pager += '<button type="button" data-page="' + i + '"' + (i === state.page ? ' class="on"' : '') + '>' + i + '</button>';
+      pager += '<button type="button" data-page="' + (state.page + 1) + '"' + (state.page === pages ? ' disabled' : '') + ' aria-label="Next page">' + S.icon('chevronRight') + '</button>';
+    }
+    document.getElementById('pager').innerHTML = pager;
+
+    renderChips();
+    S.observeReveals();
   }
 
-  /* ---- events ---- */
-  function syncFromInputs() {
-    state.cats = Array.prototype.slice.call(document.querySelectorAll('[data-cat]:checked')).map(function (i) { return i.value; });
-    var r = document.querySelector('[data-rating]:checked');
-    state.rating = r ? parseFloat(r.value) : 0;
-    var mn = document.getElementById('minPrice').value;
-    var mx = document.getElementById('maxPrice').value;
-    state.min = mn === '' ? null : Math.max(0, parseFloat(mn));
-    state.max = mx === '' ? null : Math.max(0, parseFloat(mx));
-    state.sale = document.getElementById('onSale').checked;
-    state.inStock = document.getElementById('inStock').checked;
+  function clearAll() {
+    state.cats = []; state.min = null; state.max = null; state.rating = 0;
+    state.sale = false; state.stock = false; state.page = 1;
+    renderFilters(); render();
   }
 
+  /* events */
   document.getElementById('filters').addEventListener('change', function (e) {
-    if (e.target.id === 'priceRange') return;
-    syncFromInputs(); render();
+    var t = e.target;
+    if (t.hasAttribute('data-cat')) {
+      var id = t.getAttribute('data-cat');
+      var i = state.cats.indexOf(id);
+      if (t.checked && i < 0) state.cats.push(id);
+      if (!t.checked && i > -1) state.cats.splice(i, 1);
+      state.page = 1; render(); return;
+    }
+    if (t.id === 'pMin') { state.min = t.value === '' ? null : Number(t.value); state.page = 1; render(); return; }
+    if (t.id === 'pMax') { state.max = t.value === '' ? null : Number(t.value); state.page = 1; render(); return; }
+    if (t.id === 'pRange') {
+      state.max = Number(t.value) >= PRICE_MAX ? null : Number(t.value);
+      document.getElementById('rangeLabel').textContent = S.money(Number(t.value));
+      state.page = 1; render(); return;
+    }
+    if (t.name === 'rating') { state.rating = Number(t.value); state.page = 1; render(); return; }
+    if (t.id === 'fSale') { state.sale = t.checked; state.page = 1; render(); return; }
+    if (t.id === 'fStock') { state.stock = t.checked; state.page = 1; render(); return; }
   });
 
-  document.getElementById('priceRange').addEventListener('input', function () {
-    var v = parseInt(this.value, 10);
-    document.getElementById('rangeLabel').textContent = '$' + v;
-    document.getElementById('maxPrice').value = v >= 1200 ? '' : v;
-    syncFromInputs(); render();
-  });
-
-  document.getElementById('minPrice').addEventListener('input', function () { syncFromInputs(); render(); });
-  document.getElementById('maxPrice').addEventListener('input', function () {
-    var v = this.value === '' ? 1200 : parseInt(this.value, 10);
-    document.getElementById('priceRange').value = Math.min(1200, v);
-    document.getElementById('rangeLabel').textContent = '$' + Math.min(1200, v);
-    syncFromInputs(); render();
-  });
-
-  document.getElementById('sort').addEventListener('change', function () {
-    state.sort = this.value; render();
-  });
-
-  document.getElementById('resetFilters').addEventListener('click', function () {
-    state = { cats: [], q: '', min: null, max: null, rating: 0, sale: false, inStock: false, sort: state.sort };
-    document.getElementById('minPrice').value = ''; document.getElementById('maxPrice').value = '';
-    document.getElementById('priceRange').value = 1200;
-    document.getElementById('rangeLabel').textContent = '$1200';
-    document.querySelectorAll('[data-cat]').forEach(function (i) { i.checked = false; });
-    var any = document.querySelector('[data-rating][value="0"]'); if (any) any.checked = true;
-    document.getElementById('onSale').checked = false; document.getElementById('inStock').checked = false;
-    render();
-    S.toast('Filters cleared');
-  });
-
-  document.getElementById('applyFilters').addEventListener('click', function () {
-    var f = document.getElementById('filters');
-    if (f.classList.contains('open')) f.classList.remove('open');
-    var sc = document.querySelector('.scrim'); if (sc) sc.classList.remove('show');
-  });
-  document.getElementById('openFilters').addEventListener('click', function () {
-    document.getElementById('filters').classList.add('open');
-    var sc = document.querySelector('.scrim'); if (sc) sc.classList.add('show');
+  document.getElementById('filters').addEventListener('click', function (e) {
+    if (e.target.closest('#clearFilters')) clearAll();
   });
 
   document.getElementById('chips').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-chip]');
-    if (!b) return;
-    var key = b.getAttribute('data-chip');
-    if (key.indexOf('cat:') === 0) {
-      var c = key.slice(4);
-      state.cats = state.cats.filter(function (x) { return x !== c; });
-      document.querySelectorAll('[data-cat]').forEach(function (i) { if (i.value === c) i.checked = false; });
-    } else if (key === 'q') {
-      state.q = ''; history.replaceState(null, '', 'products.html');
-    } else if (key === 'price') {
-      state.min = null; state.max = null;
-      document.getElementById('minPrice').value = ''; document.getElementById('maxPrice').value = '';
-      document.getElementById('priceRange').value = 1200; document.getElementById('rangeLabel').textContent = '$1200';
-    } else if (key === 'rating') {
-      state.rating = 0; var any = document.querySelector('[data-rating][value="0"]'); if (any) any.checked = true;
-    } else if (key === 'sale') {
-      state.sale = false; document.getElementById('onSale').checked = false;
-    } else if (key === 'stock') {
-      state.inStock = false; document.getElementById('inStock').checked = false;
-    }
-    render();
+    var t = e.target.closest('button'); if (!t) return;
+    if (t.hasAttribute('data-rmcat')) { state.cats = state.cats.filter(function (x) { return x !== t.getAttribute('data-rmcat'); }); }
+    else if (t.hasAttribute('data-rmprice')) { state.min = null; state.max = null; }
+    else if (t.hasAttribute('data-rmrating')) { state.rating = 0; }
+    else if (t.hasAttribute('data-rmsale')) { state.sale = false; }
+    else if (t.hasAttribute('data-rmstock')) { state.stock = false; }
+    else if (t.id === 'chipClear') { clearAll(); return; }
+    state.page = 1; renderFilters(); render();
   });
 
-  syncInputs();
+  document.getElementById('grid').addEventListener('click', function (e) {
+    if (e.target.closest('#emptyClear')) clearAll();
+  });
+
+  document.getElementById('pager').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-page]'); if (!b) return;
+    state.page = Number(b.getAttribute('data-page'));
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  var sortSel = document.getElementById('sort');
+  sortSel.value = state.sort;
+  sortSel.addEventListener('change', function () { state.sort = sortSel.value; state.page = 1; render(); });
+
+  /* mobile filter drawer */
+  var filters = document.getElementById('filters');
+  var scrim = document.getElementById('filterScrim');
+  document.getElementById('filterToggle').addEventListener('click', function () {
+    filters.classList.add('open'); scrim.hidden = false; document.body.classList.add('no-scroll');
+  });
+  function shutFilters() { filters.classList.remove('open'); scrim.hidden = true; document.body.classList.remove('no-scroll'); }
+  scrim.addEventListener('click', shutFilters);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') shutFilters(); });
+
+  renderFilters();
   render();
-  S.observeReveals();
 })();
 </script>
 </body>

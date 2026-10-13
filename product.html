@@ -3,264 +3,210 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Product — Sokoni</title>
-<meta name="description" content="Product details, specifications and customer reviews on Sokoni.">
+<title>Product — Ladydee Minimart Store</title>
+<meta name="description" content="Product details, sizes, prices and reviews at Ladydee Minimart Store.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛍️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="product">
 
 <div id="site-header"></div>
 
-<main id="pdp"></main>
-
-<section class="section section--tight">
-  <div class="wrap">
-    <div class="section-head reveal">
-      <div>
-        <span class="eyebrow">You may also like</span>
-        <h2>Related products</h2>
-      </div>
-      <a class="link-arrow" href="products.html">Browse everything <span data-i="arrowRight"></span></a>
-    </div>
-    <div class="grid-products" id="related"></div>
-  </div>
-</section>
+<main id="pdpMain"></main>
 
 <div id="site-footer"></div>
 
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
+<script src="brevi.js"></script>
 <script>
 (function () {
-  var S = window.Sokoni;
-
-  document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
+  var S = window.Ladydee;
+  S.mount('products');
 
   var id = S.param('id');
-  var p = S.getProduct(id);
+  var p = id ? S.product(id) : null;
   if (!p) p = S.PRODUCTS[0];
 
+  document.title = p.name + ' ' + p.size + ' — Ladydee Minimart Store';
+
   var d = S.discountOf(p);
-  var inStock = p.stock > 0;
-  var low = p.stock > 0 && p.stock <= 15;
-  var reviews = S.reviewsFor(p);
-  var breakdown = S.ratingBreakdown(p);
-  var thumbs = [p.image, p.scene].filter(Boolean);
+  var out = p.stock <= 0;
+  var low = p.stock > 0 && p.stock <= 30;
+  var wished = S.inWish(p.id);
 
-  document.title = p.name + ' — Sokoni';
+  /* gallery: product shot + scene shot */
+  var shots = [p.image, p.scene].filter(Boolean);
 
-  var stockPill = !inStock
-    ? '<span class="stock-pill low"><span class="dot2"></span> Out of stock</span>'
-    : (low
-      ? '<span class="stock-pill low"><span class="dot2"></span> Only ' + p.stock + ' left</span>'
-      : '<span class="stock-pill"><span class="dot2"></span> In stock (' + p.stock + ')</span>');
+  /* reviews */
+  var NAMES = ['Chidinma O.', 'Tunde A.', 'Aisha B.', 'Emeka N.', 'Funke A.', 'Ibrahim S.', 'Ngozi E.', 'Segun O.'];
+  var TEXTS = [
+    'Exactly as described and properly sealed. Delivery was faster than I expected.',
+    'Good value for the size. I have reordered this twice already.',
+    'Quality is solid and the price is fair compared to my local market.',
+    'Arrived well packaged, nothing spilled. Will buy again.',
+    'Does the job. Nothing fancy but reliable and the size is accurate.',
+    'Happy with this purchase — the family finished it quickly.',
+    'Sealed properly and the expiry date is far off. No complaints.',
+    'Solid buy. Delivery rider called ahead which I appreciated.'
+  ];
+  var reviews = [];
+  for (var i = 0; i < 4; i++) {
+    var r = Math.max(3, Math.min(5, Math.round(p.rating) - (i === 3 ? 1 : 0)));
+    reviews.push({
+      name: NAMES[(i * 3 + p.id.length) % NAMES.length],
+      rating: r,
+      text: TEXTS[(i * 2 + p.id.length) % TEXTS.length],
+      days: 3 + i * 9
+    });
+  }
+  var dist = [5, 4, 3, 2, 1].map(function (s) {
+    var pct = s === 5 ? 68 : s === 4 ? 22 : s === 3 ? 7 : s === 2 ? 2 : 1;
+    return { star: s, pct: pct };
+  });
+
+  var related = S.PRODUCTS.filter(function (x) { return x.category === p.category && x.id !== p.id; }).slice(0, 4);
+  if (related.length < 4) {
+    S.PRODUCTS.forEach(function (x) {
+      if (related.length < 4 && x.id !== p.id && related.indexOf(x) < 0) related.push(x);
+    });
+  }
 
   var specRows = Object.keys(p.specs).map(function (k) {
     return '<tr><td>' + S.esc(k) + '</td><td>' + S.esc(p.specs[k]) + '</td></tr>';
   }).join('');
 
-  var featureItems = p.features.map(function (f) {
-    return '<li>' + S.icon('checkCircle') + '<span>' + S.esc(f) + '</span></li>';
-  }).join('');
-
-  /* rating bars */
-  var barsHTML = breakdown.map(function (pct, i) {
-    var star = 5 - i;
-    return '<div class="bar-row"><span>' + star + '★</span>' +
-      '<span class="bar-track"><span class="bar-fill" data-w="' + pct + '"></span></span>' +
-      '<span>' + pct + '%</span></div>';
-  }).join('');
-
-  /* reviews */
-  var reviewsHTML = reviews.map(function (r) {
-    var initial = r.name.charAt(0);
-    var full = Math.round(r.rating), t = '';
-    for (var i = 1; i <= 5; i++) {
-      t += '<span style="opacity:' + (i <= full ? 1 : .25) + '">' + S.icon('star') + '</span>';
-    }
-    return '<article class="review">' +
-      '<div class="review-top">' +
-        '<span class="avatar" style="background:' + r.color + '">' + initial + '</span>' +
-        '<div><b>' + S.esc(r.name) + ' <span class="verified">' + S.icon('checkCircle') + ' Verified purchase</span></b>' +
-        '<small>' + r.date + '</small></div>' +
-      '</div>' +
-      '<span class="stars"><span class="s-icons">' + t + '</span><span>' + S.esc(r.title) + '</span></span>' +
-      '<p>' + S.esc(r.text) + '</p>' +
-    '</article>';
-  }).join('');
-
-  var related = S.PRODUCTS.filter(function (x) { return x.category === p.category && x.id !== p.id; });
-  if (related.length < 4) {
-    related = related.concat(S.PRODUCTS.filter(function (x) { return x.id !== p.id && related.indexOf(x) === -1; }));
-  }
-  related = related.slice(0, 4);
-
-  document.getElementById('pdp').innerHTML = '' +
+  var html =
   '<section class="page-head"><div class="wrap">' +
-    '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Home</a>' + S.icon('chevronRight') +
-    '<a href="products.html">Shop</a>' + S.icon('chevronRight') +
-    '<a href="products.html?cat=' + p.category + '">' + S.esc(S.catName(p.category)) + '</a>' + S.icon('chevronRight') +
-    '<span>' + S.esc(p.name) + '</span></nav>' +
+    '<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a>' + S.icon('chevronRight') +
+      '<a href="/products">Shop</a>' + S.icon('chevronRight') +
+      '<a href="/products?cat=' + p.category + '">' + S.esc(S.catName(p.category)) + '</a>' + S.icon('chevronRight') +
+      '<span>' + S.esc(p.name) + '</span></nav>' +
+  '</div></section>' +
+
+  '<section class="section"><div class="wrap"><div class="pdp">' +
+    '<div class="pdp-gallery">' +
+      '<div class="gallery-main"><img id="galleryMain" src="' + shots[0] + '" alt="' + S.esc(p.name) + ' ' + S.esc(p.size) + '"></div>' +
+      '<div class="gallery-thumbs">' + shots.map(function (s, i) {
+        return '<button class="gthumb' + (i === 0 ? ' on' : '') + '" type="button" data-shot="' + s + '" aria-label="View image ' + (i + 1) + '"><img src="' + s + '" alt=""></button>';
+      }).join('') + '</div>' +
+    '</div>' +
+
+    '<div class="pdp-info">' +
+      '<span class="pcard-cat">' + S.esc(S.catName(p.category)) + '</span>' +
+      '<h1>' + S.esc(p.name) + '</h1>' +
+      '<div class="pdp-meta">' + S.stars(p.rating) + '<span>' + p.rating + ' · ' + p.reviewCount + ' reviews</span>' +
+        '<span>·</span><span>' + S.esc(p.size) + '</span></div>' +
+      '<div class="pdp-price"><b>' + S.money(p.price) + '</b>' +
+        (p.oldPrice ? '<s>' + S.money(p.oldPrice) + '</s><span class="pdp-save">Save ' + d + '%</span>' : '') + '</div>' +
+      '<div class="pdp-stock ' + (out ? 'out' : low ? 'low' : 'in') + '">' + S.icon(out ? 'alert' : 'checkCircle') +
+        (out ? 'Out of stock' : low ? 'Only ' + p.stock + ' left in stock' : 'In stock — ready to dispatch') + '</div>' +
+      '<p class="pdp-short">' + S.esc(p.short) + '</p>' +
+
+      '<div class="pdp-buy">' +
+        '<div class="qty"><button type="button" id="qMinus" aria-label="Decrease quantity">' + S.icon('minus') + '</button>' +
+          '<input type="number" id="qty" value="1" min="1" max="99" aria-label="Quantity">' +
+          '<button type="button" id="qPlus" aria-label="Increase quantity">' + S.icon('plus') + '</button></div>' +
+        '<button class="btn btn-primary btn-lg" id="addBtn" type="button"' + (out ? ' disabled' : '') + '>' + S.icon('cart') + ' Add to cart</button>' +
+        '<button class="btn btn-outline btn-lg" id="buyBtn" type="button"' + (out ? ' disabled' : '') + '>Buy now</button>' +
+        '<button class="icon-btn wish-btn-lg' + (wished ? ' on' : '') + '" id="wishBtn" type="button" aria-label="' + (wished ? 'Remove from wishlist' : 'Add to wishlist') + '" aria-pressed="' + wished + '" style="width:52px;height:52px;border:1.5px solid var(--line);border-radius:50%;position:static;box-shadow:none;background:var(--surface)">' + S.icon('heart') + '</button>' +
+      '</div>' +
+
+      '<div class="pdp-perks">' +
+        '<div class="pdp-perk">' + S.icon('truck') + '<span><b>Free delivery</b> on orders over ' + S.money(S.getDeliveryRules().freeOver) + '</span></div>' +
+        '<div class="pdp-perk">' + S.icon('shield') + '<span><b>Sealed and checked</b> before dispatch</span></div>' +
+        '<div class="pdp-perk">' + S.icon('refresh') + '<span><b>48-hour returns</b> on damaged or wrong items</span></div>' +
+        '<div class="pdp-perk">' + S.icon('wallet') + '<span><b>Pay on delivery</b> available in Lagos</span></div>' +
+      '</div>' +
+    '</div>' +
+  '</div></div></section>' +
+
+  '<section class="section section--cream"><div class="wrap">' +
+    '<div class="tabs" role="tablist">' +
+      '<button class="tab on" data-tab="desc" role="tab" type="button">Description</button>' +
+      '<button class="tab" data-tab="specs" role="tab" type="button">Specifications</button>' +
+      '<button class="tab" data-tab="revs" role="tab" type="button">Reviews (' + p.reviewCount + ')</button>' +
+    '</div>' +
+
+    '<div class="tabpanel on" id="tab-desc"><div class="prose">' +
+      '<p>' + S.esc(p.description) + '</p>' +
+      '<ul class="feat-list">' + p.features.map(function (f) {
+        return '<li>' + S.icon('check') + '<span>' + S.esc(f) + '</span></li>';
+      }).join('') + '</ul>' +
+    '</div></div>' +
+
+    '<div class="tabpanel" id="tab-specs"><table class="spec-table">' + specRows + '</table></div>' +
+
+    '<div class="tabpanel" id="tab-revs">' +
+      '<div class="rev-summary">' +
+        '<div class="rev-score"><b>' + p.rating + '</b>' + S.stars(p.rating) + '<small>' + p.reviewCount + ' verified reviews</small></div>' +
+        '<div class="rev-bars">' + dist.map(function (x) {
+          return '<div class="rev-bar"><span>' + x.star + '★</span><span class="rev-bar-track"><span class="rev-bar-fill" style="width:' + x.pct + '%"></span></span><span>' + x.pct + '%</span></div>';
+        }).join('') + '</div>' +
+      '</div>' +
+      '<div class="rev-list">' + reviews.map(function (r) {
+        return '<article class="review"><div class="review-head">' +
+          '<span class="review-av">' + S.esc(r.name.charAt(0)) + '</span>' +
+          '<div><b>' + S.esc(r.name) + '</b><small>' + r.days + ' days ago</small></div>' +
+          '<span class="review-verified">' + S.icon('checkCircle') + 'Verified purchase</span></div>' +
+          S.stars(r.rating) + '<p style="margin-top:8px">' + S.esc(r.text) + '</p></article>';
+      }).join('') + '</div>' +
+    '</div>' +
   '</div></section>' +
 
   '<section class="section"><div class="wrap">' +
-    '<div class="pdp">' +
-
-      '<div class="gallery reveal">' +
-        '<div class="gallery-main"><img id="mainImg" src="' + p.image + '" alt="' + S.esc(p.name) + '"></div>' +
-        '<div class="gallery-thumbs" id="thumbs">' +
-          thumbs.map(function (src, i) {
-            return '<button class="thumb' + (i === 0 ? ' active' : '') + '" data-src="' + src + '" aria-label="View image ' + (i + 1) + '"><img src="' + src + '" alt=""></button>';
-          }).join('') +
-        '</div>' +
-      '</div>' +
-
-      '<div class="pdp-info reveal">' +
-        '<span class="pcard-cat">' + S.esc(p.brand) + ' · ' + S.esc(S.catName(p.category)) + '</span>' +
-        '<h1 style="margin-top:8px">' + S.esc(p.name) + '</h1>' +
-        '<div class="pdp-meta">' + S.starHTML(p.rating, p.reviewCount) + stockPill + '</div>' +
-
-        '<div class="pdp-price">' +
-          '<span class="price">' + S.money(p.price) + '</span>' +
-          (p.oldPrice ? '<span class="price-old">' + S.money(p.oldPrice) + '</span>' : '') +
-          (d ? '<span class="save">Save ' + d + '%</span>' : '') +
-        '</div>' +
-        '<p style="color:var(--muted);font-size:.86rem">Incl. VAT · Free delivery over ' + S.money(100) + '</p>' +
-
-        '<p class="pdp-desc">' + S.esc(p.description) + '</p>' +
-
-        '<ul class="feature-list">' + featureItems + '</ul>' +
-
-        '<div class="buy-row">' +
-          '<span class="qty">' +
-            '<button type="button" id="qMinus" aria-label="Decrease quantity">' + S.icon('minus') + '</button>' +
-            '<input type="number" id="pdpQty" value="1" min="1" max="99" inputmode="numeric" aria-label="Quantity">' +
-            '<button type="button" id="qPlus" aria-label="Increase quantity">' + S.icon('plus') + '</button>' +
-          '</span>' +
-          '<button class="btn btn-primary btn-lg" data-add="' + p.id + '" data-from="pdp"' + (inStock ? '' : ' disabled') + '>' + S.icon('cart') + ' Add to cart</button>' +
-          '<button class="btn btn-outline btn-lg" id="buyNow"' + (inStock ? '' : ' disabled') + '>' + S.icon('zap') + ' Buy now</button>' +
-          '<button class="btn btn-outline btn-lg" data-wish="' + p.id + '" aria-label="Save for later" style="padding:16px 18px">' + S.icon('heart') + '</button>' +
-        '</div>' +
-
-        '<div class="pdp-perks">' +
-          '<div class="perk">' + S.icon('truck') + '<div><b>Free delivery over ' + S.money(100) + '</b><small>Typical delivery 1–3 working days</small></div></div>' +
-          '<div class="perk">' + S.icon('refresh') + '<div><b>30-day returns</b><small>Send it back for a full refund</small></div></div>' +
-          '<div class="perk">' + S.icon('shield') + '<div><b>2-year warranty</b><small>Covered against manufacturing faults</small></div></div>' +
-          '<div class="perk">' + S.icon('headset') + '<div><b>Support 8am–8pm</b><small>Call, chat or email — real people</small></div></div>' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
-
-    '<div class="tabs">' +
-      '<div class="tabs-nav" role="tablist">' +
-        '<button class="active" data-tab="desc" role="tab">Description</button>' +
-        '<button data-tab="specs" role="tab">Specifications</button>' +
-        '<button data-tab="reviews" role="tab">Reviews (' + reviews.length + ')</button>' +
-        '<button data-tab="shipping" role="tab">Shipping &amp; returns</button>' +
-      '</div>' +
-
-      '<div class="tab-panel active" id="tab-desc" role="tabpanel">' +
-        '<h3 style="margin-bottom:12px">About this product</h3>' +
-        '<p style="color:var(--muted);max-width:75ch">' + S.esc(p.description) + '</p>' +
-        '<h3 style="margin:26px 0 14px">Highlights</h3>' +
-        '<ul class="feature-list">' + featureItems + '</ul>' +
-      '</div>' +
-
-      '<div class="tab-panel" id="tab-specs" role="tabpanel">' +
-        '<h3 style="margin-bottom:12px">Specifications</h3>' +
-        '<table class="spec-table">' + specRows + '</table>' +
-      '</div>' +
-
-      '<div class="tab-panel" id="tab-reviews" role="tabpanel">' +
-        '<div class="reviews">' +
-          '<div class="rating-summary">' +
-            '<div class="big">' + p.rating.toFixed(1) + '</div>' +
-            '<div class="s-icons">' + (function () {
-              var full = Math.round(p.rating), t = '';
-              for (var i = 1; i <= 5; i++) t += '<span style="opacity:' + (i <= full ? 1 : .25) + '">' + S.icon('star') + '</span>';
-              return t;
-            })() + '</div>' +
-            '<div style="color:var(--muted);font-size:.86rem">Based on ' + p.reviewCount + ' reviews</div>' +
-            '<div class="bars">' + barsHTML + '</div>' +
-            '<button class="btn btn-outline btn-block" style="margin-top:20px" id="writeReview" type="button">' + S.icon('award') + ' Write a review</button>' +
-          '</div>' +
-          '<div>' + reviewsHTML + '</div>' +
-        '</div>' +
-      '</div>' +
-
-      '<div class="tab-panel" id="tab-shipping" role="tabpanel">' +
-        '<div class="props" style="grid-template-columns:repeat(2,1fr)">' +
-          '<div class="prop"><span class="prop-ico">' + S.icon('truck') + '</span><div><b>Delivery</b><p>Free over ' + S.money(100) + '. Under that, a flat ' + S.money(9.9) + '. Most orders arrive in 1–3 working days.</p></div></div>' +
-          '<div class="prop"><span class="prop-ico">' + S.icon('refresh') + '</span><div><b>Returns</b><p>30 days from delivery, unused and in its original packaging. We arrange the pickup.</p></div></div>' +
-          '<div class="prop"><span class="prop-ico">' + S.icon('shield') + '</span><div><b>Warranty</b><p>2-year manufacturer warranty on all electronics and wearables.</p></div></div>' +
-          '<div class="prop"><span class="prop-ico">' + S.icon('creditCard') + '</span><div><b>Payment</b><p>Card, bank transfer or pay on delivery. All card payments are encrypted.</p></div></div>' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
-
+    '<div class="section-head"><div><span class="eyebrow">You may also like</span><h2>More from ' + S.esc(S.catName(p.category)) + '</h2></div>' +
+      '<a class="link-arrow" href="/products?cat=' + p.category + '">See category ' + S.icon('arrowRight') + '</a></div>' +
+    '<div class="pgrid">' + related.map(function (x) { return S.productCard(x); }).join('') + '</div>' +
   '</div></section>';
 
-  S.renderProducts('#related', related);
+  document.getElementById('pdpMain').innerHTML = html;
   S.observeReveals();
 
   /* gallery */
-  document.getElementById('thumbs').addEventListener('click', function (e) {
-    var b = e.target.closest('.thumb');
-    if (!b) return;
-    document.getElementById('mainImg').src = b.getAttribute('data-src');
-    document.querySelectorAll('.thumb').forEach(function (t) { t.classList.remove('active'); });
-    b.classList.add('active');
-  });
-
-  /* tabs */
-  document.querySelector('.tabs-nav').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-tab]');
-    if (!b) return;
-    var key = b.getAttribute('data-tab');
-    document.querySelectorAll('.tabs-nav button').forEach(function (x) { x.classList.remove('active'); });
-    document.querySelectorAll('.tab-panel').forEach(function (x) { x.classList.remove('active'); });
-    b.classList.add('active');
-    document.getElementById('tab-' + key).classList.add('active');
-    if (key === 'reviews') {
-      requestAnimationFrame(function () {
-        document.querySelectorAll('#tab-reviews .bar-fill').forEach(function (f) {
-          f.style.width = f.getAttribute('data-w') + '%';
-        });
-      });
-    }
-    if (window.innerWidth < 700) b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  document.querySelector('.gallery-thumbs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-shot]'); if (!b) return;
+    document.getElementById('galleryMain').src = b.getAttribute('data-shot');
+    document.querySelectorAll('.gthumb').forEach(function (t) { t.classList.toggle('on', t === b); });
   });
 
   /* qty */
-  var qty = document.getElementById('pdpQty');
-  document.getElementById('qMinus').addEventListener('click', function () {
-    qty.value = Math.max(1, (parseInt(qty.value, 10) || 1) - 1);
+  var qty = document.getElementById('qty');
+  document.getElementById('qMinus').addEventListener('click', function () { qty.value = Math.max(1, Number(qty.value) - 1); });
+  document.getElementById('qPlus').addEventListener('click', function () { qty.value = Math.min(99, Number(qty.value) + 1); });
+
+  /* add / buy */
+  document.getElementById('addBtn').addEventListener('click', function () {
+    S.addToCart(p.id, Number(qty.value) || 1);
+    S.toast(p.name + ' added to cart', 'cart');
+    S.refreshBadges();
   });
-  document.getElementById('qPlus').addEventListener('click', function () {
-    qty.value = Math.min(99, (parseInt(qty.value, 10) || 1) + 1);
-  });
-  qty.addEventListener('change', function () {
-    var v = parseInt(this.value, 10);
-    if (isNaN(v) || v < 1) v = 1;
-    if (v > 99) v = 99;
-    this.value = v;
+  document.getElementById('buyBtn').addEventListener('click', function () {
+    S.addToCart(p.id, Number(qty.value) || 1);
+    S.go('/cart');
   });
 
-  /* buy now */
-  document.getElementById('buyNow').addEventListener('click', function () {
-    S.addToCart(p.id, parseInt(qty.value, 10) || 1);
-    window.location.href = 'cart.html?checkout=1';
+  /* wishlist */
+  var wb = document.getElementById('wishBtn');
+  wb.addEventListener('click', function () {
+    var on = S.toggleWish(p.id);
+    wb.classList.toggle('on', on);
+    wb.setAttribute('aria-pressed', String(on));
+    wb.style.color = on ? 'var(--coral)' : '';
+    S.toast(on ? 'Saved to wishlist' : 'Removed from wishlist', 'heart');
+    S.refreshBadges();
   });
+  if (wished) wb.style.color = 'var(--coral)';
 
-  document.getElementById('writeReview').addEventListener('click', function () {
-    S.toast('Thanks! Review drafting is a demo feature.', 'award');
+  /* tabs */
+  document.querySelector('.tabs').addEventListener('click', function (e) {
+    var t = e.target.closest('.tab'); if (!t) return;
+    document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('on', x === t); });
+    document.querySelectorAll('.tabpanel').forEach(function (x) { x.classList.remove('on'); });
+    document.getElementById('tab-' + t.getAttribute('data-tab')).classList.add('on');
   });
-
-  /* wishlist heart reflects saved state (the shared handler toggles it) */
-  S.refreshWishUI();
 })();
 </script>
 </body>

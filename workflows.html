@@ -3,341 +3,227 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Workflows &amp; Integrations — Sokoni</title>
-<meta name="description" content="How orders move from checkout to delivery on Sokoni, and the payments, logistics, messaging, analytics and marketplace integrations behind it.">
+<title>How it works — Ladydee Minimart Store</title>
+<meta name="description" content="How ordering, delivery, returns and accounts work at Ladydee Minimart Store, plus the integrations behind the store.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛍️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
 <link rel="stylesheet" href="styles.css">
-<style>
-  .flow-hero .hero-badge { margin: 0 auto 22px; }
-  .arch-legend { display:flex; gap:18px; flex-wrap:wrap; margin-top:20px; font-size:.84rem; color:var(--muted); }
-  .arch-legend span { display:inline-flex; align-items:center; gap:8px; }
-  .arch-legend i { width:12px; height:12px; border-radius:4px; display:inline-block; }
-</style>
 </head>
 <body data-page="workflows">
 
 <div id="site-header"></div>
 
-<main>
+<section class="page-head">
+  <div class="wrap">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a><span data-i="chevronRight"></span><span>How it works</span>
+    </nav>
+    <h1>How Ladydee works</h1>
+    <p class="sub">From the moment you tap “place order” to the knock on your door — and everything running behind the scenes.</p>
+  </div>
+</section>
 
-  <!-- HERO -->
-  <section class="flow-hero">
-    <div class="wrap">
-      <span class="hero-badge"><span class="pill-dot"></span><b>Under the hood</b> · sample architecture</span>
-      <h1>Workflows &amp; integrations</h1>
-      <p>How an order actually moves through Sokoni — from the moment you tap <em>Place order</em> to the parcel in your hands — and the systems that make it happen. Everything below is a demonstration setup.</p>
+<!-- ORDER LIFECYCLE -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div><span class="eyebrow">Order lifecycle</span><h2>From order to doorstep</h2>
+        <p>Every order moves through the same five stages. You can follow each one from your account.</p></div>
     </div>
-  </section>
+    <div class="flow" id="orderFlow"></div>
+    <div class="flow-branch" id="orderBranches"></div>
+  </div>
+</section>
 
-  <!-- ORDER LIFECYCLE -->
-  <section class="section">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <div>
-          <span class="eyebrow">End-to-end</span>
-          <h2>The order lifecycle</h2>
-          <p>One connected chain. Each step fires automatically and notifies the next system, so nothing waits on a human unless it needs to.</p>
-        </div>
-      </div>
-
-      <div class="flow-canvas reveal">
-        <div class="flow-track" id="flowTrack"></div>
-
-        <div class="flow-branch">
-          <div class="branch-card">
-            <span class="bc-ico amber" data-bc="alert"></span>
-            <div><b>Exception path</b><p>Failed payment, out-of-stock or a failed delivery attempt pauses the order and raises a task for support.</p></div>
-          </div>
-          <div class="branch-card">
-            <span class="bc-ico teal" data-bc="refresh"></span>
-            <div><b>Returns branch</b><p>A return request re-opens the order, books a pickup and issues either a refund or a replacement.</p></div>
-          </div>
-          <div class="branch-card">
-            <span class="bc-ico coral" data-bc="chart"></span>
-            <div><b>Feedback loop</b><p>Delivery times, return reasons and review sentiment feed back into stock planning.</p></div>
-          </div>
-        </div>
-      </div>
+<!-- DELIVERY DISCOUNTS -->
+<section class="section section--cream">
+  <div class="wrap">
+    <div class="section-head">
+      <div><span class="eyebrow">Delivery discounts</span><h2>How delivery fees are worked out</h2>
+        <p>We apply the best rule that fits your order — you never pay more than the base zone fee.</p></div>
     </div>
-  </section>
+    <div class="flow" id="delivFlow"></div>
+    <div class="wf-grid" id="delivRules" style="margin-top:26px"></div>
+  </div>
+</section>
 
-  <!-- ACCOUNT LIFECYCLE -->
-  <section class="section section--tight">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <div>
-          <span class="eyebrow">Accounts</span>
-          <h2>Sign-up → verify → login → account</h2>
-          <p>The customer account journey, from a first-time visitor to a dashboard holding order history. In this demo it runs entirely in the browser — no server, no data transmitted.</p>
-        </div>
-        <a class="link-arrow" href="signup.html">Try it yourself <span data-i="arrowRight"></span></a>
-      </div>
-
-      <div class="flow-canvas reveal">
-        <div class="flow-track" id="acctTrack"></div>
-
-        <div class="flow-branch">
-          <div class="branch-card">
-            <span class="bc-ico amber" data-bc="key"></span>
-            <div><b>Forgot password</b><p>A reset link takes the customer to a new-password screen, then straight back to sign in — without support ever getting involved.</p></div>
-          </div>
-          <div class="branch-card">
-            <span class="bc-ico teal" data-bc="lock"></span>
-            <div><b>Session &amp; sign-out</b><p>Signing in starts a session stored locally; the header switches to an account chip and signing out clears it.</p></div>
-          </div>
-          <div class="branch-card">
-            <span class="bc-ico coral" data-bc="alert"></span>
-            <div><b>Stored in your browser</b><p>Profile, addresses and orders live in <code>localStorage</code> only. Nothing is posted anywhere — this is a demonstration storefront.</p></div>
-          </div>
-        </div>
-      </div>
+<!-- ACCOUNT WORKFLOW -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div><span class="eyebrow">Accounts</span><h2>Sign up, verify, sign in</h2>
+        <p>Creating an account takes a minute and unlocks free delivery on every order.</p></div>
     </div>
-  </section>
+    <div class="flow" id="authFlow"></div>
+    <div class="flow-branch" id="authBranches"></div>
+  </div>
+</section>
 
-  <!-- SAMPLE WORKFLOWS -->
-  <section class="section section--tight">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <div>
-          <span class="eyebrow">Automations</span>
-          <h2>Sample workflows</h2>
-          <p>Five flows that run every day. Each shows the trigger, the steps it runs, and what it hands off to next.</p>
-        </div>
-      </div>
-      <div class="wf-grid" id="wfGrid"></div>
+<!-- WORKFLOWS -->
+<section class="section section--cream">
+  <div class="wrap">
+    <div class="section-head">
+      <div><span class="eyebrow">Operations</span><h2>Workflows behind the store</h2>
+        <p>The processes that keep stock, orders and customers moving.</p></div>
     </div>
-  </section>
+    <div class="wf-grid" id="wfGrid"></div>
+  </div>
+</section>
 
-  <!-- INTEGRATIONS -->
-  <section class="section section--tight">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <div>
-          <span class="eyebrow">Connected systems</span>
-          <h2>Integrations</h2>
-          <p>The third-party services Sokoni plugs into. Sample names — swap in your own providers at any point.</p>
-        </div>
-      </div>
-      <div class="int-grid" id="intGrid"></div>
+<!-- INTEGRATIONS -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div><span class="eyebrow">Integrations</span><h2>What plugs into Ladydee</h2>
+        <p>Payments, logistics, messaging, analytics and marketplace channels — all wired to the same order record.</p></div>
     </div>
-  </section>
+    <div class="int-grid" id="intGrid"></div>
+  </div>
+</section>
 
-  <!-- ARCHITECTURE -->
-  <section class="section section--tight">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <div>
-          <span class="eyebrow">System map</span>
-          <h2>How the pieces fit together</h2>
-          <p>Layers from the customer-facing storefront down to the systems of record.</p>
-        </div>
-      </div>
-      <div class="arch reveal">
-        <div class="arch-layer">
-          <span class="al-label">Experience</span>
-          <div class="arch-nodes">
-            <span class="arch-node hi">Web storefront</span>
-            <span class="arch-node">Mobile app</span>
-            <span class="arch-node">Seller centre</span>
-            <span class="arch-node">Support console</span>
-          </div>
-        </div>
-        <div class="arch-layer">
-          <span class="al-label">Orchestration</span>
-          <div class="arch-nodes">
-            <span class="arch-node hi">Order service</span>
-            <span class="arch-node">Inventory service</span>
-            <span class="arch-node">Payments service</span>
-            <span class="arch-node">Notification service</span>
-            <span class="arch-node">Returns service</span>
-          </div>
-        </div>
-        <div class="arch-layer">
-          <span class="al-label">Events</span>
-          <div class="arch-nodes">
-            <span class="arch-node hi">order.created</span>
-            <span class="arch-node">payment.captured</span>
-            <span class="arch-node">stock.reserved</span>
-            <span class="arch-node">shipment.updated</span>
-            <span class="arch-node">return.requested</span>
-          </div>
-        </div>
-        <div class="arch-layer" style="margin-bottom:0">
-          <span class="al-label">External</span>
-          <div class="arch-nodes">
-            <span class="arch-node">Payment gateways</span>
-            <span class="arch-node">Logistics partners</span>
-            <span class="arch-node">SMS &amp; email</span>
-            <span class="arch-node">Analytics</span>
-            <span class="arch-node">Marketplace APIs</span>
-          </div>
-        </div>
-        <div class="arch-legend">
-          <span><i style="background:var(--teal)"></i> Primary flow</span>
-          <span><i style="background:var(--surface);border:1px solid var(--line)"></i> Supporting component</span>
-          <span><i style="background:var(--ink)"></i> Events are published, not polled</span>
-        </div>
-      </div>
+<!-- STACK -->
+<section class="section section--cream">
+  <div class="wrap">
+    <div class="section-head">
+      <div><span class="eyebrow">Under the hood</span><h2>How the pieces fit together</h2>
+        <p>A layered view of the store, from the customer's screen down to the data.</p></div>
     </div>
-  </section>
-
-  <!-- CTA -->
-  <section class="section section--tight">
-    <div class="wrap">
-      <div class="newsletter reveal">
-        <div>
-          <span class="eyebrow" style="color:rgba(255,255,255,.92)">Try it</span>
-          <h2>See the flow in action</h2>
-          <p>Place a demo order and watch it move through cart, delivery and payment — then land on an order confirmation. No real payment is taken.</p>
-        </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <a class="btn btn-accent btn-lg" href="products.html">Shop the catalogue</a>
-          <a class="btn btn-lg" href="signup.html" style="background:rgba(255,255,255,.16);color:#fff">Create an account</a>
-          <a class="btn btn-lg" href="cart.html" style="background:rgba(255,255,255,.16);color:#fff">Go to cart</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-</main>
+    <div class="layer-stack" id="layers"></div>
+  </div>
+</section>
 
 <div id="site-footer"></div>
 
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
+<script src="brevi.js"></script>
 <script>
 (function () {
-  var S = window.Sokoni;
+  var S = window.Ladydee;
+  S.mount('workflows');
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
 
-  /* ---- order lifecycle track ---- */
-  var FLOW = [
-    { icon: 'cart', title: 'Order placed', sub: 'Checkout confirmed' },
-    { icon: 'creditCard', title: 'Payment', sub: 'Authorised & captured' },
-    { icon: 'box', title: 'Pack & dispatch', sub: 'Picked from warehouse' },
-    { icon: 'truck', title: 'Shipping', sub: 'Handed to courier' },
-    { icon: 'checkCircle', title: 'Delivered', sub: 'Confirmed at the door' }
-  ];
-  document.getElementById('flowTrack').innerHTML = FLOW.map(function (n, i) {
-    var node = '<div class="fnode reveal" style="--d:' + (i * .09).toFixed(2) + 's">' +
-      '<span class="fn-num">' + (i + 1) + '</span>' +
-      '<span class="fn-ico">' + S.icon(n.icon) + '</span><b>' + n.title + '</b><small>' + n.sub + '</small></div>';
-    var arrow = i < FLOW.length - 1 ? '<span class="farrow">' + S.icon('arrowRight') + '</span>' : '';
-    return node + arrow;
+  function flow(nodes) {
+    return nodes.map(function (n, i) {
+      var node = '<div class="flow-node' + (n.accent ? ' accent' : '') + '">' +
+        '<span class="fn-ico">' + S.icon(n.icon) + '</span><b>' + n.title + '</b><small>' + n.text + '</small></div>';
+      var arrow = i < nodes.length - 1 ? '<span class="flow-arrow">' + S.icon('arrowRight') + '</span>' : '';
+      return node + arrow;
+    }).join('');
+  }
+
+  document.getElementById('orderFlow').innerHTML = flow([
+    { icon: 'cart', title: 'Order placed', text: 'You check out and we issue an order number instantly.' },
+    { icon: 'checkCircle', title: 'Confirmed', text: 'Our team reviews and confirms the order.' },
+    { icon: 'package', title: 'Packed', text: 'Items are picked, sealed and boxed at the warehouse.' },
+    { icon: 'truck', title: 'Out for delivery', text: 'A rider is assigned and heads your way.' },
+    { icon: 'home', title: 'Delivered', text: 'You receive it and can rate the order.', accent: true }
+  ]);
+
+  document.getElementById('orderBranches').innerHTML = [
+    ['refresh', 'Returns &amp; refunds', 'Damaged or wrong item? Report it within 48 hours and we arrange a swap or a refund to your original payment method.'],
+    ['alert', 'Failed delivery', 'If nobody is available, the rider calls and re-attempts the next day at no extra cost.'],
+    ['star', 'Feedback', 'After delivery you can rate the order — it feeds straight into the product reviews.'],
+    ['wallet', 'Payment capture', 'Card and transfer orders are captured at checkout; pay-on-delivery is collected by the rider.'],
+    ['tag', 'Coupon redemption', 'Coupons are marked used the moment an order is placed, so a code cannot be reused past its limit.'],
+    ['layers', 'Stock deduction', 'Stock is reserved when the order is confirmed and released if the order is rejected.']
+  ].map(function (b) {
+    return '<div class="branch-card"><b>' + S.icon(b[0]) + b[1] + '</b><small>' + b[2] + '</small></div>';
   }).join('');
 
-  /* ---- account lifecycle track ---- */
-  var ACCT = [
-    { icon: 'userPlus', title: 'Create account', sub: 'Name, email, password' },
-    { icon: 'mail', title: 'Verify email', sub: '6-digit code checked' },
-    { icon: 'lock', title: 'Sign in', sub: 'Local session starts' },
-    { icon: 'grid', title: 'Account dashboard', sub: 'Profile & addresses' },
-    { icon: 'package', title: 'Order history', sub: 'Track & buy again' }
+  document.getElementById('delivFlow').innerHTML = flow([
+    { icon: 'mapPin', title: 'Pick a zone', text: 'Each zone has its own base fee and delivery window.' },
+    { icon: 'percent', title: 'Apply discounts', text: 'Free-over threshold, member perk and promo codes are checked.' },
+    { icon: 'sparkles', title: 'Best rule wins', text: 'We apply the cheapest result — never stacked twice.' },
+    { icon: 'wallet', title: 'Shown at checkout', text: 'The final fee and the saving are itemised before you pay.', accent: true }
+  ]);
+
+  var rules = S.getDeliveryRules();
+  var ruleCards = [
+    ['truck', 'Free delivery over ' + S.money(rules.freeOver), 'Any order above this subtotal ships free, in every zone.'],
+    ['user', 'Free delivery for members', rules.memberFree ? 'Signed-in customers pay nothing for delivery.' : 'Currently switched off.'],
+    ['percent', rules.percentOff + '% off delivery', 'Applied to the zone fee when no better rule matches.'],
+    ['tag', 'Promo delivery codes', Object.keys(rules.codes).join(', ') || 'None active']
   ];
-  document.getElementById('acctTrack').innerHTML = ACCT.map(function (n, i) {
-    var node = '<div class="fnode reveal" style="--d:' + (i * .09).toFixed(2) + 's">' +
-      '<span class="fn-num">' + (i + 1) + '</span>' +
-      '<span class="fn-ico">' + S.icon(n.icon) + '</span><b>' + n.title + '</b><small>' + n.sub + '</small></div>';
-    var arrow = i < ACCT.length - 1 ? '<span class="farrow">' + S.icon('arrowRight') + '</span>' : '';
-    return node + arrow;
+  document.getElementById('delivRules').innerHTML = ruleCards.map(function (r) {
+    return '<div class="wf-card"><span class="wf-card-ico">' + S.icon(r[0]) + '</span><h3>' + r[1] + '</h3><p>' + r[2] + '</p></div>';
   }).join('');
 
-  /* ---- sample workflows ---- */
-  var WORKFLOWS = [
-    {
-      icon: 'truck', tag: 'Core', title: 'Order → payment → shipping → delivery',
-      desc: 'The main fulfilment chain, running from checkout confirmation to proof of delivery.',
-      steps: ['Order created and stock reserved', 'Payment authorised, then captured on dispatch', 'Warehouse pick, pack and label print', 'Courier assigned; tracking link sent', 'Delivery confirmed with photo evidence']
-    },
-    {
-      icon: 'box', tag: 'Sync', title: 'Inventory synchronisation',
-      desc: 'Keeps stock numbers truthful across the storefront, the warehouse and every marketplace.',
-      steps: ['Stock decremented the moment an order is placed', 'Low-stock threshold raises a reorder task', 'Hourly reconciliation against the warehouse system', 'Oversold orders auto-refund and notify', 'Duplicate listings across channels deduplicated']
-    },
-    {
-      icon: 'refresh', tag: 'Post-purchase', title: 'Returns & exchanges',
-      desc: 'A forgiving returns flow that resolves in a refund or a replacement, then learns from it.',
-      steps: ['Customer opens a return within 30 days', 'Reason captured and categorised', 'Pickup booked automatically with the courier', 'Item inspected at the warehouse', 'Refund or replacement issued; reason fed to analytics']
-    },
-    {
-      icon: 'userPlus', tag: 'Accounts', title: 'Customer accounts & onboarding',
-      desc: 'Takes a new visitor from sign-up to a verified account with order history, entirely on the client.',
-      steps: ['Account created with email and password', 'Six-digit verification code sent and checked', 'Session started and signed-in state stored locally', 'Profile, addresses and orders shown on the dashboard', 'Forgot-password flow resets the password in place']
-    },
-    {
-      icon: 'shield', tag: 'Trust', title: 'Fraud screening',
-      desc: 'Scores every order before capture so genuine customers pass fast and the rest are held.',
-      steps: ['Address and device signals scored', 'High-risk orders held for review', '3-D Secure step-up requested when needed', 'Geniune orders pass without friction', 'Confirmed fraud added to shared blocklist']
-    },
-    {
-      icon: 'bell', tag: 'Comms', title: 'Notifications & reminders',
-      desc: 'Keeps the customer informed with SMS, email and push at the moments that matter.',
-      steps: ['Order confirmation on payment', 'Dispatch notice with tracking link', 'Out-for-delivery reminder the morning of', 'Delivery confirmation with photo', 'Review request three days after arrival']
-    },
-    {
-      icon: 'chart', tag: 'Insight', title: 'Analytics & reporting',
-      desc: 'Turns order and delivery events into the numbers that guide buying and logistics.',
-      steps: ['Events streamed to the analytics warehouse', 'Daily revenue and conversion report', 'Delivery-time and return-rate dashboards', 'Stock-out prediction from sell-through', 'Weekly digest emailed to the team']
-    }
-  ];
+  document.getElementById('authFlow').innerHTML = flow([
+    { icon: 'user', title: 'Sign up', text: 'Name, email, phone and a password.' },
+    { icon: 'mail', title: 'Verify email', text: 'A 6-digit code confirms the address.' },
+    { icon: 'lock', title: 'Sign in', text: 'Session stored in the browser.' },
+    { icon: 'grid', title: 'Account', text: 'Orders, addresses, wishlist and profile.', accent: true }
+  ]);
 
-  document.getElementById('wfGrid').innerHTML = WORKFLOWS.map(function (w, i) {
-    return '<article class="wf-card reveal" style="--d:' + (i % 3 * .08).toFixed(2) + 's">' +
-      '<div class="wf-top"><span class="wf-ico">' + S.icon(w.icon) + '</span><span class="wf-tag">' + w.tag + '</span></div>' +
-      '<h3>' + w.title + '</h3>' +
-      '<p>' + w.desc + '</p>' +
-      '<div class="wf-steps">' + w.steps.map(function (s, j) {
-        return '<div class="wf-step"><span class="st">' + (j + 1) + '</span><span>' + s + '</span></div>';
-      }).join('') + '</div>' +
-    '</article>';
+  document.getElementById('authBranches').innerHTML = [
+    ['key', 'Forgot password', 'A reset code is emailed, then a new password is set. The old one stops working immediately.'],
+    ['shield', 'Session', 'Signing out clears the session. Your cart and wishlist stay on the device.'],
+    ['mail', 'Brevi email', 'Verification, reset and order confirmation emails are sent through Brevi — or previewed in demo mode.'],
+    ['refresh', 'Reorder', 'Any past order can be added back to the cart in one tap from the account page.'],
+    ['mapPin', 'Saved addresses', 'Addresses are stored with a zone so checkout pre-fills the right delivery fee.'],
+    ['heart', 'Wishlist sync', 'Saved items follow the account and show a live count in the header.'],
+    ['bell', 'Order updates', 'Status changes are reflected in the account timeline as the admin moves the order.'],
+    ['logOut', 'Logout', 'Ends the session and returns you to the storefront.'],
+    ['alert', 'Duplicate email', 'Signing up with an existing address is blocked with a clear message.'],
+    ['checkCircle', 'Verified badge', 'Unverified accounts are flagged in the admin customer list.'],
+    ['clock', 'Code expiry', 'Verification and reset codes expire after 15 minutes.'],
+    ['users', 'Customer record', 'Each account appears in the admin customer list with order count and spend.']
+  ].map(function (b) {
+    return '<div class="branch-card"><b>' + S.icon(b[0]) + b[1] + '</b><small>' + b[2] + '</small></div>';
   }).join('');
 
-  /* ---- integrations ---- */
-  var INTEGRATIONS = [
-    { name: 'PayStack', ini: 'PS', color: '#0ba4db', type: 'Payments', status: 'Connected', desc: 'Card, bank transfer and USSD payments with instant settlement.' },
-    { name: 'Flutterwave', ini: 'FW', color: '#f5a524', type: 'Payments', status: 'Connected', desc: 'Multi-currency checkout and payouts across African markets.' },
-    { name: 'Stripe', ini: 'St', color: '#635bff', type: 'Payments', status: 'Connected', desc: 'International card processing and subscription billing.' },
-    { name: 'SokoniPay', ini: 'SP', color: '#0f9d76', type: 'Payments', status: 'Connected', desc: 'Wallet and pay-on-delivery reconciliation for local orders.' },
-
-    { name: 'Sendr Logistics', ini: 'SL', color: '#3d5a80', type: 'Logistics', status: 'Connected', desc: 'Same-day and next-day courier network with live tracking.' },
-    { name: 'ParcelPro', ini: 'PP', color: '#e5484d', type: 'Logistics', status: 'Connected', desc: 'Bulk warehouse-to-customer shipping and label printing.' },
-    { name: 'TrackWise', ini: 'TW', color: '#0891b2', type: 'Logistics', status: 'Beta', desc: 'Unified tracking across multiple couriers with exception alerts.' },
-    { name: 'RouteGrid', ini: 'RG', color: '#7c5cff', type: 'Logistics', status: 'Connected', desc: 'Route optimisation and delivery-window scheduling.' },
-
-    { name: 'FlashSMS', ini: 'FS', color: '#f5a524', type: 'Notifications', status: 'Connected', desc: 'Transactional SMS for order, dispatch and delivery updates.' },
-    { name: 'MailFlow', ini: 'MF', color: '#0ba4db', type: 'Notifications', status: 'Connected', desc: 'Reliable transactional email with template management.' },
-    { name: 'PushPing', ini: 'PP', color: '#0f9d76', type: 'Notifications', status: 'Connected', desc: 'Mobile push notifications and in-app inbox messages.' },
-    { name: 'WhatsDesk', ini: 'WD', color: '#25a866', type: 'Notifications', status: 'Beta', desc: 'WhatsApp order updates and two-way support conversations.' },
-
-    { name: 'MetricHub', ini: 'MH', color: '#0d1b2a', type: 'Analytics', status: 'Connected', desc: 'Product analytics, funnels and cohort retention tracking.' },
-    { name: 'EventStream', ini: 'ES', color: '#7c5cff', type: 'Analytics', status: 'Connected', desc: 'Event pipeline to the warehouse for reporting and ML.' },
-    { name: 'HeatScope', ini: 'HS', color: '#e5484d', type: 'Analytics', status: 'Beta', desc: 'Session replays and heatmaps for storefront optimisation.' },
-
-    { name: 'MarketHub', ini: 'MH', color: '#3d5a80', type: 'Marketplace', status: 'Connected', desc: 'Publish listings and pull orders from external marketplaces.' },
-    { name: 'ShopLink', ini: 'SL', color: '#0f9d76', type: 'Marketplace', status: 'Connected', desc: 'Two-way stock and price sync with connected shops.' },
-    { name: 'CatalogSync', ini: 'CS', color: '#f5a524', type: 'Marketplace', status: 'Connected', desc: 'Product catalogue export, feed management and enrichment.' },
-    { name: 'AffiliateNet', ini: 'AN', color: '#0891b2', type: 'Marketplace', status: 'Beta', desc: 'Affiliate tracking, commission rules and payout reporting.' }
+  var WF = [
+    ['cart', 'Order to delivery', 'The core path every order follows.', ['Order placed', 'Confirmed by staff', 'Picked and packed', 'Rider dispatched', 'Delivered and rated']],
+    ['wallet', 'Payment &amp; reconciliation', 'Money in, matched to orders.', ['Payment captured', 'Order marked paid', 'Daily settlement', 'Reconciliation report']],
+    ['layers', 'Inventory sync', 'Stock stays honest across channels.', ['Sale deducts stock', 'Low-stock alert at 30', 'Restock order raised', 'Levels updated']],
+    ['refresh', 'Returns &amp; refunds', 'When something is not right.', ['Customer reports', 'Item collected', 'Inspected', 'Refund or replacement']],
+    ['tag', 'Coupons &amp; promotions', 'Discounts that cannot be abused.', ['Coupon created', 'Limit set', 'Redeemed at checkout', 'Counter increments']],
+    ['truck', 'Delivery discounts', 'Fees that flex with the order.', ['Zone fee looked up', 'Rules evaluated', 'Best discount applied', 'Shown at checkout']]
   ];
-
-  document.getElementById('intGrid').innerHTML = INTEGRATIONS.map(function (it, i) {
-    return '<article class="int-card reveal" style="--d:' + (i % 4 * .06).toFixed(2) + 's">' +
-      '<div class="int-top">' +
-        '<span class="int-logo" style="background:' + it.color + '">' + it.ini + '</span>' +
-        '<div><b>' + it.name + '</b><small>' + it.type + '</small></div>' +
-      '</div>' +
-      '<p>' + it.desc + '</p>' +
-      '<div class="int-foot">' +
-        '<span class="status' + (it.status === 'Beta' ? ' beta' : '') + '"><span class="sdot"></span>' + it.status + '</span>' +
-        '<span class="int-type">' + it.type + '</span>' +
-      '</div>' +
-    '</article>';
+  document.getElementById('wfGrid').innerHTML = WF.map(function (w) {
+    return '<div class="wf-card"><span class="wf-card-ico">' + S.icon(w[0]) + '</span><h3>' + w[1] + '</h3><p>' + w[2] + '</p>' +
+      '<div class="wf-steps">' + w[3].map(function (s, i) {
+        return '<span class="wf-step"><span class="ws-n">' + (i + 1) + '</span>' + s + '</span>';
+      }).join('') + '</div></div>';
   }).join('');
 
-  /* exception-path icons */
-  var bcMap = { alert: 'bell', refresh: 'refresh', chart: 'chart', key: 'key', lock: 'lock', mail: 'mail' };
-  document.querySelectorAll('[data-bc]').forEach(function (e) { e.innerHTML = S.icon(bcMap[e.getAttribute('data-bc')]); });
+  var INT = [
+    ['creditCard', 'Paystack', 'Payments', 'Card, bank transfer and USSD payments with instant confirmation.', 'Connected', 'var(--green-soft)', 'var(--green)'],
+    ['wallet', 'Flutterwave', 'Payments', 'Alternative gateway for cards and mobile money across Africa.', 'Connected', 'var(--green-soft)', 'var(--green)'],
+    ['truck', 'GIG Logistics', 'Logistics', 'Nationwide dispatch with tracking numbers per order.', 'Connected', 'var(--amber-soft)', 'var(--amber-dark)'],
+    ['route', 'Kwik Delivery', 'Logistics', 'Same-day bike delivery inside Lagos.', 'Connected', 'var(--amber-soft)', 'var(--amber-dark)'],
+    ['phone', 'Termii SMS', 'Notifications', 'Order and delivery SMS to the customer phone number.', 'Connected', 'var(--blue-soft)', 'var(--blue)'],
+    ['mail', 'Brevi Email', 'Notifications', 'Order confirmations, verification and password reset emails.', 'Connected', 'var(--blue-soft)', 'var(--blue)'],
+    ['whatsapp', 'WhatsApp Business', 'Notifications', 'Order updates and support on WhatsApp.', 'Beta', 'var(--green-soft)', 'var(--green)'],
+    ['chart', 'Google Analytics', 'Analytics', 'Traffic, funnels and conversion tracking.', 'Connected', 'var(--coral-soft)', 'var(--coral)'],
+    ['grid', 'Meta Pixel', 'Analytics', 'Ad attribution and retargeting audiences.', 'Connected', 'var(--coral-soft)', 'var(--coral)'],
+    ['store', 'Jumia Marketplace', 'Marketplace', 'List the same catalogue on a major marketplace.', 'Beta', 'var(--amber-soft)', 'var(--amber-dark)'],
+    ['package', 'Konga Seller', 'Marketplace', 'Second marketplace channel with stock sync.', 'Beta', 'var(--amber-soft)', 'var(--amber-dark)'],
+    ['layers', 'Inventory API', 'Operations', 'Two-way stock sync with the warehouse system.', 'Connected', 'var(--green-soft)', 'var(--green)']
+  ];
+  document.getElementById('intGrid').innerHTML = INT.map(function (i) {
+    return '<div class="int-card"><div class="int-head">' +
+      '<span class="int-logo" style="background:' + i[5] + ';color:' + i[6] + '">' + S.icon(i[0]) + '</span>' +
+      '<span><b>' + i[1] + '</b><small>' + i[2] + '</small></span></div>' +
+      '<p>' + i[3] + '</p>' +
+      '<div class="int-foot"><span class="int-cat">' + i[2] + '</span>' +
+      '<span class="pill ' + (i[4] === 'Connected' ? 'pill-ok' : 'pill-warn') + '">' + i[4] + '</span></div></div>';
+  }).join('');
+
+  var LAYERS = [
+    ['1', 'Storefront', 'The pages you browse — home, shop, product, cart, account.', ['HTML', 'CSS', 'Vanilla JS']],
+    ['2', 'Client state', 'Cart, wishlist, session, orders and admin data.', ['localStorage', 'No backend']],
+    ['3', 'Business rules', 'Delivery zones, discount rules, coupons and stock.', ['Zones', 'Coupons', 'Stock']],
+    ['4', 'Admin console', 'Products, orders, deliveries, inventory and customers.', ['CRUD', 'Board', 'KPIs']],
+    ['5', 'Integrations', 'Payments, logistics, messaging, analytics and marketplaces.', ['Paystack', 'GIG', 'Brevi']]
+  ];
+  document.getElementById('layers').innerHTML = LAYERS.map(function (l) {
+    return '<div class="layer"><span class="layer-n">' + l[0] + '</span>' +
+      '<span><b>' + l[1] + '</b><small>' + l[2] + '</small></span>' +
+      '<span class="layer-tags">' + l[3].map(function (t) { return '<span class="ltag">' + t + '</span>'; }).join('') + '</span></div>';
+  }).join('');
 
   S.observeReveals();
 })();

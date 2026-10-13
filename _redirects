@@ -1,0 +1,17 @@
+# Ladydee Minimart Store — clean URLs (Netlify)
+# 200 = rewrite (the URL stays clean), not a redirect.
+
+/products            /products.html            200
+/product             /product.html             200
+/cart                /cart.html                200
+/search              /search.html              200
+/wishlist            /wishlist.html            200
+/account             /account.html             200
+/login               /login.html               200
+/signup              /signup.html              200
+/forgot              /forgot.html              200
+/workflows           /workflows.html           200
+/adeolaadaccess112   /adeolaadaccess112.html   200
+
+# Fallback for any other clean path
+/*  /index.html  200

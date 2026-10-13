@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Your cart — Sokoni</title>
-<meta name="description" content="Review your Sokoni cart and complete a demo checkout. No real payments are processed.">
+<title>Cart &amp; checkout — Ladydee Minimart Store</title>
+<meta name="description" content="Review your basket, choose a delivery zone and see your delivery discount before you check out.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛍️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="cart">
@@ -18,432 +18,361 @@
 <section class="page-head">
   <div class="wrap">
     <nav class="breadcrumb" aria-label="Breadcrumb">
-      <a href="index.html">Home</a><span data-i="chevronRight"></span><span id="crumb">Your cart</span>
+      <a href="/">Home</a><span data-i="chevronRight"></span><span>Cart &amp; checkout</span>
     </nav>
-    <h1 id="pageTitle">Your cart</h1>
-    <p class="sub" id="pageSub">Review your items, then continue to a demo checkout.</p>
+    <h1>Your basket</h1>
+    <p class="sub">Delivery fees and any delivery discount are shown before you pay.</p>
   </div>
 </section>
 
-<main id="cartApp" class="section"></main>
+<main class="section">
+  <div class="wrap">
+    <div class="stepper" id="stepper"></div>
+    <div id="cartView"></div>
+  </div>
+</main>
 
 <div id="site-footer"></div>
 
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
+<script src="brevi.js"></script>
 <script>
 (function () {
-  var S = window.Sokoni;
+  var S = window.Ladydee;
+  S.mount('products');
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
 
-  var STEPS = ['Cart', 'Delivery', 'Payment'];
-  var DELIVERY = { standard: 0, express: 14.9, pickup: 0 };
-  var state = {
-    view: 'cart',
-    promo: null,
-    delivery: 'standard',
-    pay: 'card',
-    order: null
+  var TAX = 0.075;
+  var step = 1;                       /* 1 cart · 2 delivery · 3 payment · 4 done */
+  var zoneId = 'island';
+  var coupon = null;                  /* applied coupon object */
+  var deliveryCode = null;            /* applied delivery promo code */
+  var payMethod = 'Card';
+  var placed = null;
+
+  var user = S.currentUser();
+  var form = {
+    name: user ? user.name : '',
+    email: user ? user.email : '',
+    phone: user ? (user.phone || '') : '',
+    address: '',
+    city: 'Lagos',
+    notes: ''
   };
-
-  /* prefill demo delivery details so the flow is quick to try */
-  var cust = { name: 'Alex Morgan', email: 'alex@example.com', phone: '+234 801 234 5678',
-    address: '27 Bourdillon Road', city: 'Lagos', region: 'Lagos State', postal: '101241', country: 'Nigeria' };
-
-  /* if someone is signed in, prefill their details and default address */
-  try {
-    var _u = S.currentUser();
-    if (_u) {
-      if (_u.firstName) cust.name = (_u.firstName + ' ' + (_u.lastName || '')).trim();
-      if (_u.email) cust.email = _u.email;
-      if (_u.phone) cust.phone = _u.phone;
-      var _addr = (_u.addresses || []).filter(function (a) { return a.isDefault; })[0] || (_u.addresses || [])[0];
-      if (_addr) {
-        cust.address = _addr.line1; cust.city = _addr.city;
-        cust.region = _addr.region; cust.postal = _addr.postal || '';
-        cust.country = _addr.country || cust.country;
-      }
-    }
-  } catch (e) {}
-
-  function fmtDate(days) {
-    var d = new Date(); d.setDate(d.getDate() + days);
-    var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return d.getDate() + ' ' + m[d.getMonth()] + ' ' + d.getFullYear();
+  if (user && user.addresses && user.addresses.length) {
+    var def = user.addresses.filter(function (a) { return a.isDefault; })[0] || user.addresses[0];
+    form.address = def.address; form.city = def.city; form.phone = def.phone || form.phone;
+    zoneId = def.zone || zoneId;
   }
 
-  function discount() {
+  function totals() {
     var sub = S.cartSubtotal();
-    if (state.promo === 'SOKONI10') return sub * 0.10;
-    return 0;
-  }
-  function shipCost() {
-    var sub = S.cartSubtotal();
-    if (state.view === 'cart' || state.view === 'delivery' || state.view === 'payment' || state.view === 'confirm') {
-      if (state.delivery === 'pickup') return 0;
-      if (state.delivery === 'express') return sub >= 100 ? 0 : 14.9;
-    }
-    return S.shippingFor(sub);
-  }
-  function pricing() {
-    var sub = S.cartSubtotal();
-    var disc = discount();
-    var ship = shipCost();
-    if (state.promo === 'FREESHIP') ship = 0;
-    var tax = (sub - disc) * 0.075;
-    return { sub: sub, disc: disc, ship: ship, tax: tax, total: Math.max(0, sub - disc + ship + tax) };
+    var disc = 0;
+    if (coupon) disc = Math.round(sub * (coupon.value / 100));
+    var q = S.deliveryQuote(zoneId, sub, { member: S.isLoggedIn(), deliveryCode: deliveryCode });
+    var tax = Math.round((sub - disc) * TAX);
+    return { sub: sub, disc: disc, q: q, tax: tax, total: sub - disc + q.fee + tax };
   }
 
-  function stepperHTML(active) {
-    return '<div class="stepper">' + STEPS.map(function (s, i) {
-      var cls = i < active ? 'done' : (i === active ? 'active' : '');
-      var num = i < active ? S.icon('check') : (i + 1);
-      var line = i < STEPS.length - 1
-        ? '<span class="step-line' + (i < active ? ' done' : '') + '"></span>' : '';
-      return '<span class="step ' + cls + '"><span class="num">' + num + '</span>' + s + '</span>' + line;
-    }).join('') + '</div>';
+  function renderStepper() {
+    var labels = ['Cart', 'Delivery', 'Payment'];
+    var html = '';
+    labels.forEach(function (l, i) {
+      var n = i + 1;
+      var cls = step === n ? 'active' : step > n ? 'done' : '';
+      html += '<span class="step ' + cls + '"><span class="num">' + (step > n ? S.icon('check') : n) + '</span><span>' + l + '</span></span>';
+      if (i < labels.length - 1) html += '<span class="step-line' + (step > n ? ' done' : '') + '"></span>';
+    });
+    document.getElementById('stepper').innerHTML = html;
   }
 
-  function summaryHTML(btn, showPromo) {
-    var P = pricing();
-    return '<div class="panel summary"><div class="panel-head"><b>Order summary</b>' +
-      '<span style="color:var(--muted);font-size:.85rem">' + S.cartCount() + ' item' + (S.cartCount() === 1 ? '' : 's') + '</span></div>' +
-      '<div class="panel-body">' +
-        (showPromo ? (
-          '<div class="promo">' +
-            '<input type="text" id="promoInput" placeholder="Promo code" value="' + (state.promo || '') + '" aria-label="Promo code">' +
-            '<button class="btn btn-dark btn-sm" id="applyPromo" type="button">Apply</button>' +
-          '</div>' +
-          (state.promo ? '<div class="promo-note">' + S.icon('checkCircle') + ' ' + (state.promo === 'SOKONI10' ? '10% discount applied' : 'Free shipping applied') + '</div>' : '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Try <b>SOKONI10</b> or <b>FREESHIP</b></div>')
-        ) : '') +
-        '<div class="sum-row"><span>Subtotal</span><b>' + S.money(P.sub) + '</b></div>' +
-        (P.disc ? '<div class="sum-row" style="color:var(--coral)"><span>Discount</span><b style="color:var(--coral)">−' + S.money(P.disc) + '</b></div>' : '') +
-        '<div class="sum-row"><span>Delivery</span><b>' + (P.ship === 0 ? 'Free' : S.money(P.ship)) + '</b></div>' +
-        '<div class="sum-row"><span>Estimated tax (7.5%)</span><b>' + S.money(P.tax) + '</b></div>' +
-        '<div class="sum-row total"><span>Total</span><b>' + S.money(P.total) + '</b></div>' +
-        btn +
-        '<div class="secure-note">' + S.icon('lock') + ' Demo checkout — no real payment is taken</div>' +
-      '</div></div>';
-  }
-
-  function linesHTML(compact) {
+  function summaryHTML(t, opts) {
+    opts = opts || {};
     var lines = S.cartLines();
-    if (compact) {
-      return lines.map(function (l) {
-        return '<div class="cart-line">' +
-          '<span class="cart-line-media"><img src="' + l.product.image + '" alt=""></span>' +
-          '<div><b>' + S.esc(l.product.name) + '</b><small>Qty ' + l.qty + '</small></div>' +
+    var html = '<div class="panel summary"><div class="panel-head"><b>Order summary</b>' +
+      '<span class="muted" style="font-size:.84rem">' + S.cartCount() + ' item' + (S.cartCount() === 1 ? '' : 's') + '</span></div><div class="panel-body">';
+
+    if (opts.compact) {
+      html += lines.map(function (l) {
+        return '<div class="cart-line"><span class="cart-line-media"><img src="' + l.product.image + '" alt=""></span>' +
+          '<span><b>' + S.esc(l.product.name) + '</b><small>' + S.esc(l.product.size) + ' × ' + l.qty + '</small></span>' +
           '<span class="amt">' + S.money(l.line) + '</span></div>';
       }).join('');
+      html += '<div style="height:14px"></div>';
     }
-    return '<div class="panel"><div class="panel-head"><b>Your items</b>' +
-      '<button class="btn btn-ghost btn-sm" id="clearCart" type="button">' + S.icon('trash') + ' Clear cart</button></div>' +
-      '<div class="panel-body">' +
-      lines.map(function (l) {
-        var p = l.product;
-        return '<div class="citem">' +
-          '<span class="citem-media"><a href="product.html?id=' + p.id + '"><img src="' + p.image + '" alt="' + S.esc(p.name) + '"></a></span>' +
-          '<div class="citem-info">' +
-            '<b><a href="product.html?id=' + p.id + '">' + S.esc(p.name) + '</a></b>' +
-            '<small>' + S.esc(S.catName(p.category)) + (p.oldPrice ? ' · <span style="color:var(--coral);font-weight:700">Save ' + S.discountOf(p) + '%</span>' : '') + '</small>' +
-            '<div class="citem-controls">' +
-              '<span class="qty">' +
-                '<button type="button" data-dec="' + p.id + '" aria-label="Decrease">' + S.icon('minus') + '</button>' +
-                '<input type="number" value="' + l.qty + '" min="1" max="99" data-qty="' + p.id + '" aria-label="Quantity for ' + S.esc(p.name) + '">' +
-                '<button type="button" data-inc="' + p.id + '" aria-label="Increase">' + S.icon('plus') + '</button>' +
-              '</span>' +
-              '<button class="remove-btn" data-remove="' + p.id + '" type="button">' + S.icon('trash') + ' Remove</button>' +
-            '</div>' +
-          '</div>' +
-          '<div class="citem-right"><span class="price">' + S.money(l.line) + '</span>' +
-            '<small style="color:var(--muted)">' + S.money(p.price) + ' each</small></div>' +
-        '</div>';
-      }).join('') +
-      '</div></div>';
+
+    html += '<div class="sum-row"><span>Subtotal</span><b>' + S.money(t.sub) + '</b></div>';
+    if (t.disc) html += '<div class="sum-row"><span>Discount (' + S.esc(coupon.code) + ')</span><b style="color:var(--green)">−' + S.money(t.disc) + '</b></div>';
+    html += '<div class="sum-row"><span>Delivery — ' + S.esc(S.zone(zoneId).name) + '</span><b>' +
+      (t.q.fee === 0 ? '<span style="color:var(--green)">Free</span>' : S.money(t.q.fee)) + '</b></div>';
+    if (t.q.discount > 0) html += '<div class="sum-row"><span style="color:var(--green)">Delivery discount</span><b style="color:var(--green)">−' + S.money(t.q.discount) + '</b></div>';
+    html += '<div class="sum-row"><span>VAT (7.5%)</span><b>' + S.money(t.tax) + '</b></div>';
+    html += '<div class="sum-row total"><span>Total</span><b>' + S.money(t.total) + '</b></div>';
+
+    if (t.q.reasons.length) {
+      html += '<div class="deliv-note" style="margin-top:14px">' + S.icon('sparkles') + '<span>' + t.q.reasons.join(' · ') + '</span></div>';
+    } else if (t.sub > 0 && t.sub < S.getDeliveryRules().freeOver) {
+      var gap = S.getDeliveryRules().freeOver - t.sub;
+      html += '<div class="deliv-note warn" style="margin-top:14px">' + S.icon('truck') +
+        '<span>Add ' + S.money(gap) + ' more to unlock free delivery.</span></div>';
+    }
+
+    if (!opts.hidePromo) {
+      html += '<div style="margin-top:16px">';
+      if (coupon) {
+        html += '<div class="promo-note">' + S.icon('checkCircle') + 'Coupon ' + S.esc(coupon.code) + ' applied — ' + coupon.value + '% off</div>';
+      } else {
+        html += '<div class="promo"><input type="text" id="promoInput" placeholder="Promo code" aria-label="Promo code"><button class="btn btn-outline btn-sm" id="promoBtn" type="button">Apply</button></div>';
+      }
+      if (deliveryCode) {
+        html += '<div class="promo-note">' + S.icon('truck') + 'Delivery code ' + S.esc(deliveryCode) + ' applied</div>';
+      } else {
+        html += '<div class="promo"><input type="text" id="delivInput" placeholder="Delivery code" aria-label="Delivery promo code"><button class="btn btn-outline btn-sm" id="delivBtn" type="button">Apply</button></div>';
+      }
+      html += '<div class="hint muted" style="font-size:.76rem;margin-top:6px">Try WELCOME10 for 10% off, or FREEDEL for free delivery.</div>';
+      html += '</div>';
+    }
+
+    if (opts.cta) html += '<div style="margin-top:18px">' + opts.cta + '</div>';
+    html += '<div class="secure-note">' + S.icon('lock') + 'Demo checkout — no real payment is taken</div>';
+    html += '</div></div>';
+    return html;
   }
 
-  function emptyHTML() {
-    return '<div class="wrap"><div class="empty" style="padding:80px 30px">' +
-      '<div style="width:84px;height:84px;border-radius:50%;background:var(--teal-soft);color:var(--teal-dark);display:grid;place-items:center;margin:0 auto 20px">' +
-      '<span style="width:38px;height:38px;display:block">' + S.icon('cart') + '</span></div>' +
-      '<b>Your cart is empty</b>' +
-      '<p style="margin:6px 0 22px">Browse the catalogue and add something you like.</p>' +
-      '<a class="btn btn-primary btn-lg" href="products.html">Start shopping</a>' +
-    '</div></div>';
+  function renderCart() {
+    var lines = S.cartLines();
+    if (!lines.length) {
+      document.getElementById('stepper').innerHTML = '';
+      document.getElementById('cartView').innerHTML =
+        '<div class="empty"><div style="width:84px;height:84px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;margin:0 auto 20px">' +
+        '<span style="width:38px;height:38px;display:block">' + S.icon('cart') + '</span></div>' +
+        '<b>Your basket is empty</b><p>Add a few essentials and they will show up here.</p>' +
+        '<a class="btn btn-primary btn-lg" href="/products">Start shopping</a></div>';
+      return;
+    }
+    var t = totals();
+    var items = lines.map(function (l) {
+      return '<div class="citem">' +
+        '<span class="citem-media"><img src="' + l.product.image + '" alt="' + S.esc(l.product.name) + '"></span>' +
+        '<div class="citem-info"><b><a href="/product?id=' + l.product.id + '">' + S.esc(l.product.name) + '</a></b>' +
+          '<small>' + S.esc(l.product.size) + ' · ' + S.esc(S.catName(l.product.category)) + '</small>' +
+          '<div class="citem-controls">' +
+            '<span class="qty"><button type="button" data-dec="' + l.product.id + '" aria-label="Decrease">' + S.icon('minus') + '</button>' +
+            '<input type="number" value="' + l.qty + '" min="1" max="99" data-qty="' + l.product.id + '" aria-label="Quantity for ' + S.esc(l.product.name) + '">' +
+            '<button type="button" data-inc="' + l.product.id + '" aria-label="Increase">' + S.icon('plus') + '</button></span>' +
+            '<button class="remove-btn" type="button" data-remove="' + l.product.id + '">' + S.icon('trash') + 'Remove</button>' +
+          '</div></div>' +
+        '<div class="citem-right"><span class="price">' + S.money(l.line) + '</span>' +
+          '<small class="muted">' + S.money(l.product.price) + ' each</small></div>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('cartView').innerHTML =
+      '<div class="cart-layout">' +
+        '<div class="panel"><div class="panel-head"><b>Items in your basket</b>' +
+          '<button class="btn btn-ghost btn-sm" id="clearCart" type="button">Clear basket</button></div>' +
+          '<div class="panel-body">' + items + '</div></div>' +
+        summaryHTML(t, { cta: '<button class="btn btn-primary btn-lg btn-block" id="toDelivery" type="button">Continue to delivery ' + S.icon('arrowRight') + '</button>' }) +
+      '</div>';
   }
 
-  function deliveryHTML() {
-    return '<div class="wrap">' + stepperHTML(1) +
+  function renderDelivery() {
+    var t = totals();
+    var zones = S.ZONES.map(function (z) {
+      var q = S.deliveryQuote(z.id, t.sub, { member: S.isLoggedIn(), deliveryCode: deliveryCode });
+      return '<label class="zone-opt' + (z.id === zoneId ? ' selected' : '') + '">' +
+        '<input type="radio" name="zone" value="' + z.id + '"' + (z.id === zoneId ? ' checked' : '') + '>' +
+        '<span><b>' + S.esc(z.name) + '</b><small>' + S.esc(z.eta) + '</small></span>' +
+        '<span class="zo-fee">' + (q.fee === 0 ? '<b>Free</b>' : '<b>' + S.money(q.fee) + '</b>') +
+          (q.discount > 0 ? '<s>' + S.money(q.base) + '</s>' : '') + '</span></label>';
+    }).join('');
+
+    document.getElementById('cartView').innerHTML =
       '<div class="cart-layout">' +
         '<div class="panel"><div class="panel-head"><b>Delivery details</b>' +
-          '<button class="btn btn-ghost btn-sm" id="backToCart" type="button">' + S.icon('chevronRight') + ' Back to cart</button></div>' +
-          '<div class="panel-body"><form id="deliveryForm" novalidate>' +
+          '<button class="btn btn-ghost btn-sm" id="backToCart" type="button">' + S.icon('chevronLeft') + ' Back to basket</button></div>' +
+          '<div class="panel-body">' +
             '<div class="form-grid">' +
-              '<div class="field"><label for="dName">Full name</label><input id="dName" value="' + cust.name + '" required></div>' +
-              '<div class="field"><label for="dEmail">Email</label><input id="dEmail" type="email" value="' + cust.email + '" required></div>' +
-              '<div class="field"><label for="dPhone">Phone</label><input id="dPhone" value="' + cust.phone + '" required></div>' +
-              '<div class="field"><label for="dCountry">Country</label><select id="dCountry"><option>Nigeria</option><option>Ghana</option><option>Kenya</option><option>South Africa</option></select></div>' +
-              '<div class="field full"><label for="dAddress">Street address</label><input id="dAddress" value="' + cust.address + '" required></div>' +
-              '<div class="field"><label for="dCity">City</label><input id="dCity" value="' + cust.city + '" required></div>' +
-              '<div class="field"><label for="dRegion">State / region</label><input id="dRegion" value="' + cust.region + '" required></div>' +
-              '<div class="field"><label for="dPostal">Postal code</label><input id="dPostal" value="' + cust.postal + '"></div>' +
-              '<div class="field full"><label for="dNotes">Delivery notes (optional)</label><textarea id="dNotes" rows="2" placeholder="Gate code, landmark, best time to deliver…"></textarea></div>' +
+              '<div class="field"><label for="fName">Full name</label><input id="fName" value="' + S.esc(form.name) + '" placeholder="Your name"></div>' +
+              '<div class="field"><label for="fPhone">Phone number</label><input id="fPhone" value="' + S.esc(form.phone) + '" placeholder="0801 234 5678"></div>' +
+              '<div class="field full"><label for="fEmail">Email (for the order confirmation)</label><input id="fEmail" type="email" value="' + S.esc(form.email) + '" placeholder="you@example.com"></div>' +
+              '<div class="field full"><label for="fAddress">Delivery address</label><input id="fAddress" value="' + S.esc(form.address) + '" placeholder="Street, area"></div>' +
+              '<div class="field"><label for="fCity">City</label><input id="fCity" value="' + S.esc(form.city) + '" placeholder="Lagos"></div>' +
+              '<div class="field"><label for="fNotes">Delivery notes (optional)</label><input id="fNotes" value="' + S.esc(form.notes) + '" placeholder="Landmark, gate colour…"></div>' +
             '</div>' +
-            '<h4 style="margin:26px 0 12px;font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Delivery method</h4>' +
-            '<div class="pay-options">' +
-              '<label class="pay-option' + (state.delivery === 'standard' ? ' selected' : '') + '"><input type="radio" name="dm" value="standard"' + (state.delivery === 'standard' ? ' checked' : '') + '>' +
-                '<span class="po-ico">' + S.icon('truck') + '</span><div><b>Standard — ' + (S.cartSubtotal() >= 100 ? 'Free' : S.money(9.9)) + '</b><small>Arrives around ' + fmtDate(3) + '</small></div></label>' +
-              '<label class="pay-option' + (state.delivery === 'express' ? ' selected' : '') + '"><input type="radio" name="dm" value="express"' + (state.delivery === 'express' ? ' checked' : '') + '>' +
-                '<span class="po-ico">' + S.icon('zap') + '</span><div><b>Express — ' + (S.cartSubtotal() >= 100 ? 'Free' : S.money(14.9)) + '</b><small>Next working day, ' + fmtDate(1) + '</small></div></label>' +
-              '<label class="pay-option' + (state.delivery === 'pickup' ? ' selected' : '') + '"><input type="radio" name="dm" value="pickup"' + (state.delivery === 'pickup' ? ' checked' : '') + '>' +
-                '<span class="po-ico">' + S.icon('box') + '</span><div><b>Store pickup — Free</b><small>Ready in 2 hours at our Lagos store</small></div></label>' +
-            '</div>' +
-          '</form></div></div>' +
-        summaryHTML('<button class="btn btn-primary btn-block btn-lg" id="toPayment" style="margin-top:18px" type="button">Continue to payment ' + S.icon('arrowRight') + '</button>', false) +
-      '</div></div>';
+            '<h4 style="margin:24px 0 12px;font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Delivery zone</h4>' +
+            '<div class="zone-list">' + zones + '</div>' +
+          '</div></div>' +
+        summaryHTML(t, { compact: true, cta: '<button class="btn btn-primary btn-lg btn-block" id="toPayment" type="button">Continue to payment ' + S.icon('arrowRight') + '</button>' }) +
+      '</div>';
   }
 
-  function paymentHTML() {
-    var P = pricing();
-    return '<div class="wrap">' + stepperHTML(2) +
+  function renderPayment() {
+    var t = totals();
+    var methods = [
+      ['Card', 'creditCard', 'Visa, Mastercard, Verve', 'Pay now'],
+      ['Bank transfer', 'wallet', 'Transfer to the account shown after ordering', 'Pay now'],
+      ['Pay on delivery', 'truck', 'Cash or transfer when the rider arrives', 'On arrival'],
+      ['USSD', 'phone', 'Dial the code from any registered phone', 'Pay now']
+    ];
+    var opts = methods.map(function (m) {
+      return '<label class="pay-option' + (payMethod === m[0] ? ' selected' : '') + '">' +
+        '<input type="radio" name="pay" value="' + m[0] + '"' + (payMethod === m[0] ? ' checked' : '') + '>' +
+        '<span class="po-ico">' + S.icon(m[1]) + '</span>' +
+        '<span><b>' + m[0] + '</b><small>' + m[2] + '</small></span>' +
+        '<span class="po-right">' + m[3] + '</span></label>';
+    }).join('');
+
+    document.getElementById('cartView').innerHTML =
       '<div class="cart-layout">' +
         '<div class="panel"><div class="panel-head"><b>Payment method</b>' +
-          '<button class="btn btn-ghost btn-sm" id="backToDelivery" type="button">' + S.icon('chevronRight') + ' Back to delivery</button></div>' +
+          '<button class="btn btn-ghost btn-sm" id="backToDelivery" type="button">' + S.icon('chevronLeft') + ' Back to delivery</button></div>' +
           '<div class="panel-body">' +
-            '<div class="pay-options">' +
-              '<label class="pay-option' + (state.pay === 'card' ? ' selected' : '') + '"><input type="radio" name="pm" value="card"' + (state.pay === 'card' ? ' checked' : '') + '>' +
-                '<span class="po-ico">' + S.icon('creditCard') + '</span><div><b>Credit or debit card</b><small>Visa, Mastercard, Verve</small></div></label>' +
-              '<label class="pay-option' + (state.pay === 'transfer' ? ' selected' : '') + '"><input type="radio" name="pm" value="transfer"' + (state.pay === 'transfer' ? ' checked' : '') + '>' +
-                '<span class="po-ico">' + S.icon('send') + '</span><div><b>Bank transfer</b><small>Pay from your bank app</small></div></label>' +
-              '<label class="pay-option' + (state.pay === 'cod' ? ' selected' : '') + '"><input type="radio" name="pm" value="cod"' + (state.pay === 'cod' ? ' checked' : '') + '>' +
-                '<span class="po-ico">' + S.icon('truck') + '</span><div><b>Pay on delivery</b><small>Cash or card when it arrives</small></div></label>' +
+            '<div class="pay-options">' + opts + '</div>' +
+            '<div class="deliv-note" style="margin-top:20px">' + S.icon('info') +
+              '<span>This is a demonstration store. No card is charged and no payment details are collected.</span></div>' +
+            '<div style="margin-top:20px;padding:16px;background:var(--cream);border:1px solid var(--line);border-radius:var(--radius)">' +
+              '<b style="font-size:.9rem">Delivering to</b>' +
+              '<p class="muted" style="font-size:.88rem;margin-top:6px;line-height:1.6">' + S.esc(form.name || '—') + '<br>' +
+                S.esc(form.address || '—') + ', ' + S.esc(form.city || '') + '<br>' + S.esc(form.phone || '') + '</p>' +
+              '<p style="font-size:.86rem;margin-top:8px"><b style="color:var(--green)">' + S.esc(S.zone(zoneId).name) + '</b> · ' + S.esc(S.zone(zoneId).eta) + '</p>' +
             '</div>' +
-
-            '<div id="cardFields" style="display:' + (state.pay === 'card' ? 'block' : 'none') + '">' +
-              '<h4 style="margin:26px 0 12px;font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Card details</h4>' +
-              '<div class="form-grid">' +
-                '<div class="field full"><label for="cNum">Card number</label><input id="cNum" inputmode="numeric" placeholder="4242 4242 4242 4242" autocomplete="cc-number"></div>' +
-                '<div class="field full"><label for="cName">Name on card</label><input id="cName" placeholder="ALEX MORGAN" autocomplete="cc-name"></div>' +
-                '<div class="field"><label for="cExp">Expiry</label><input id="cExp" inputmode="numeric" placeholder="MM/YY" autocomplete="cc-exp"></div>' +
-                '<div class="field"><label for="cCvc">CVC</label><input id="cCvc" inputmode="numeric" placeholder="123" autocomplete="cc-csc"></div>' +
-              '</div>' +
-              '<p style="font-size:.82rem;color:var(--muted);margin-top:12px">' + S.icon('lock') + ' This is a demonstration — use any numbers you like. Nothing is sent anywhere.</p>' +
-            '</div>' +
-
-            '<h4 style="margin:26px 0 12px;font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Items in this order</h4>' +
-            linesHTML(true) +
           '</div></div>' +
-        summaryHTML('<button class="btn btn-primary btn-block btn-lg" id="placeOrder" style="margin-top:18px" type="button">' + S.icon('lock') + ' Place order · ' + S.money(P.total) + '</button>', false) +
-      '</div></div>';
+        summaryHTML(t, { compact: true, hidePromo: true, cta: '<button class="btn btn-primary btn-lg btn-block" id="placeOrder" type="button">' + S.icon('lock') + ' Place order — ' + S.money(t.total) + '</button>' }) +
+      '</div>';
   }
 
-  function confirmHTML() {
-    var o = state.order;
-    var track = [
-      { t: 'Order placed', d: 'We received your order and sent a confirmation email.', s: 'done' },
-      { t: 'Payment ' + (o.pay === 'cod' ? 'on delivery' : 'confirmed'), d: o.pay === 'cod' ? 'You will pay the courier on arrival.' : 'Your payment was authorised successfully.', s: 'done' },
-      { t: 'Packed & dispatched', d: 'Leaving our Lagos warehouse shortly.', s: 'current' },
-      { t: 'Out for delivery', d: 'Expected ' + o.eta + '.', s: '' },
-      { t: 'Delivered', d: 'You will get a photo confirmation on delivery.', s: '' }
-    ];
-    return '<div class="wrap"><div class="panel">' +
-      '<div class="confirm">' +
+  function renderDone() {
+    var o = placed;
+    var steps = S.orderStatuses();
+    var idx = steps.indexOf(o.status);
+    var track = steps.map(function (s, i) {
+      var cls = i < idx ? 'done' : i === idx ? 'current' : '';
+      return '<div class="tstep ' + cls + '"><div class="tstep-rail"><span class="tstep-dot">' + (i < idx ? S.icon('check') : '') + '</span><span class="tstep-line"></span></div>' +
+        '<div class="tstep-body"><b>' + S.statusLabel(s) + '</b><small>' +
+        (i < idx ? 'Completed' : i === idx ? 'In progress' : 'Pending') + '</small></div></div>';
+    }).join('');
+
+    document.getElementById('stepper').innerHTML = '';
+    document.getElementById('cartView').innerHTML =
+      '<div class="panel"><div class="confirm">' +
         '<div class="confirm-badge">' + S.icon('checkCircle') + '</div>' +
-        '<h2>Thank you — your order is confirmed</h2>' +
-        '<p style="color:var(--muted);margin-top:10px">A confirmation has been sent to <b>' + S.esc(o.email) + '</b>. This is a demo order; no payment was taken.</p>' +
-        '<div class="order-code">' + o.code + '</div>' +
+        '<h2>Order confirmed</h2>' +
+        '<p class="muted">Thank you' + (o.customer.name ? ', ' + S.esc(o.customer.name.split(' ')[0]) : '') + '. We have your order and our team is picking it now.</p>' +
+        '<div class="order-code">' + S.esc(o.code) + '</div>' +
         '<div class="confirm-meta">' +
-          '<div class="cm"><small>Delivery to</small><b>' + S.esc(o.name) + '</b><span style="color:var(--muted);font-size:.86rem">' + S.esc(o.address) + ', ' + S.esc(o.city) + '</span></div>' +
-          '<div class="cm"><small>Method</small><b>' + o.methodLabel + '</b><span style="color:var(--muted);font-size:.86rem">Arriving ' + o.eta + '</span></div>' +
-          '<div class="cm"><small>Payment</small><b>' + o.payLabel + '</b><span style="color:var(--muted);font-size:.86rem">Total ' + S.money(o.total) + '</span></div>' +
+          '<div class="cm"><small>Estimated arrival</small><b>' + S.esc(o.eta) + '</b><span class="muted" style="font-size:.82rem">' + S.esc(S.zone(o.customer.zone).name) + '</span></div>' +
+          '<div class="cm"><small>Payment</small><b>' + S.esc(o.payment) + '</b><span class="muted" style="font-size:.82rem">' + S.money(o.total) + ' total</span></div>' +
+          '<div class="cm"><small>Confirmation email</small><b>' + (o.customer.email ? 'Sent' : 'No email given') + '</b><span class="muted" style="font-size:.82rem">' + S.esc(o.customer.email || '—') + '</span></div>' +
         '</div>' +
-        '<div style="text-align:left;margin-top:34px"><h3 style="margin-bottom:16px">Order tracking</h3>' +
-          '<div class="track-steps">' + track.map(function (s) {
-            return '<div class="tstep ' + s.s + '"><div class="tstep-rail"><span class="tstep-dot">' + (s.s === 'done' ? S.icon('check') : '') + '</span><span class="tstep-line"></span></div>' +
-              '<div class="tstep-body"><b>' + s.t + '</b><small>' + s.d + '</small></div></div>';
-          }).join('') + '</div>' +
+        '<div style="margin-top:30px;text-align:left;max-width:520px;margin-left:auto;margin-right:auto">' +
+          '<h3 style="font-size:1rem;margin-bottom:16px">Delivery progress</h3>' +
+          '<div class="track-steps">' + track + '</div>' +
         '</div>' +
-        '<div style="text-align:left;margin-top:30px"><h3 style="margin-bottom:14px">Your items</h3><div class="panel-body" style="padding:0">' + o.items + '</div></div>' +
-        '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:36px">' +
-          '<a class="btn btn-primary btn-lg" href="products.html">Continue shopping</a>' +
-          '<a class="btn btn-outline btn-lg" href="account.html#orders">View order in my account</a>' +
-          '<a class="btn btn-outline btn-lg" href="workflows.html">See how fulfilment works</a>' +
+        '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:26px">' +
+          '<a class="btn btn-primary" href="/account">View in my account</a>' +
+          '<button class="btn btn-outline" id="viewEmail" type="button">' + S.icon('mail') + ' Preview confirmation email</button>' +
+          '<a class="btn btn-ghost" href="/products">Continue shopping</a>' +
         '</div>' +
-      '</div></div></div>';
+      '</div></div>';
+
+    var ve = document.getElementById('viewEmail');
+    if (ve) ve.addEventListener('click', function () {
+      var log = window.LadydeeEmail.getLog();
+      var entry = log.filter(function (e) { return e.template === 'order-confirmation'; })[0];
+      if (entry) window.LadydeeEmail.showPreview(entry);
+      else S.toast('No email preview available', 'mail');
+    });
   }
 
   function render() {
-    var app = document.getElementById('cartApp');
-
-    if (state.view === 'confirm') {
-      document.getElementById('crumb').textContent = 'Order confirmed';
-      document.getElementById('pageTitle').textContent = 'Order confirmed';
-      document.getElementById('pageSub').textContent = 'Thank you — here is your sample order summary.';
-      app.innerHTML = confirmHTML();
-      return;
-    }
-
-    if (!S.cartCount() && state.view === 'cart') {
-      app.innerHTML = emptyHTML();
-      return;
-    }
-
-    if (state.view === 'cart') {
-      document.getElementById('crumb').textContent = 'Your cart';
-      document.getElementById('pageTitle').textContent = 'Your cart';
-      document.getElementById('pageSub').textContent = 'Review your items, then continue to a demo checkout.';
-      app.innerHTML = '<div class="wrap">' + stepperHTML(0) +
-        '<div class="cart-layout">' + linesHTML(false) +
-        summaryHTML('<button class="btn btn-primary btn-block btn-lg" id="toCheckout" style="margin-top:18px" type="button">Proceed to checkout ' + S.icon('arrowRight') + '</button>', true) +
-        '</div></div>';
-      var pi = document.getElementById('promoInput');
-      if (pi) pi.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doPromo(); } });
-      var ap = document.getElementById('applyPromo');
-      if (ap) ap.addEventListener('click', doPromo);
-      return;
-    }
-
-    if (state.view === 'delivery') {
-      document.getElementById('crumb').textContent = 'Checkout · Delivery';
-      document.getElementById('pageTitle').textContent = 'Checkout';
-      document.getElementById('pageSub').textContent = 'Where should we send your order?';
-      app.innerHTML = deliveryHTML();
-      return;
-    }
-
-    if (state.view === 'payment') {
-      document.getElementById('crumb').textContent = 'Checkout · Payment';
-      document.getElementById('pageTitle').textContent = 'Checkout';
-      document.getElementById('pageSub').textContent = 'Choose how you would like to pay.';
-      app.innerHTML = paymentHTML();
-      return;
-    }
+    if (step === 4) { renderDone(); return; }
+    renderStepper();
+    if (step === 1) renderCart();
+    else if (step === 2) renderDelivery();
+    else renderPayment();
+    S.observeReveals();
   }
-
-  function doPromo() {
-    var inp = document.getElementById('promoInput');
-    var r = S.applyPromo(inp ? inp.value : '');
-    if (r.ok) { state.promo = r.code; S.toast('Promo applied: ' + r.promo.label); }
-    else { state.promo = null; S.toast('That promo code is not valid', 'bell'); }
-    render();
-  }
-
-  function go(view) { state.view = view; window.scrollTo({ top: 0, behavior: 'smooth' }); render(); }
 
   /* ---- events ---- */
-  document.getElementById('cartApp').addEventListener('click', function (e) {
-    var t = e.target;
-    var inc = t.closest('[data-inc]'), dec = t.closest('[data-dec]'),
-        qtyIn = t.closest('[data-qty]'), rem = t.closest('[data-remove]'),
-        clear = t.closest('#clearCart');
-
-    if (inc) { var li = S.getCart().filter(function (x) { return x.id === inc.getAttribute('data-inc'); })[0]; S.setQty(inc.getAttribute('data-inc'), li.qty + 1); refreshCartView(); return; }
-    if (dec) { var ld = S.getCart().filter(function (x) { return x.id === dec.getAttribute('data-dec'); })[0]; S.setQty(dec.getAttribute('data-dec'), ld.qty - 1); refreshCartView(); return; }
-    if (rem) { S.removeFromCart(rem.getAttribute('data-remove')); S.toast('Item removed'); refreshCartView(); return; }
-    if (clear) { S.clearCart(); S.toast('Cart cleared'); refreshCartView(); return; }
-
-    if (t.closest('#toCheckout')) { go('delivery'); return; }
-    if (t.closest('#backToCart')) { go('cart'); return; }
-    if (t.closest('#toPayment')) { if (validateDelivery()) go('payment'); return; }
-    if (t.closest('#backToDelivery')) { go('delivery'); return; }
-    if (t.closest('#placeOrder')) { placeOrder(); return; }
-  });
-
-  document.getElementById('cartApp').addEventListener('change', function (e) {
-    var q = e.target.closest('[data-qty]');
-    if (q) { S.setQty(q.getAttribute('data-qty'), parseInt(q.value, 10) || 1); refreshCartView(); return; }
-    var dm = e.target.closest('input[name="dm"]');
-    if (dm) { state.delivery = dm.value; render(); return; }
-    var pm = e.target.closest('input[name="pm"]');
-    if (pm) { state.pay = pm.value; render(); return; }
-  });
-
-  /* card number formatting */
-  document.getElementById('cartApp').addEventListener('input', function (e) {
-    if (e.target.id === 'cNum') {
-      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+  document.getElementById('cartView').addEventListener('click', function (e) {
+    var t = e.target.closest('button, label');
+    if (!t) return;
+    var inc = e.target.closest('[data-inc]');
+    if (inc) { var id = inc.getAttribute('data-inc'); S.setQty(id, S.getCart().filter(function (x) { return x.id === id; })[0].qty + 1); render(); return; }
+    var dec = e.target.closest('[data-dec]');
+    if (dec) { var id2 = dec.getAttribute('data-dec'); S.setQty(id2, S.getCart().filter(function (x) { return x.id === id2; })[0].qty - 1); render(); return; }
+    var rm = e.target.closest('[data-remove]');
+    if (rm) { S.removeFromCart(rm.getAttribute('data-remove')); S.toast('Item removed', 'trash'); render(); return; }
+    if (e.target.closest('#clearCart')) { S.clearCart(); render(); return; }
+    if (e.target.closest('#toDelivery')) { step = 2; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (e.target.closest('#backToCart')) { step = 1; render(); return; }
+    if (e.target.closest('#toPayment')) {
+      form.name = document.getElementById('fName').value.trim();
+      form.phone = document.getElementById('fPhone').value.trim();
+      form.email = document.getElementById('fEmail').value.trim();
+      form.address = document.getElementById('fAddress').value.trim();
+      form.city = document.getElementById('fCity').value.trim();
+      form.notes = document.getElementById('fNotes').value.trim();
+      if (!form.name || !form.phone || !form.address) { S.toast('Please fill in name, phone and address', 'alert'); return; }
+      step = 3; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return;
     }
-    if (e.target.id === 'cExp') {
-      var v = e.target.value.replace(/\D/g, '').slice(0, 4);
-      e.target.value = v.length > 2 ? v.slice(0, 2) + '/' + v.slice(2) : v;
+    if (e.target.closest('#backToDelivery')) { step = 2; render(); return; }
+    if (e.target.closest('#placeOrder')) { placeOrder(); return; }
+    if (e.target.closest('#promoBtn')) {
+      var v = document.getElementById('promoInput').value.trim();
+      var res = S.applyCoupon(v);
+      if (!res.ok) { S.toast(res.reason, 'alert'); return; }
+      coupon = res.coupon; S.toast('Coupon ' + coupon.code + ' applied', 'tag'); render(); return;
     }
-    if (e.target.id === 'cCvc') e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+    if (e.target.closest('#delivBtn')) {
+      var dv = document.getElementById('delivInput').value.trim().toUpperCase();
+      var rules = S.getDeliveryRules();
+      if (!rules.codes[dv]) { S.toast('That delivery code is not valid', 'alert'); return; }
+      deliveryCode = dv; S.toast('Delivery code ' + dv + ' applied', 'truck'); render(); return;
+    }
   });
 
-  function refreshCartView() {
-    if (state.view === 'cart') render();
-    else { document.dispatchEvent(new Event('sokoni:cart')); render(); }
-  }
-
-  function validateDelivery() {
-    var form = document.getElementById('deliveryForm');
-    if (!form) return true;
-    var ok = true;
-    ['dName', 'dEmail', 'dPhone', 'dAddress', 'dCity', 'dRegion'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el && !el.value.trim()) { el.style.borderColor = 'var(--coral)'; ok = false; }
-      else if (el) { el.style.borderColor = ''; }
-    });
-    var em = document.getElementById('dEmail');
-    if (em && em.value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value)) { em.style.borderColor = 'var(--coral)'; ok = false; }
-    if (!ok) S.toast('Please complete the highlighted fields', 'bell');
-    return ok;
-  }
+  document.getElementById('cartView').addEventListener('change', function (e) {
+    if (e.target.name === 'zone') { zoneId = e.target.value; render(); return; }
+    if (e.target.name === 'pay') { payMethod = e.target.value; render(); return; }
+    if (e.target.hasAttribute('data-qty')) { S.setQty(e.target.getAttribute('data-qty'), e.target.value); render(); return; }
+  });
 
   function placeOrder() {
-    if (state.pay === 'card') {
-      var num = (document.getElementById('cNum') || {}).value || '';
-      if (num.replace(/\s/g, '').length < 12) { S.toast('Please enter a demo card number', 'bell'); return; }
-    }
-    var P = pricing();
-    var lines = S.cartLines();
-    var orderItems = lines.map(function (l) { return { id: l.product.id, qty: l.qty }; });
-    var itemsHTML = lines.map(function (l) {
-      return '<div class="cart-line"><span class="cart-line-media"><img src="' + l.product.image + '" alt=""></span>' +
-        '<div><b>' + S.esc(l.product.name) + '</b><small>Qty ' + l.qty + '</small></div>' +
-        '<span class="amt">' + S.money(l.line) + '</span></div>';
-    }).join('');
-
-    var methodLabel = state.delivery === 'express' ? 'Express delivery' : (state.delivery === 'pickup' ? 'Store pickup' : 'Standard delivery');
-    var payLabel = state.pay === 'card' ? 'Card ending ' + (document.getElementById('cNum') ? document.getElementById('cNum').value.replace(/\s/g, '').slice(-4) : '4242')
-      : (state.pay === 'transfer' ? 'Bank transfer' : 'Pay on delivery');
-    var eta = state.delivery === 'pickup' ? 'today' : fmtDate(state.delivery === 'express' ? 1 : 3);
-
-    var addr = (document.getElementById('dAddress') || {}).value || cust.address;
-    var city = (document.getElementById('dCity') || {}).value || cust.city;
-
-    state.order = {
-      code: 'SKN-' + new Date().getFullYear() + '-' + Math.floor(10000 + Math.random() * 89999),
-      name: (document.getElementById('dName') || {}).value || cust.name,
-      email: (document.getElementById('dEmail') || {}).value || cust.email,
-      address: addr, city: city,
-      methodLabel: methodLabel, payLabel: payLabel,
-      eta: eta, total: P.total, items: itemsHTML,
-      pay: state.pay
+    var t = totals();
+    var code = 'LDM-' + new Date().getFullYear() + '-' + Math.floor(10000 + Math.random() * 89999);
+    var order = {
+      code: code, date: new Date().toISOString(), status: 'placed',
+      items: S.cartLines().map(function (l) {
+        return { id: l.product.id, name: l.product.name, size: l.product.size, image: l.product.image, price: l.product.price, qty: l.qty };
+      }),
+      subtotal: t.sub, discount: t.disc, coupon: coupon ? coupon.code : null,
+      deliveryBase: t.q.base, deliveryDiscount: t.q.discount, deliveryFee: t.q.fee,
+      deliveryCode: deliveryCode, tax: t.tax, total: t.total,
+      customer: { name: form.name, email: form.email, phone: form.phone, address: form.address, city: form.city, zone: zoneId, notes: form.notes },
+      payment: payMethod, eta: S.zone(zoneId).eta, source: 'checkout'
     };
-
-    /* persist the order so it shows in the account order history (localStorage only) */
-    try {
-      S.saveOrder({
-        code: state.order.code,
-        date: S.fmtDate(new Date()),
-        statusKey: 'confirmed',
-        eta: state.order.eta,
-        pay: state.pay, payLabel: payLabel, methodLabel: methodLabel,
-        name: state.order.name, email: state.order.email,
-        address: addr, city: city, total: P.total,
-        items: orderItems
-      });
-    } catch (e) {}
-
+    S.addOrder(order);
+    if (coupon) S.redeemCoupon(coupon.code);
     S.clearCart();
-    go('confirm');
-    S.toast('Order placed — thank you!', 'checkCircle');
+    S.refreshBadges();
+    placed = order;
+    step = 4;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    /* Brevi: order confirmation email */
+    if (form.email) {
+      window.LadydeeEmail.sendOrderConfirmation(order).then(function (res) {
+        if (res.demo) S.toast('Order email prepared (demo mode)', 'mail');
+        else if (res.ok) S.toast('Confirmation email sent', 'mail');
+        else S.toast('Email could not be sent', 'alert');
+      });
+    }
   }
 
-  /* boot */
-  if (S.param('checkout') === '1' && S.cartCount()) state.view = 'delivery';
   render();
-  S.observeReveals();
 })();
 </script>
 </body>

@@ -3,206 +3,224 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sokoni — Everyday goods, delivered fast</title>
-<meta name="description" content="Sokoni is a clean, simple marketplace for everyday technology, home and lifestyle goods. Free delivery over $100, 30-day returns.">
+<title>Ladydee Minimart Store — Everyday groceries delivered in Nigeria</title>
+<meta name="description" content="Ladydee Minimart Store — rice, beans, garri, cooking oil, noodles, beverages, household and baby essentials. Sealed, fairly priced and delivered across Nigeria.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛍️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="home">
 
 <div id="site-header"></div>
 
-<main>
-
-  <!-- HERO -->
-  <section class="hero">
-    <div class="wrap">
-      <div class="hero-copy">
-        <span class="hero-badge"><span class="pill-dot"></span><b>New season</b> · up to 40% off tech &amp; home</span>
-        <h1>Everything you need, <em>nothing</em> you don't.</h1>
-        <p class="hero-sub">A cleaner marketplace for everyday technology, home and lifestyle goods. Straightforward prices, fast delivery, and returns that don't fight you.</p>
-        <div class="hero-cta">
-          <a class="btn btn-primary btn-lg" href="products.html" data-cta="shop">Shop all products</a>
-          <a class="btn btn-outline btn-lg" href="workflows.html" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.32)">See how it works</a>
-        </div>
-        <div class="hero-stats">
-          <div><b>12,400+</b><span>Products in stock</span></div>
-          <div><b>4.8/5</b><span>Average rating</span></div>
-          <div><b>48h</b><span>Typical delivery</span></div>
-          <div><b>30 days</b><span>Easy returns</span></div>
-        </div>
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="eyebrow">Groceries, sealed &amp; delivered</span>
+      <h1>Your market run, <em>done in minutes</em>.</h1>
+      <p class="hero-lead">Rice by the bag, cooking oil, noodles, detergent and baby essentials — all sealed, fairly priced and brought to your door across Nigeria.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="/products">Start shopping</a>
+        <a class="btn btn-outline btn-lg" href="/workflows">How delivery works</a>
       </div>
-      <div class="hero-visual">
-        <div class="hero-shot">
-          <img src="images/scene-hero.png" alt="Everyday products arranged on a warm surface" fetchpriority="high">
-        </div>
-        <div class="float-card float-a">
-          <span class="fc-ico teal" data-fc="truck"></span>
-          <div><b>Free delivery</b><small>On orders over $100</small></div>
-        </div>
-        <div class="float-card float-b">
-          <span class="fc-ico amber" data-fc="star"></span>
-          <div><b>4.8 average</b><small>From 3,180 reviews</small></div>
-        </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><b>30+</b><span>Everyday essentials</span></div>
+        <div class="hero-stat"><b>7</b><span>Delivery zones</span></div>
+        <div class="hero-stat"><b>Same day</b><span>Across Lagos</span></div>
       </div>
     </div>
-  </section>
-
-  <!-- TRUST STRIP -->
-  <div class="strip" aria-hidden="true">
-    <div class="marquee" id="marquee"></div>
+    <div class="hero-art">
+      <div class="hero-art-img">
+        <img src="images/scene-hero.png" alt="A well-stocked grocery aisle with sealed packaged foodstuffs">
+      </div>
+      <div class="hero-float hero-float--a">
+        <span class="hero-float-ico" style="background:var(--green-soft);color:var(--green)" data-i="truck"></span>
+        <span><b>Free delivery</b><small>Orders over ₦50,000</small></span>
+      </div>
+      <div class="hero-float hero-float--b">
+        <span class="hero-float-ico" style="background:var(--amber-soft);color:var(--amber-dark)" data-i="shield"></span>
+        <span><b>Sealed &amp; fresh</b><small>Checked before dispatch</small></span>
+      </div>
+    </div>
   </div>
+</section>
 
-  <!-- CATEGORIES -->
-  <section class="section">
-    <div class="wrap">
-      <div class="section-head reveal">
+<!-- TRUST MARQUEE -->
+<div class="trust">
+  <div class="trust-track" id="trustTrack"></div>
+</div>
+
+<!-- CATEGORIES -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Shop by category</span>
+        <h2>Everything for the house</h2>
+        <p>Seven aisles, stocked with the sizes Nigerian homes actually buy.</p>
+      </div>
+      <a class="link-arrow" href="/products">Browse all products <span data-i="arrowRight"></span></a>
+    </div>
+    <div class="cat-grid" id="catGrid"></div>
+  </div>
+</section>
+
+<!-- DELIVERY DISCOUNT BANNER -->
+<section class="section--tight">
+  <div class="wrap">
+    <div class="deliv-banner reveal">
+      <span class="deliv-banner-ico" data-i="truck"></span>
+      <div>
+        <h3>Delivery discounts, running now</h3>
+        <p>We are cutting delivery fees across the board. Stack a promo code on top and pay even less to get your order.</p>
+        <div class="deliv-banner-tags" id="delivTags"></div>
+      </div>
+      <a class="btn btn-primary" href="/cart">See fees at checkout</a>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED -->
+<section class="section section--cream">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Featured</span>
+        <h2>Popular this week</h2>
+        <p>The staples our customers reorder most — rice, oil, noodles and milk.</p>
+      </div>
+      <a class="link-arrow" href="/products">See all <span data-i="arrowRight"></span></a>
+    </div>
+    <div class="pgrid" id="featuredGrid"></div>
+  </div>
+</section>
+
+<!-- DEALS -->
+<section class="section">
+  <div class="wrap">
+    <div class="deals">
+      <div class="deals-head">
         <div>
-          <span class="eyebrow">Browse</span>
-          <h2>Shop by category</h2>
-          <p>Six tight collections instead of a thousand filters. Every category is curated by hand.</p>
+          <span class="eyebrow" style="color:var(--amber)">Deals of the week</span>
+          <h2>Price drops on the essentials</h2>
+          <p>Discounted while stock lasts — no code needed.</p>
         </div>
-        <a class="link-arrow" href="products.html">All categories <span data-i="arrowRight"></span></a>
+        <div class="countdown" id="countdown"></div>
       </div>
-      <div class="cat-grid" id="categories"></div>
+      <div class="pgrid" id="dealsGrid"></div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- FEATURED -->
-  <section class="section section--tight">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <div>
-          <span class="eyebrow">Handpicked</span>
-          <h2>Featured products</h2>
-          <p>The pieces our customers keep coming back for, restocked this week.</p>
-        </div>
-        <a class="link-arrow" href="products.html?sort=rating">See top rated <span data-i="arrowRight"></span></a>
+<!-- VALUE PROPS -->
+<section class="section--tight">
+  <div class="wrap">
+    <div class="vprops" id="vprops"></div>
+  </div>
+</section>
+
+<!-- NEWSLETTER -->
+<section class="section">
+  <div class="wrap">
+    <div class="newsletter reveal">
+      <div>
+        <h2>Get the weekly price list</h2>
+        <p>One short email each Monday with the week's deals and any delivery discounts. No spam, unsubscribe anytime.</p>
       </div>
-      <div class="grid-products" id="featured"></div>
+      <form class="newsletter-form" id="newsForm">
+        <input type="email" id="newsEmail" placeholder="you@example.com" aria-label="Email address" required>
+        <button class="btn btn-accent btn-lg" type="submit">Subscribe</button>
+      </form>
     </div>
-  </section>
-
-  <!-- VALUE PROPS -->
-  <section class="section section--tight">
-    <div class="wrap">
-      <div class="props">
-        <div class="prop reveal"><span class="prop-ico" data-fc="truck"></span><div><b>Free &amp; fast delivery</b><p>Free over $100, most orders arrive within 48 hours.</p></div></div>
-        <div class="prop reveal"><span class="prop-ico" data-fc="refresh"></span><div><b>30-day returns</b><p>Changed your mind? Send it back, no interrogation.</p></div></div>
-        <div class="prop reveal"><span class="prop-ico" data-fc="shield"></span><div><b>Secure checkout</b><p>Card, transfer or pay on delivery — your choice.</p></div></div>
-        <div class="prop reveal"><span class="prop-ico" data-fc="headset"></span><div><b>Human support</b><p>Real people, every day, 8am to 8pm.</p></div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- DEALS -->
-  <section class="section deals">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <div>
-          <span class="eyebrow">Limited time</span>
-          <h2>Deals of the week</h2>
-          <p>Real reductions on real stock. When the timer stops, the prices go back up.</p>
-        </div>
-        <div class="countdown" id="countdown" aria-label="Deal countdown">
-          <div class="cd-cell"><b id="cd-d">00</b><small>Days</small></div>
-          <div class="cd-cell"><b id="cd-h">00</b><small>Hours</small></div>
-          <div class="cd-cell"><b id="cd-m">00</b><small>Mins</small></div>
-          <div class="cd-cell"><b id="cd-s">00</b><small>Secs</small></div>
-        </div>
-      </div>
-      <div class="grid-products" id="deals"></div>
-    </div>
-  </section>
-
-  <!-- NEWSLETTER -->
-  <section class="section section--tight">
-    <div class="wrap">
-      <div class="newsletter reveal">
-        <div>
-          <span class="eyebrow" style="color:rgba(255,255,255,.92)">Newsletter</span>
-          <h2>Get the good deals first</h2>
-          <p>Deals and new arrivals, roughly twice a month. Unsubscribe whenever you like — we won't take it personally.</p>
-        </div>
-        <form class="nl-form" data-nl>
-          <input type="email" placeholder="you@example.com" aria-label="Email address" required>
-          <button class="btn btn-accent" type="submit"><span data-i="send"></span> Subscribe</button>
-        </form>
-      </div>
-    </div>
-  </section>
-
-</main>
+  </div>
+</section>
 
 <div id="site-footer"></div>
 
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
+<script src="brevi.js"></script>
 <script>
 (function () {
-  var S = window.Sokoni;
+  var S = window.Ladydee;
+  S.mount('home');
 
-  /* icons in placeholders */
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
-  document.querySelectorAll('[data-fc]').forEach(function (e) {
-    var n = e.getAttribute('data-fc');
-    e.innerHTML = S.icon(n === 'star' ? 'star' : n);
-  });
 
-  /* categories */
-  var catEl = document.getElementById('categories');
-  catEl.innerHTML = S.CATEGORIES.map(function (c) {
-    var n = S.PRODUCTS.filter(function (p) { return p.category === c.id; }).length;
-    return '<a class="cat-card reveal" href="products.html?cat=' + c.id + '">' +
-      '<span class="cat-ico">' + S.icon(c.icon) + '</span>' +
-      '<b>' + c.name + '</b><small>' + n + ' product' + (n === 1 ? '' : 's') + '</small></a>';
+  var TRUST = [
+    ['truck', 'Same-day delivery across Lagos'],
+    ['shield', 'Sealed and quality-checked'],
+    ['wallet', 'Pay on delivery available'],
+    ['refresh', 'Easy returns within 48 hours'],
+    ['headset', 'Support on WhatsApp and phone'],
+    ['award', 'Fair, transparent pricing']
+  ];
+  var items = TRUST.map(function (t) {
+    return '<span class="trust-item">' + S.icon(t[0]) + t[1] + '</span>';
   }).join('');
-  S.stagger('.cat-card', .05);
+  document.getElementById('trustTrack').innerHTML = items + items;
 
-  /* featured */
-  var featured = S.PRODUCTS.filter(function (p) { return !!p.badge && p.badge !== 'sale'; });
-  S.renderProducts('#featured', featured.slice(0, 8));
+  document.getElementById('catGrid').innerHTML = S.CATEGORIES.map(function (c) {
+    var n = S.PRODUCTS.filter(function (p) { return p.category === c.id; }).length;
+    return '<a class="cat-card reveal" href="/products?cat=' + c.id + '">' +
+      '<span class="cat-card-ico">' + S.icon(c.icon) + '</span>' +
+      '<b>' + S.esc(c.name) + '</b>' +
+      '<small>' + S.esc(c.blurb) + '</small>' +
+      '<span class="cc-count">' + n + ' product' + (n === 1 ? '' : 's') + ' →</span>' +
+    '</a>';
+  }).join('');
 
-  /* deals — biggest discounts first */
+  var rules = S.getDeliveryRules();
+  var tags = [];
+  tags.push('<span class="dpill">' + S.icon('truck') + 'Free delivery over ' + S.money(rules.freeOver) + '</span>');
+  if (rules.memberFree) tags.push('<span class="dpill">' + S.icon('user') + 'Free delivery for members</span>');
+  Object.keys(rules.codes).forEach(function (code) {
+    tags.push('<span class="dpill">' + S.icon('tag') + code + ' — ' + S.esc(rules.codes[code].label) + '</span>');
+  });
+  document.getElementById('delivTags').innerHTML = tags.join('');
+
+  var featured = S.PRODUCTS.filter(function (p) { return p.badge === 'bestseller' || p.rating >= 4.7; }).slice(0, 8);
+  document.getElementById('featuredGrid').innerHTML = featured.map(function (p) { return S.productCard(p); }).join('');
+
   var deals = S.PRODUCTS.filter(function (p) { return p.oldPrice; })
     .sort(function (a, b) { return S.discountOf(b) - S.discountOf(a); }).slice(0, 4);
-  S.renderProducts('#deals', deals);
+  document.getElementById('dealsGrid').innerHTML = deals.map(function (p) { return S.productCard(p); }).join('');
 
-  /* marquee */
-  var trust = [
-    ['truck', 'Free delivery over $100'], ['refresh', '30-day returns'],
-    ['shield', 'Secure payments'], ['zap', 'Same-day dispatch'],
-    ['headset', 'Support 8am–8pm'], ['award', 'Curated quality'],
-    ['box', '12,400+ products'], ['percent', 'Price-match promise']
-  ];
-  var half = trust.map(function (t) {
-    return '<span>' + S.icon(t[0]) + t[1] + '</span>';
-  }).join('');
-  document.getElementById('marquee').innerHTML = half + half;
-
-  /* countdown to end of week */
   function tick() {
     var now = new Date();
     var end = new Date(now);
-    var daysToSun = (7 - now.getDay()) % 7;
-    end.setDate(now.getDate() + daysToSun);
+    end.setDate(now.getDate() + (7 - now.getDay()) % 7);
     end.setHours(23, 59, 59, 0);
     if (end <= now) end.setDate(end.getDate() + 7);
     var ms = end - now;
-    var d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5),
-        m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1000);
-    var pad = function (x) { return String(x).padStart(2, '0'); };
-    document.getElementById('cd-d').textContent = pad(d);
-    document.getElementById('cd-h').textContent = pad(h);
-    document.getElementById('cd-m').textContent = pad(m);
-    document.getElementById('cd-s').textContent = pad(s);
+    var d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24,
+        m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
+    var units = [[d, 'Days'], [h, 'Hours'], [m, 'Mins'], [s, 'Secs']];
+    document.getElementById('countdown').innerHTML = units.map(function (u) {
+      return '<span class="cd-unit"><b>' + String(u[0]).padStart(2, '0') + '</b><span>' + u[1] + '</span></span>';
+    }).join('');
   }
   tick(); setInterval(tick, 1000);
 
-  document.querySelectorAll('[data-cta="shop"]').forEach(function (b) {
-    b.addEventListener('click', function () { /* normal navigation */ });
+  var VP = [
+    ['truck', 'Fast, tracked delivery', 'Same-day in Lagos, 2–5 days nationwide. Track every step from your account.'],
+    ['shield', 'Sealed and checked', 'Every pack is inspected before it leaves the warehouse. Nothing opened, nothing leaking.'],
+    ['wallet', 'Pay how you like', 'Card, bank transfer, USSD or cash on delivery — whichever suits you.'],
+    ['refresh', 'Easy returns', 'Wrong or damaged item? Tell us within 48 hours and we will sort it out.']
+  ];
+  document.getElementById('vprops').innerHTML = VP.map(function (v) {
+    return '<div class="vprop reveal"><span class="vprop-ico">' + S.icon(v[0]) + '</span>' +
+      '<div><b>' + v[1] + '</b><small>' + v[2] + '</small></div></div>';
+  }).join('');
+
+  document.getElementById('newsForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = document.getElementById('newsEmail').value.trim();
+    if (!v) return;
+    S.toast('Subscribed — check your inbox on Monday', 'mail');
+    document.getElementById('newsEmail').value = '';
   });
 
   S.observeReveals();

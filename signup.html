@@ -3,256 +3,187 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Create your account — Sokoni</title>
-<meta name="description" content="Create a Sokoni account to track orders, save addresses and build a wishlist.">
+<title>Create your account — Ladydee Minimart Store</title>
+<meta name="description" content="Create a Ladydee Minimart Store account to track orders, save addresses and get free delivery.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>&#128717;&#65039;</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body data-page="account">
+<body data-page="signup">
 
 <div id="site-header"></div>
 
-<main class="auth-split">
-
+<div class="auth-wrap">
   <aside class="auth-aside">
-    <a class="logo" href="index.html" style="color:#fff"><span class="logo-mark" id="asideLogo"></span>Sokoni</a>
-    <h2>One account, everything in one place.</h2>
-    <p>Create your Sokoni account in under a minute and keep your orders, addresses and saved items together.</p>
-    <ul class="auth-aside-list">
-      <li><span data-i="package"></span><span>Order history that shows exactly where a parcel is</span></li>
-      <li><span data-i="heart"></span><span>A wishlist you can add to from any product</span></li>
-      <li><span data-i="mapPin"></span><span>Saved addresses for one-tap checkout</span></li>
-      <li><span data-i="bell"></span><span>Optional deal alerts, only when you want them</span></li>
-    </ul>
+    <h2>Join Ladydee</h2>
+    <p>One account for faster checkout, saved addresses, order tracking and free delivery on every order.</p>
+    <div class="auth-points">
+      <div class="auth-point"><span data-i="truck"></span><span><b>Free delivery for members</b><small>On every order, any zone</small></span></div>
+      <div class="auth-point"><span data-i="clipboard"></span><span><b>Track every order</b><small>From placed to delivered</small></span></div>
+      <div class="auth-point"><span data-i="heart"></span><span><b>Save your favourites</b><small>Wishlist synced to your account</small></span></div>
+      <div class="auth-point"><span data-i="mapPin"></span><span><b>Saved addresses</b><small>Check out in two taps</small></span></div>
+    </div>
   </aside>
 
-  <div class="auth-main">
+  <main class="auth-main">
     <div class="auth-card">
-      <div class="steps-mini" aria-hidden="true">
-        <span class="active" data-step-dot="1"></span><span data-step-dot="2"></span><span data-step-dot="3"></span>
-      </div>
-
-      <!-- STEP 1 — DETAILS -->
-      <div id="step1">
-        <div class="auth-head">
-          <span class="logo-mark" id="cardLogo"></span>
-          <h1>Create your account</h1>
-          <p>Already have one? <a href="login.html" style="color:var(--teal-dark);font-weight:700">Sign in</a></p>
-        </div>
-
-        <div id="signupMsg"></div>
-
-        <form class="auth-form" id="signupForm" novalidate>
-          <div class="form-grid">
-            <div class="field"><label for="firstName">First name</label><input id="firstName" placeholder="Alex" autocomplete="given-name" required></div>
-            <div class="field"><label for="lastName">Last name</label><input id="lastName" placeholder="Morgan" autocomplete="family-name" required></div>
-          </div>
-          <div class="field">
-            <label for="email">Email address</label>
-            <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
-          </div>
-          <div class="form-grid">
-            <div class="field"><label for="phone">Phone <span style="color:var(--muted-2);font-weight:600">(optional)</span></label><input id="phone" placeholder="+234 800 000 0000" autocomplete="tel"></div>
-            <div class="field"><label for="dob">Date of birth <span style="color:var(--muted-2);font-weight:600">(optional)</span></label><input id="dob" type="date"></div>
-          </div>
-          <div class="field">
-            <label for="password">Password</label>
-            <div class="pw-wrap">
-              <input id="password" type="password" placeholder="At least 6 characters" autocomplete="new-password" required>
-              <button class="pw-toggle" type="button" id="pwToggle" aria-label="Show password"></button>
-            </div>
-            <div class="strength" id="strength"><i></i><i></i><i></i></div>
-            <div class="strength-label" id="strengthLabel">Use 6 or more characters</div>
-          </div>
-          <div class="field">
-            <label for="confirm">Confirm password</label>
-            <input id="confirm" type="password" placeholder="Repeat your password" autocomplete="new-password" required>
-          </div>
-          <label class="check-inline">
-            <input type="checkbox" id="terms" required>
-            <span>I agree to the <a href="workflows.html">terms of sale</a> and <a href="workflows.html">privacy notice</a>.</span>
-          </label>
-          <label class="check-inline">
-            <input type="checkbox" id="marketing" checked>
-            <span>Email me deals and new arrivals (about twice a month).</span>
-          </label>
-          <button class="btn btn-primary btn-lg btn-block" type="submit" id="submitBtn">Create account</button>
-        </form>
-
-        <p class="auth-alt">Signing up stores your details only in this browser — no server, no email actually sent.</p>
-      </div>
-
-      <!-- STEP 2 — VERIFY -->
-      <div id="step2" hidden>
-        <div class="auth-head">
-          <div class="verify-mark" id="mailMark"></div>
-          <h1>Check your inbox</h1>
-          <p>We sent a 6-digit code to <b id="verifyEmail">your email</b>. Enter it below to verify your account.</p>
-        </div>
-        <div id="verifyMsg"></div>
-        <div class="otp" id="otp">
-          <input inputmode="numeric" maxlength="1" aria-label="Digit 1">
-          <input inputmode="numeric" maxlength="1" aria-label="Digit 2">
-          <input inputmode="numeric" maxlength="1" aria-label="Digit 3">
-          <input inputmode="numeric" maxlength="1" aria-label="Digit 4">
-          <input inputmode="numeric" maxlength="1" aria-label="Digit 5">
-          <input inputmode="numeric" maxlength="1" aria-label="Digit 6">
-        </div>
-        <div class="demo-note" style="margin:20px 0 0">
-          <span data-i="alert"></span>
-          <span>Demo shortcut — any 6 digits work. The sample code is <code>123456</code>.</span>
-        </div>
-        <button class="btn btn-primary btn-lg btn-block" type="button" id="verifyBtn" style="margin-top:18px">Verify and continue</button>
-        <p class="resend">Didn't get it? <button type="button" id="resend">Resend code</button> \u00b7 <button type="button" id="backTo1">Change email</button></p>
-      </div>
-
-      <!-- STEP 3 — DONE -->
-      <div id="step3" hidden>
-        <div class="auth-head">
-          <div class="verify-mark">&#10003;</div>
-          <h1>You're all set</h1>
-          <p>Your Sokoni account is ready, <b id="doneName">friend</b>. You are signed in and can start shopping right away.</p>
-        </div>
-        <ul class="auth-aside-list" style="margin-bottom:24px">
-          <li style="color:var(--muted)"><span data-i="checkCircle"></span><span>Order history and live tracking</span></li>
-          <li style="color:var(--muted)"><span data-i="checkCircle"></span><span>Saved addresses for faster checkout</span></li>
-          <li style="color:var(--muted)"><span data-i="checkCircle"></span><span>A wishlist you control</span></li>
-        </ul>
-        <a class="btn btn-primary btn-lg btn-block" href="account.html" id="toAccount">Go to my account</a>
-        <a class="btn btn-outline btn-lg btn-block" href="products.html" style="margin-top:10px">Start shopping</a>
-      </div>
-
+      <div class="auth-steps" id="authSteps"><span class="as-dot on"></span><span class="as-dot"></span><span class="as-dot"></span></div>
+      <div id="authBody"></div>
     </div>
-  </div>
-
-</main>
+  </main>
+</div>
 
 <div id="site-footer"></div>
 
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
+<script src="brevi.js"></script>
 <script>
 (function () {
-  var S = window.Sokoni;
+  var S = window.Ladydee;
+  S.mount('products');
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
-  var LOGO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16l-1.4 12.2a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8Z"/><path d="M8.5 7V5.5a3.5 3.5 0 0 1 7 0V7"/></svg>';
-  ['asideLogo', 'cardLogo'].forEach(function (id) { var el = document.getElementById(id); if (el) el.innerHTML = LOGO; });
-  var mark = document.getElementById('mailMark');
-  if (mark) mark.innerHTML = S.icon('mail');
 
-  var pw = document.getElementById('password');
-  var toggle = document.getElementById('pwToggle');
-  function drawToggle() {
-    toggle.innerHTML = S.icon(pw.type === 'password' ? 'eye' : 'lock');
-    toggle.setAttribute('aria-label', pw.type === 'password' ? 'Show password' : 'Hide password');
-  }
-  toggle.addEventListener('click', function () { pw.type = pw.type === 'password' ? 'text' : 'password'; drawToggle(); });
-  drawToggle();
+  var step = 1;
+  var draft = { name: '', email: '', phone: '', password: '' };
+  var code = '';
 
-  /* password strength meter */
-  var strength = document.getElementById('strength');
-  var strengthLabel = document.getElementById('strengthLabel');
-  pw.addEventListener('input', function () {
-    var v = pw.value, score = 0;
-    if (v.length >= 6) score++;
-    if (v.length >= 10 || (/[0-9]/.test(v) && /[a-zA-Z]/.test(v))) score++;
-    if (/[^a-zA-Z0-9]/.test(v) && v.length >= 8) score++;
-    strength.className = 'strength' + (v ? ' s' + score : '');
-    strengthLabel.textContent = !v ? 'Use 6 or more characters'
-      : score <= 1 ? 'Weak — add numbers or mix case'
-      : score === 2 ? 'Okay — a little longer would be better'
-      : 'Strong password';
-  });
-
-  function showMsg(elId, kind, text) {
-    document.getElementById(elId).innerHTML = '<div class="' + kind + '" style="margin-bottom:16px">' +
-      S.icon(kind === 'form-error' ? 'alert' : 'checkCircle') + '<span>' + S.esc(text) + '</span></div>';
-  }
-  function setModal(step) {
-    document.getElementById('step1').hidden = step !== 1;
-    document.getElementById('step2').hidden = step !== 2;
-    document.getElementById('step3').hidden = step !== 3;
-    document.querySelectorAll('[data-step-dot]').forEach(function (d, i) {
-      d.classList.toggle('active', i <= step - 1);
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  function setSteps(n) {
+    document.querySelectorAll('.as-dot').forEach(function (d, i) { d.classList.toggle('on', i < n); });
   }
 
-  /* STEP 1 — create account */
-  var form = document.getElementById('signupForm');
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var firstName = document.getElementById('firstName').value.trim();
-    var lastName = document.getElementById('lastName').value.trim();
-    var email = document.getElementById('email').value.trim();
-    var pass = pw.value;
-    var confirm = document.getElementById('confirm').value;
+  function strength(pw) {
+    var s = 0;
+    if (pw.length >= 8) s++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
+    if (/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)) s++;
+    return s;
+  }
 
-    if (!firstName) { showMsg('signupMsg', 'form-error', 'Please enter your first name.'); return; }
-    if (!S.isEmail(email)) { showMsg('signupMsg', 'form-error', 'Please enter a valid email address.'); return; }
-    if (!pass || pass.length < 6) { showMsg('signupMsg', 'form-error', 'Choose a password with at least 6 characters.'); return; }
-    if (pass !== confirm) { showMsg('signupMsg', 'form-error', 'The two passwords do not match.'); return; }
-    if (!document.getElementById('terms').checked) { showMsg('signupMsg', 'form-error', 'Please accept the terms to continue.'); return; }
+  function renderDetails() {
+    setSteps(1);
+    document.getElementById('authBody').innerHTML =
+      '<h1>Create your account</h1><p>It takes less than a minute.</p>' +
+      '<div class="demo-note">' + S.icon('info') + '<span><b>Demo store.</b> Your details are stored only in this browser (localStorage). Nothing is sent to a server.</span></div>' +
+      '<form class="auth-form" id="signupForm" novalidate>' +
+        '<div class="field"><label for="sName">Full name</label><input id="sName" value="' + S.esc(draft.name) + '" placeholder="Alex Morgan" autocomplete="name"></div>' +
+        '<div class="field"><label for="sEmail">Email address</label><input id="sEmail" type="email" value="' + S.esc(draft.email) + '" placeholder="you@example.com" autocomplete="email"></div>' +
+        '<div class="field"><label for="sPhone">Phone number</label><input id="sPhone" value="' + S.esc(draft.phone) + '" placeholder="0801 234 5678" autocomplete="tel"></div>' +
+        '<div class="field"><label for="sPw">Password</label>' +
+          '<div class="pw-wrap"><input id="sPw" type="password" placeholder="At least 8 characters" autocomplete="new-password">' +
+          '<button class="pw-toggle" type="button" id="pwToggle" aria-label="Show password">' + S.icon('eye') + '</button></div>' +
+          '<div class="pw-meter"><span class="pw-seg" id="seg1"></span><span class="pw-seg" id="seg2"></span><span class="pw-seg" id="seg3"></span></div>' +
+          '<span class="pw-label" id="pwLabel">Use 8+ characters with a mix of letters, numbers and symbols.</span></div>' +
+        '<label class="check"><input type="checkbox" id="sTerms"><span>I agree to the terms and the privacy policy.</span></label>' +
+        '<button class="btn btn-primary btn-lg btn-block" type="submit">Create account ' + S.icon('arrowRight') + '</button>' +
+      '</form>' +
+      '<p class="auth-alt">Already have an account? <a href="/login">Sign in</a></p>';
 
-    var btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.textContent = 'Creating your account\u2026';
-
-    setTimeout(function () {
-      var res = S.signup({
-        firstName: firstName, lastName: lastName, email: email, password: pass,
-        phone: document.getElementById('phone').value.trim(),
-        dob: document.getElementById('dob').value,
-        marketing: document.getElementById('marketing').checked
+    var pw = document.getElementById('sPw');
+    pw.addEventListener('input', function () {
+      var s = strength(pw.value);
+      ['seg1', 'seg2', 'seg3'].forEach(function (id, i) {
+        var el = document.getElementById(id);
+        el.className = 'pw-seg' + (i < s ? ' on-' + s : '');
       });
-      btn.disabled = false;
-      btn.textContent = 'Create account';
-
-      if (!res.ok) { showMsg('signupMsg', 'form-error', res.error); return; }
-
-      document.getElementById('verifyEmail').textContent = res.email;
-      document.getElementById('doneName').textContent = firstName;
-      setModal(2);
-      var first = document.querySelector('#otp input');
-      if (first) first.focus();
-    }, 650);
-  });
-
-  /* STEP 2 — verification code */
-  var otp = document.getElementById('otp');
-  var inputs = Array.prototype.slice.call(otp.querySelectorAll('input'));
-  inputs.forEach(function (inp, i) {
-    inp.addEventListener('input', function () {
-      this.value = this.value.replace(/\D/g, '').slice(0, 1);
-      if (this.value && i < inputs.length - 1) inputs[i + 1].focus();
+      document.getElementById('pwLabel').textContent = ['Too weak', 'Weak', 'Good', 'Strong'][s] + ' password';
     });
-    inp.addEventListener('keydown', function (e) {
-      if (e.key === 'Backspace' && !this.value && i > 0) inputs[i - 1].focus();
+    document.getElementById('pwToggle').addEventListener('click', function () {
+      var t = pw.type === 'password';
+      pw.type = t ? 'text' : 'password';
+      this.innerHTML = S.icon(t ? 'eyeOff' : 'eye');
     });
-    inp.addEventListener('paste', function (e) {
-      var text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
-      if (!text) return;
+
+    document.getElementById('signupForm').addEventListener('submit', function (e) {
       e.preventDefault();
-      text.split('').forEach(function (ch, j) { if (inputs[j]) inputs[j].value = ch; });
-      inputs[Math.min(text.length, inputs.length - 1)].focus();
+      draft.name = document.getElementById('sName').value.trim();
+      draft.email = document.getElementById('sEmail').value.trim();
+      draft.phone = document.getElementById('sPhone').value.trim();
+      draft.password = pw.value;
+      if (!draft.name) { S.toast('Please enter your name', 'alert'); return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(draft.email)) { S.toast('Please enter a valid email', 'alert'); return; }
+      if (draft.password.length < 8) { S.toast('Password must be at least 8 characters', 'alert'); return; }
+      if (!document.getElementById('sTerms').checked) { S.toast('Please accept the terms', 'alert'); return; }
+
+      var res = S.signup(draft);
+      if (!res.ok) { S.toast(res.reason, 'alert'); return; }
+
+      code = String(Math.floor(100000 + Math.random() * 899999));
+      window.LadydeeEmail.sendVerification(res.user, code).then(function (r) {
+        if (r.demo) S.toast('Verification email prepared (demo mode)', 'mail');
+        else if (r.ok) S.toast('Verification email sent', 'mail');
+      });
+      renderVerify();
     });
-  });
+  }
 
-  document.getElementById('verifyBtn').addEventListener('click', function () {
-    var code = inputs.map(function (i) { return i.value; }).join('');
-    if (code.length < 6) { showMsg('verifyMsg', 'form-error', 'Enter all six digits of the code.'); return; }
-    showMsg('verifyMsg', 'form-ok', 'Code accepted — verifying your account\u2026');
-    setTimeout(function () { setModal(3); }, 800);
-  });
+  function renderVerify() {
+    setSteps(2);
+    document.getElementById('authBody').innerHTML =
+      '<h1>Check your email</h1><p>We sent a 6-digit code to <b>' + S.esc(draft.email) + '</b>.</p>' +
+      '<div class="demo-note">' + S.icon('mail') + '<span><b>Demo mode.</b> No email actually leaves the browser. Your code is <b>' + code + '</b> — or open the preview to see the email.</span></div>' +
+      '<div class="otp-row" id="otpRow">' + [0,1,2,3,4,5].map(function (i) {
+        return '<input type="text" inputmode="numeric" maxlength="1" data-otp="' + i + '" aria-label="Digit ' + (i+1) + '">';
+      }).join('') + '</div>' +
+      '<div style="display:flex;gap:10px;margin-top:20px">' +
+        '<button class="btn btn-primary btn-lg" id="verifyBtn" type="button" style="flex:1">Verify &amp; continue</button>' +
+        '<button class="btn btn-outline btn-lg" id="previewBtn" type="button">' + S.icon('eye') + ' Preview email</button>' +
+      '</div>' +
+      '<p class="auth-alt">Didn\'t get it? <a href="#" id="resend">Resend the code</a></p>';
 
-  document.getElementById('resend').addEventListener('click', function () {
-    showMsg('verifyMsg', 'form-ok', 'A new code is on its way (demo — no email is actually sent).');
-  });
-  document.getElementById('backTo1').addEventListener('click', function () { setModal(1); });
+    var inputs = Array.prototype.slice.call(document.querySelectorAll('[data-otp]'));
+    inputs.forEach(function (inp, i) {
+      inp.addEventListener('input', function () {
+        inp.value = inp.value.replace(/\D/g, '').slice(0, 1);
+        if (inp.value && i < inputs.length - 1) inputs[i + 1].focus();
+      });
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Backspace' && !inp.value && i > 0) inputs[i - 1].focus();
+      });
+    });
+    inputs[0].focus();
 
-  setModal(1);
+    document.getElementById('previewBtn').addEventListener('click', function () {
+      var log = window.LadydeeEmail.getLog();
+      var entry = log.filter(function (e) { return e.template === 'signup-verification'; })[0];
+      if (entry) window.LadydeeEmail.showPreview(entry);
+    });
+
+    document.getElementById('resend').addEventListener('click', function (e) {
+      e.preventDefault();
+      code = String(Math.floor(100000 + Math.random() * 899999));
+      var u = S.getUsers().filter(function (x) { return x.email === draft.email.toLowerCase(); })[0];
+      window.LadydeeEmail.sendVerification(u || { name: draft.name, email: draft.email }, code);
+      S.toast('New code sent — ' + code, 'mail');
+      renderVerify();
+    });
+
+    document.getElementById('verifyBtn').addEventListener('click', function () {
+      var entered = inputs.map(function (i) { return i.value; }).join('');
+      if (entered.length < 6) { S.toast('Enter all six digits', 'alert'); return; }
+      if (entered !== code) { S.toast('That code is not correct', 'alert'); return; }
+      S.verifyUser(draft.email);
+      S.login(draft.email, draft.password);
+      renderDone();
+    });
+  }
+
+  function renderDone() {
+    setSteps(3);
+    document.getElementById('authBody').innerHTML =
+      '<div style="text-align:center">' +
+        '<div class="confirm-badge">' + S.icon('checkCircle') + '</div>' +
+        '<h1>You are all set</h1>' +
+        '<p class="muted" style="margin-bottom:24px">Your account is verified and you are signed in. Free delivery is now active on your orders.</p>' +
+        '<div style="display:grid;gap:10px">' +
+          '<a class="btn btn-primary btn-lg btn-block" href="/products">Start shopping</a>' +
+          '<a class="btn btn-outline btn-lg btn-block" href="/account">Go to my account</a>' +
+        '</div>' +
+      '</div>';
+  }
+
+  renderDetails();
 })();
 </script>
 </body>
