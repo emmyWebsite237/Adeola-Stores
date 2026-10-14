@@ -127,7 +127,10 @@
         '</div>' +
         '<div style="padding:18px 26px;background:#f7f9f7;border-top:1px solid #e2e8e2;font-size:12px;color:#7b8a82;line-height:1.6">' +
           (footerNote || '') +
-          '<div style="margin-top:8px">Ladydee Minimart Store · 12 Adeniran Ogunsanya, Surulere, Lagos · 0801 234 5678</div>' +
+          '<div style="margin-top:8px">' + (function () {
+            var s = (window.Ladydee && Ladydee.getStoreInfo) ? Ladydee.getStoreInfo() : null;
+            return s ? (s.name + ' · ' + s.address + ' · ' + s.phone) : 'Ladydee Minimart Store · 12 Adeniran Ogunsanya, Surulere, Lagos · 0801 234 5678';
+          })() + '</div>' +
           '<div style="margin-top:6px">This is a demonstration store. No real payment was taken.</div>' +
         '</div>' +
       '</div>' +

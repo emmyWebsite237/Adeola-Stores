@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test checkout (Paystack) &mdash; Ladydee Minimart Store</title>
+<meta name="description" content="Walk through the Ladydee payment and payout flow in Paystack test mode. No real money moves.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
+<link rel="stylesheet" href="styles.css?v=9">
+</head>
+<body data-page="checkout">
+
+<div id="site-header"></div>
+
+<section class="page-head">
+  <div class="wrap">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a><span data-i="chevronRight"></span><span>Test checkout</span>
+    </nav>
+    <h1>Paystack test checkout</h1>
+    <p class="sub">A safe walkthrough of the payment and payout flow &mdash; test keys, test cards, no real money.</p>
+  </div>
+</section>
+
+<main class="section">
+  <div class="wrap">
+    <div class="test-banner">
+      <span data-i="alert"></span>
+      <span>TEST MODE &mdash; no real money moves
+        <small>This page simulates a Paystack charge and a seller payout. Use test keys and test cards only.</small>
+      </span>
+    </div>
+
+    <div class="pay-steps" id="paySteps"></div>
+    <div id="payBody"></div>
+  </div>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="app.js?v=9"></script>
+<script src="brevi.js?v=9"></script>
+<script>
+(function () {
+  var S = window.Ladydee;
+  S.mount('checkout');
+  document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
+
+  var K = S.K.paystack;
+  var saved = S.read(K, {}) || {};
+
+  var state = {
+    step: 1,                       /* 1 keys · 2 card · 3 result · 4 payout */
+    publicKey: saved.publicKey || S.getIntegrations().paystackPublic || '',
+    card: saved.card || '4084 0840 8408 4081',
+    expiry: saved.expiry || '12/29',
+    cvv: saved.cvv || '408',
+    pin: saved.pin || '0000',
+    otp: saved.otp || '123456',
+    amount: saved.amount || 18813,
+    outcome: null,                 /* 'success' | 'failed' */
+    reference: null,
+    payout: null
+  };
+
+  var TEST_CARDS = [
+    ['4084 0840 8408 4081', 'Success (Visa)'],
+    ['5060 6666 6666 6666 666', 'Success (Verve)'],
+    ['5060 6666 6666 6666 667', 'Declined (Verve)']
+  ];
+
+  function save() {
+    S.write(K, {
+      publicKey: state.publicKey, card: state.card, expiry: state.expiry,
+      cvv: state.cvv, pin: state.pin, otp: state.otp, amount: state.amount
+    });
+  }
+
+  function ref() {
+    return 'LDM-TEST-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+
+  function stepsHTML() {
+    var labels = ['Keys', 'Card', 'Result', 'Payout'];
+    return labels.map(function (l, i) {
+      var n = i + 1;
+      var cls = state.step === n ? ' on' : state.step > n ? ' done' : '';
+      return '<span class="pay-step' + cls + '"><span class="pay-step-n">' + (state.step > n ? '✓' : n) + '</span>' + l + '</span>';
+    }).join('');
+  }
+
+  function stepKeys() {
+    var live = state.publicKey.indexOf('pk_test_') === 0;
+    return '<div class="pay-card"><h3>1. Paystack test keys</h3>' +
+      '<p>Paste your <b>test public key</b> (starts with <span class="mono">pk_test_</span>). It is safe in the browser. The secret key is never used here &mdash; it belongs on a server.</p>' +
+      '<div class="form-grid">' +
+        '<div class="field full"><label for="pk">Test public key</label>' +
+          '<input id="pk" value="' + S.esc(state.publicKey) + '" placeholder="pk_test_xxxxxxxxxxxxxxxx">' +
+          '<span class="hint">' + (live ? 'Looks like a valid test key.' : 'Any value works for the demo &mdash; nothing is charged.') + '</span></div>' +
+        '<div class="field"><label for="amt">Amount to charge (₦)</label>' +
+          '<input id="amt" type="number" min="100" value="' + state.amount + '"></div>' +
+      '</div>' +
+      '<div style="margin-top:16px"><button class="btn btn-primary" type="button" id="toCard">Continue to card ' + S.icon('arrowRight') + '</button></div>' +
+    '</div>';
+  }
+
+  function stepCard() {
+    var chips = TEST_CARDS.map(function (c) {
+      return '<button class="testcard-chip" type="button" data-card="' + c[0] + '">' + S.icon('creditCard') + c[0] + ' &middot; ' + c[1] + '</button>';
+    }).join('');
+    return '<div class="pay-card"><h3>2. Test card details</h3>' +
+      '<p>Click a test card to fill the form, or type your own. These are Paystack\'s published test cards &mdash; they never charge real money.</p>' +
+      '<div>' + chips + '</div>' +
+      '<div class="form-grid" style="margin-top:14px">' +
+        '<div class="field full"><label for="card">Card number</label><input id="card" value="' + S.esc(state.card) + '" inputmode="numeric"></div>' +
+        '<div class="field"><label for="exp">Expiry</label><input id="exp" value="' + S.esc(state.expiry) + '" placeholder="MM/YY"></div>' +
+        '<div class="field"><label for="cvv">CVV</label><input id="cvv" value="' + S.esc(state.cvv) + '" inputmode="numeric"></div>' +
+        '<div class="field"><label for="pin">PIN</label><input id="pin" value="' + S.esc(state.pin) + '" inputmode="numeric"></div>' +
+        '<div class="field"><label for="otp">OTP</label><input id="otp" value="' + S.esc(state.otp) + '" inputmode="numeric"></div>' +
+      '</div>' +
+      '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">' +
+        '<button class="btn btn-primary" type="button" id="payNow">' + S.icon('lock') + ' Pay ' + S.money(state.amount) + '</button>' +
+        '<button class="btn btn-outline" type="button" id="payFail">Simulate a failed payment</button>' +
+        '<button class="btn btn-ghost" type="button" id="backKeys">Back</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function stepResult() {
+    var ok = state.outcome === 'success';
+    return '<div class="pay-card"><div class="pay-result ' + (ok ? 'ok' : 'bad') + '">' +
+      '<span class="pr-ico">' + S.icon(ok ? 'checkCircle' : 'alert') + '</span>' +
+      '<h3>' + (ok ? 'Payment successful' : 'Payment declined') + '</h3>' +
+      '<p>' + (ok ? 'The test charge went through. No real money moved.' : 'The test card was declined. Try the success card instead.') + '</p>' +
+      '<div class="receipt">' +
+        '<div class="receipt-row"><span>Reference</span><b class="mono">' + S.esc(state.reference) + '</b></div>' +
+        '<div class="receipt-row"><span>Card</span><b class="mono">' + S.esc(state.card) + '</b></div>' +
+        '<div class="receipt-row"><span>Mode</span><b>Test</b></div>' +
+        '<div class="receipt-row"><span>Status</span><b>' + (ok ? 'success' : 'declined') + '</b></div>' +
+        '<div class="receipt-row total"><span>Amount</span><b>' + S.money(state.amount) + '</b></div>' +
+      '</div>' +
+      '<div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">' +
+        (ok ? '<button class="btn btn-primary" type="button" id="toPayout">Continue to payout ' + S.icon('arrowRight') + '</button>' : '') +
+        '<button class="btn btn-outline" type="button" id="retry">Try again</button>' +
+      '</div>' +
+    '</div></div>';
+  }
+
+  function stepPayout() {
+    var done = !!state.payout;
+    var fee = Math.round(state.amount * 0.015);
+    var net = state.amount - fee;
+    return '<div class="pay-card"><h3>4. Demo payout to the seller</h3>' +
+      '<p>In production this is a Paystack <b>Transfer</b> from your balance to the store\'s settlement account. Here it is simulated so you can walk the whole flow.</p>' +
+      '<div class="receipt">' +
+        '<div class="receipt-row"><span>Gross charge</span><b>' + S.money(state.amount) + '</b></div>' +
+        '<div class="receipt-row"><span>Paystack fee (1.5% test)</span><b>&minus;' + S.money(fee) + '</b></div>' +
+        '<div class="receipt-row total"><span>Net payout</span><b>' + S.money(net) + '</b></div>' +
+      '</div>' +
+      (done
+        ? '<div class="pay-result ok" style="padding:20px 0 0"><span class="pr-ico">' + S.icon('checkCircle') + '</span>' +
+            '<h3>Payout queued</h3><p>Transfer <b class="mono">' + S.esc(state.payout) + '</b> created in test mode.</p></div>'
+        : '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">' +
+            '<button class="btn btn-primary" type="button" id="doPayout">' + S.icon('send') + ' Send demo payout</button>' +
+            '<button class="btn btn-ghost" type="button" id="restart">Start over</button></div>') +
+      (done ? '<div style="margin-top:18px;text-align:center"><button class="btn btn-outline" type="button" id="restart">Start over</button></div>' : '') +
+    '</div>';
+  }
+
+  function render() {
+    document.getElementById('paySteps').innerHTML = stepsHTML();
+    var body = document.getElementById('payBody');
+    if (state.step === 1) body.innerHTML = stepKeys();
+    else if (state.step === 2) body.innerHTML = stepCard();
+    else if (state.step === 3) body.innerHTML = stepResult();
+    else body.innerHTML = stepPayout();
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('button'); if (!t) return;
+
+    if (t.id === 'toCard') {
+      state.publicKey = document.getElementById('pk').value.trim();
+      state.amount = Number(document.getElementById('amt').value) || 18813;
+      save(); state.step = 2; render(); return;
+    }
+    if (t.id === 'backKeys') { state.step = 1; render(); return; }
+    if (t.hasAttribute('data-card')) {
+      state.card = t.getAttribute('data-card');
+      document.getElementById('card').value = state.card;
+      return;
+    }
+    if (t.id === 'payNow' || t.id === 'payFail') {
+      state.card = document.getElementById('card').value.trim();
+      state.expiry = document.getElementById('exp').value.trim();
+      state.cvv = document.getElementById('cvv').value.trim();
+      state.pin = document.getElementById('pin').value.trim();
+      state.otp = document.getElementById('otp').value.trim();
+      state.reference = ref();
+      /* the declined test card ends in 667 */
+      var declined = t.id === 'payFail' || /667$/.test(state.card.replace(/\s/g, ''));
+      state.outcome = declined ? 'failed' : 'success';
+      save(); state.step = 3; render(); return;
+    }
+    if (t.id === 'retry') { state.step = 2; render(); return; }
+    if (t.id === 'toPayout') { state.step = 4; render(); return; }
+    if (t.id === 'doPayout') {
+      state.payout = 'TRF-TEST-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      S.toast('Demo payout created', 'send'); render(); return;
+    }
+    if (t.id === 'restart') {
+      state.step = 1; state.outcome = null; state.reference = null; state.payout = null;
+      render(); return;
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

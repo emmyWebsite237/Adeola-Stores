@@ -427,8 +427,41 @@
     cart: 'ladydee_cart', wish: 'ladydee_wishlist', users: 'ladydee_users',
     session: 'ladydee_session', orders: 'ladydee_orders', coupons: 'ladydee_coupons',
     delivery: 'ladydee_delivery_rules', admin: 'ladydee_admin_session',
-    emails: 'ladydee_email_log', brevi: 'ladydee_brevi_config', seeded: 'ladydee_seeded_v1'
+    emails: 'ladydee_email_log', brevi: 'ladydee_brevi_config', seeded: 'ladydee_seeded_v1',
+    store: 'ladydee_store_info',
+    adminProducts: 'ladydee_admin_products', adminDeleted: 'ladydee_admin_deleted',
+    integrations: 'ladydee_integrations', paystack: 'ladydee_paystack_demo'
   };
+
+  /* ---------- Store contact details (editable in the admin console) ---------- */
+  var STORE_DEFAULTS = {
+    name: 'Ladydee Minimart Store',
+    phone: '0801 234 5678',
+    phoneHref: '+2348012345678',
+    email: 'hello@ladydee.ng',
+    address: '12 Adeniran Ogunsanya, Surulere, Lagos',
+    hours: 'Mon\u2013Sat, 8am \u2013 8pm',
+    hoursShort: 'Mon\u2013Sat, 8am\u20138pm'
+  };
+
+  function getStoreInfo() {
+    var saved = read(K.store, null) || {};
+    var out = {};
+    Object.keys(STORE_DEFAULTS).forEach(function (k) {
+      out[k] = (saved[k] != null && String(saved[k]).trim() !== '') ? String(saved[k]).trim() : STORE_DEFAULTS[k];
+    });
+    /* keep a dialable href in sync with whatever phone number is set */
+    out.phoneHref = '+234' + out.phone.replace(/[^0-9]/g, '').replace(/^0+/, '');
+    return out;
+  }
+  function setStoreInfo(patch) {
+    var cur = getStoreInfo();
+    Object.keys(patch || {}).forEach(function (k) {
+      if (k in STORE_DEFAULTS) cur[k] = patch[k];
+    });
+    write(K.store, cur);
+    return getStoreInfo();
+  }
 
   function read(key, fallback) {
     try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
@@ -468,9 +501,35 @@
   function daysFromNow(n) { var d = new Date(); d.setDate(d.getDate() + n); return d; }
 
   /* ---------- Catalogue helpers ---------- */
+  /* The live catalogue = the built-in seed products, plus anything the admin
+     has uploaded (ladydee_admin_products), minus anything deleted
+     (ladydee_admin_deleted). Admin-uploaded products therefore show up in the
+     storefront grid, search, wishlist and product pages automatically. */
+  function catalogue() {
+    var custom = read(K.adminProducts, null);
+    var deleted = read(K.adminDeleted, []) || [];
+    var base = PRODUCTS.filter(function (p) { return deleted.indexOf(p.id) < 0; });
+    if (!custom || !custom.length) return base;
+    var map = {}, order = [];
+    base.forEach(function (p) { map[p.id] = p; order.push(p.id); });
+    custom.forEach(function (p) {
+      if (!p || !p.id || deleted.indexOf(p.id) > -1) return;
+      if (!map[p.id]) order.push(p.id);
+      map[p.id] = p;
+    });
+    return order.map(function (id) { return map[id]; });
+  }
   function product(id) {
-    for (var i = 0; i < PRODUCTS.length; i++) if (PRODUCTS[i].id === id) return PRODUCTS[i];
+    var all = catalogue();
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
+  }
+  /* Cloudinary delivery optimisation: f_auto picks webp/avif, q_auto compresses. */
+  function imgUrl(u) {
+    if (!u) return u;
+    if (u.indexOf('cloudinary.com') < 0) return u;
+    if (/[?&]f_auto/.test(u)) return u;
+    return u + (u.indexOf('?') > -1 ? '&' : '?') + 'f_auto,q_auto';
   }
   function catName(id) {
     for (var i = 0; i < CATEGORIES.length; i++) if (CATEGORIES[i].id === id) return CATEGORIES[i].name;
@@ -486,9 +545,10 @@
   }
   function searchProducts(q) {
     q = (q || '').trim().toLowerCase();
-    if (!q) return PRODUCTS.slice();
+    var all = catalogue();
+    if (!q) return all;
     var words = q.split(/\s+/);
-    return PRODUCTS.filter(function (p) {
+    return all.filter(function (p) {
       var hay = (p.name + ' ' + p.size + ' ' + catName(p.category) + ' ' + p.short + ' ' + p.description).toLowerCase();
       return words.every(function (w) { return hay.indexOf(w) > -1; });
     });
@@ -808,6 +868,7 @@
   /* ---------- Header / footer ---------- */
   function headerHTML(active) {
     var u = currentUser();
+    var store = getStoreInfo();
     var nav = [
       { href: '/', label: 'Home', key: 'home' },
       { href: '/products', label: 'Shop', key: 'products' },
@@ -823,7 +884,7 @@
       '<span class="topbar-msg">' + icon('truck') + ' Free delivery on orders over ' + money(getDeliveryRules().freeOver) + ' across Lagos</span>' +
       '<span class="topbar-links">' +
         '<a href="' + toHref('/workflows') + '">Delivery &amp; returns</a>' +
-        '<a href="tel:+2348012345678">' + icon('phone') + ' 0801 234 5678</a>' +
+        '<a href="tel:' + esc(store.phoneHref) + '">' + icon('phone') + ' ' + esc(store.phone) + '</a>' +
       '</span>' +
     '</div></div>' +
     '<header class="header" id="siteHeader"><div class="wrap">' +
@@ -876,6 +937,7 @@
           nav.map(function (n) { return '<a class="drawer-link" href="' + toHref(n.href) + '">' + n.label + '</a>'; }).join('') +
           '<a class="drawer-link" href="' + toHref('/wishlist') + '">Wishlist</a>' +
           '<a class="drawer-link" href="' + toHref('/cart') + '">Cart</a>' +
+          '<a class="drawer-link" href="' + toHref('/checkout') + '">Test checkout</a>' +
           (u ? '<a class="drawer-link" href="' + toHref('/account') + '">My account</a>'
              : '<a class="drawer-link" href="' + toHref('/login') + '">Sign in</a><a class="drawer-link" href="' + toHref('/signup') + '">Create account</a>') +
         '</div>' +
@@ -887,8 +949,8 @@
         '</div>' +
         '<div class="drawer-sec drawer-help">' +
           '<span class="drawer-label">Need help?</span>' +
-          '<a class="drawer-link" href="tel:+2348012345678">' + icon('phone') + ' 0801 234 5678</a>' +
-          '<a class="drawer-link" href="mailto:hello@ladydee.ng">' + icon('mail') + ' hello@ladydee.ng</a>' +
+          '<a class="drawer-link" href="tel:' + esc(store.phoneHref) + '">' + icon('phone') + ' ' + esc(store.phone) + '</a>' +
+          '<a class="drawer-link" href="mailto:' + esc(store.email) + '">' + icon('mail') + ' ' + esc(store.email) + '</a>' +
         '</div>' +
       '</div>' +
     '</aside>';
@@ -896,6 +958,7 @@
 
   function footerHTML() {
     var year = new Date().getFullYear();
+    var store = getStoreInfo();
     return '<footer class="footer"><div class="wrap">' +
       '<div class="foot-grid">' +
         '<div class="foot-brand">' +
@@ -925,13 +988,13 @@
           '<a href="' + toHref('/workflows') + '">How it works</a>' +
           '<a href="' + toHref('/workflows') + '">Delivery &amp; returns</a>' +
           '<a href="' + toHref('/workflows') + '">Integrations</a>' +
-          '<a href="' + toHref('/adeolaadaccess112') + '">Staff portal</a>' +
+          '<a href="' + toHref('/checkout') + '">Test checkout (Paystack)</a>' +
         '</div>' +
         '<div class="foot-col foot-contact"><h4>Contact</h4>' +
-          '<a href="tel:+2348012345678">' + icon('phone') + ' 0801 234 5678</a>' +
-          '<a href="mailto:hello@ladydee.ng">' + icon('mail') + ' hello@ladydee.ng</a>' +
-          '<span>' + icon('mapPin') + ' 12 Adeniran Ogunsanya, Surulere, Lagos</span>' +
-          '<span>' + icon('clock') + ' Mon–Sat, 8am – 8pm</span>' +
+          '<a href="tel:' + esc(store.phoneHref) + '">' + icon('phone') + ' ' + esc(store.phone) + '</a>' +
+          '<a href="mailto:' + esc(store.email) + '">' + icon('mail') + ' ' + esc(store.email) + '</a>' +
+          '<span>' + icon('mapPin') + ' ' + esc(store.address) + '</span>' +
+          '<span>' + icon('clock') + ' ' + esc(store.hours) + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="foot-bottom">' +
@@ -1038,6 +1101,27 @@
     if (cb) { var n = cartCount(); cb.textContent = n; cb.hidden = !n; }
     var wb = document.getElementById('wishBadge');
     if (wb) { var w = wishCount(); wb.textContent = w; wb.hidden = !w; }
+    var bb = document.getElementById('bnCartBadge');
+    if (bb) { var m = cartCount(); bb.textContent = m > 99 ? '99+' : m; bb.hidden = !m; }
+  }
+
+  /* ---------- Sticky mobile bottom nav ---------- */
+  function bottomNavHTML() {
+    var page = (document.body && document.body.getAttribute('data-page')) || '';
+    var u = currentUser();
+    var items = [
+      { href: '/search', label: 'Search', ico: 'search', on: page === 'search' },
+      { href: '/cart', label: 'Cart', ico: 'cart', on: page === 'cart', badge: true },
+      { href: u ? '/account' : '/login', label: u ? 'Account' : 'Sign in', ico: 'user', on: page === 'account' || page === 'login' }
+    ];
+    return '<nav class="bottom-nav" aria-label="Quick navigation"><div class="bn-inner">' +
+      items.map(function (i) {
+        return '<a class="bn-item' + (i.on ? ' on' : '') + '" href="' + toHref(i.href) + '"' + (i.on ? ' aria-current="page"' : '') + '>' +
+          '<span class="bn-ico">' + icon(i.ico) +
+            (i.badge ? '<span class="bn-badge" id="bnCartBadge"' + (cartCount() ? '' : ' hidden') + '>' + cartCount() + '</span>' : '') +
+          '</span><span class="bn-label">' + i.label + '</span></a>';
+      }).join('') +
+    '</div></nav>';
   }
 
   /* ---------- Product card ---------- */
@@ -1049,7 +1133,8 @@
     return '<article class="pcard reveal' + (opts.compact ? ' pcard--compact' : '') + '">' +
       '<div class="pcard-media">' +
         '<a href="' + toHref('/product?id=' + p.id) + '" aria-label="' + esc(p.name) + '">' +
-          '<img src="' + p.image + '" alt="' + esc(p.name) + ' ' + esc(p.size) + '">' +
+          '<span class="img-skel" aria-hidden="true"></span>' +
+          '<img class="lazy-img" data-src="' + esc(imgUrl(p.image)) + '" alt="' + esc(p.name) + ' ' + esc(p.size || '') + '" loading="lazy" decoding="async" width="600" height="600">' +
         '</a>' +
         '<div class="pcard-tags">' +
           (d ? '<span class="tag tag-sale">−' + d + '%</span>' : '') +
@@ -1073,6 +1158,65 @@
         '</div>' +
       '</div>' +
     '</article>';
+  }
+
+  /* ---------- Lazy images (IntersectionObserver + skeleton) ----------
+     The real image is only requested from the CDN when its card is about to
+     scroll into view. A skeleton box reserves the exact space (the media box
+     already has aspect-ratio 1/1) so the layout never jumps, then the image
+     fades in. Fails open: anything still unloaded after 2.5s is loaded anyway,
+     so content is never left blank in a non-scrolling embed. */
+  function initLazyImages(root) {
+    var imgs = (root || document).querySelectorAll('img.lazy-img[data-src]');
+    if (!imgs.length) return;
+    function reveal(img) {
+      img.classList.add('is-loaded');
+      var m = img.closest('.pcard-media');
+      if (m) m.classList.add('is-ready');
+    }
+    function load(img) {
+      var src = img.getAttribute('data-src');
+      if (!src) return;
+      img.removeAttribute('data-src');
+      img.addEventListener('load', function () { reveal(img); });
+      img.addEventListener('error', function () { reveal(img); });
+      img.src = src;
+      if (img.complete) reveal(img);
+    }
+    if (!('IntersectionObserver' in window)) {
+      imgs.forEach(load);
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { load(en.target); io.unobserve(en.target); }
+      });
+    }, { rootMargin: '250px 0px', threshold: 0.01 });
+    imgs.forEach(function (i) { io.observe(i); });
+    setTimeout(function () {
+      document.querySelectorAll('img.lazy-img[data-src]').forEach(load);
+    }, 2500);
+  }
+
+  /* ---------- Integration settings (admin-editable API keys) ---------- */
+  var INTEGRATION_DEFAULTS = {
+    cloudName: '', cloudApiKey: '', cloudPreset: '',
+    brevoKey: '', brevoSenderEmail: '', brevoReplyTo: '',
+    paystackPublic: '', paystackSecret: ''
+  };
+  function getIntegrations() {
+    var saved = read(K.integrations, null) || {};
+    var out = {};
+    Object.keys(INTEGRATION_DEFAULTS).forEach(function (k) {
+      out[k] = (saved[k] != null) ? String(saved[k]) : INTEGRATION_DEFAULTS[k];
+    });
+    return out;
+  }
+  function setIntegrations(patch) {
+    var cur = getIntegrations();
+    Object.keys(patch || {}).forEach(function (k) { if (k in INTEGRATION_DEFAULTS) cur[k] = patch[k]; });
+    write(K.integrations, cur);
+    return getIntegrations();
   }
 
   /* ---------- Global delegated events ---------- */
@@ -1112,11 +1256,29 @@
     if (h) h.innerHTML = headerHTML(active);
     var f = document.getElementById('site-footer');
     if (f) f.innerHTML = footerHTML();
+    /* sticky mobile bottom nav — injected on every page, shown only on mobile */
+    var bn = document.getElementById('bottomNav');
+    if (!bn) {
+      bn = document.createElement('div');
+      bn.id = 'bottomNav';
+      document.body.appendChild(bn);
+    }
+    bn.innerHTML = bottomNavHTML();
     initSearch();
     initDrawer();
     initGlobalEvents();
     refreshBadges();
     normalizeLinks();
+    initLazyImages();
+    /* grids are rendered after mount on most pages — keep wiring new lazy images */
+    if ('MutationObserver' in window) {
+      var lazyPending = false;
+      new MutationObserver(function () {
+        if (lazyPending) return;
+        lazyPending = true;
+        setTimeout(function () { lazyPending = false; initLazyImages(); }, 80);
+      }).observe(document.body, { childList: true, subtree: true });
+    }
     /* keep links injected after mount clean-URL aware when opened as local files */
     if (fileMode() && 'MutationObserver' in window) {
       var pending = false;
@@ -1138,12 +1300,15 @@
   window.Ladydee = {
     icon: icon, esc: esc, money: money, param: param, stars: stars, fmtDate: fmtDate, daysFromNow: daysFromNow,
     CATEGORIES: CATEGORIES, PRODUCTS: PRODUCTS, ZONES: ZONES,
+    catalogue: catalogue, imgUrl: imgUrl, initLazyImages: initLazyImages,
+    getIntegrations: getIntegrations, setIntegrations: setIntegrations, INTEGRATION_DEFAULTS: INTEGRATION_DEFAULTS,
     product: product, catName: catName, catIcon: catIcon, discountOf: discountOf, searchProducts: searchProducts,
     getCart: getCart, addToCart: addToCart, setQty: setQty, removeFromCart: removeFromCart,
     clearCart: clearCart, cartCount: cartCount, cartLines: cartLines, cartSubtotal: cartSubtotal,
     getWish: getWish, inWish: inWish, toggleWish: toggleWish, wishCount: wishCount,
     getCoupons: getCoupons, setCoupons: setCoupons, findCoupon: findCoupon, applyCoupon: applyCoupon, redeemCoupon: redeemCoupon,
     getDeliveryRules: getDeliveryRules, setDeliveryRules: setDeliveryRules, zone: zone, deliveryQuote: deliveryQuote,
+    getStoreInfo: getStoreInfo, setStoreInfo: setStoreInfo, STORE_DEFAULTS: STORE_DEFAULTS,
     getUsers: getUsers, setUsers: setUsers, currentUser: currentUser, isLoggedIn: isLoggedIn,
     signup: signup, verifyUser: verifyUser, login: login, logout: logout, updateUser: updateUser, resetPassword: resetPassword,
     getOrders: getOrders, setOrders: setOrders, addOrder: addOrder, updateOrder: updateOrder,

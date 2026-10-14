@@ -11,6 +11,7 @@
 /signup              /signup.html              200
 /forgot              /forgot.html              200
 /workflows           /workflows.html           200
+/checkout            /checkout.html            200
 /adeolaadaccess112   /adeolaadaccess112.html   200
 
 # Fallback for any other clean path

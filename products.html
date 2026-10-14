@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body data-page="products">
 
@@ -56,8 +56,8 @@
 
 <div id="site-footer"></div>
 
-<script src="app.js?v=4"></script>
-<script src="brevi.js"></script>
+<script src="app.js?v=9"></script>
+<script src="brevi.js?v=9"></script>
 <script>
 (function () {
   var S = window.Ladydee;
@@ -66,12 +66,12 @@
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
 
   var PER = 9, PRICE_MAX = 80000;
-  var state = { cats: [], min: null, max: null, rating: 0, sale: false, stock: false, sort: 'featured', page: 1, q: '' };
+  var state = { cats: [], min: null, max: null, rating: 0, sale: false, stock: false, avail: [], sort: 'featured', page: 1, q: '' };
   var c = S.param('cat'); if (c) state.cats = c.split(',').filter(Boolean);
   var q = S.param('q'); if (q) state.q = q;
   var so = S.param('sort'); if (so) state.sort = so;
 
-  function base() { return state.q ? S.searchProducts(state.q) : S.PRODUCTS.slice(); }
+  function base() { return state.q ? S.searchProducts(state.q) : S.catalogue().slice(); }
 
   function filtered() {
     var list = base();
@@ -81,6 +81,10 @@
     if (state.rating) list = list.filter(function (p) { return p.rating >= state.rating; });
     if (state.sale) list = list.filter(function (p) { return !!p.oldPrice; });
     if (state.stock) list = list.filter(function (p) { return p.stock > 0; });
+    if (state.avail.length) list = list.filter(function (p) {
+      var inStock = p.stock > 0;
+      return (state.avail.indexOf('in') > -1 && inStock) || (state.avail.indexOf('out') > -1 && !inStock);
+    });
     return list;
   }
 
@@ -110,6 +114,9 @@
     html += '<div class="fgroup"><h4>Rating</h4>' + [4, 3, 2].map(function (r) {
       return '<label class="star-filter"><input type="radio" name="rating" value="' + r + '"' + (state.rating === r ? ' checked' : '') + '>' + S.stars(r) + '<small>&amp; up</small></label>';
     }).join('') + '<label class="star-filter"><input type="radio" name="rating" value="0"' + (!state.rating ? ' checked' : '') + '><span style="font-size:.86rem">Any rating</span></label></div>';
+    html += '<div class="fgroup"><h4>Availability</h4>' +
+      '<label class="fopt"><input type="checkbox" data-avail="in"' + (state.avail.indexOf('in') > -1 ? ' checked' : '') + '><span>In Stock</span></label>' +
+      '<label class="fopt"><input type="checkbox" data-avail="out"' + (state.avail.indexOf('out') > -1 ? ' checked' : '') + '><span>Out of Stock</span></label></div>';
     html += '<div class="fgroup"><h4>Offers</h4>' +
       '<label class="fopt"><input type="checkbox" id="fSale"' + (state.sale ? ' checked' : '') + '><span>On sale</span></label>' +
       '<label class="fopt"><input type="checkbox" id="fStock"' + (state.stock ? ' checked' : '') + '><span>In stock only</span></label></div>';
@@ -127,6 +134,9 @@
     if (state.rating) chips.push('<span class="chip">' + state.rating + '★ &amp; up<button type="button" data-rmrating="1" aria-label="Remove rating filter">' + S.icon('close') + '</button></span>');
     if (state.sale) chips.push('<span class="chip">On sale<button type="button" data-rmsale="1" aria-label="Remove sale filter">' + S.icon('close') + '</button></span>');
     if (state.stock) chips.push('<span class="chip">In stock<button type="button" data-rmstock="1" aria-label="Remove stock filter">' + S.icon('close') + '</button></span>');
+    state.avail.forEach(function (a) {
+      chips.push('<span class="chip">' + (a === 'in' ? 'In Stock' : 'Out of Stock') + '<button type="button" data-rmavail="' + a + '" aria-label="Remove availability filter">' + S.icon('close') + '</button></span>');
+    });
     if (chips.length) chips.push('<button class="chip-clear" type="button" id="chipClear">Clear all</button>');
     document.getElementById('chips').innerHTML = chips.join('');
   }
@@ -159,7 +169,7 @@
 
   function clearAll() {
     state.cats = []; state.min = null; state.max = null; state.rating = 0;
-    state.sale = false; state.stock = false; state.page = 1;
+    state.sale = false; state.stock = false; state.avail = []; state.page = 1;
     renderFilters(); render();
   }
 
@@ -183,6 +193,13 @@
     if (t.name === 'rating') { state.rating = Number(t.value); state.page = 1; render(); return; }
     if (t.id === 'fSale') { state.sale = t.checked; state.page = 1; render(); return; }
     if (t.id === 'fStock') { state.stock = t.checked; state.page = 1; render(); return; }
+    if (t.hasAttribute('data-avail')) {
+      var av = t.getAttribute('data-avail');
+      var ai = state.avail.indexOf(av);
+      if (t.checked && ai < 0) state.avail.push(av);
+      if (!t.checked && ai > -1) state.avail.splice(ai, 1);
+      state.page = 1; render(); return;
+    }
   });
 
   document.getElementById('filters').addEventListener('click', function (e) {
@@ -196,6 +213,7 @@
     else if (t.hasAttribute('data-rmrating')) { state.rating = 0; }
     else if (t.hasAttribute('data-rmsale')) { state.sale = false; }
     else if (t.hasAttribute('data-rmstock')) { state.stock = false; }
+    else if (t.hasAttribute('data-rmavail')) { state.avail = state.avail.filter(function (x) { return x !== t.getAttribute('data-rmavail'); }); }
     else if (t.id === 'chipClear') { clearAll(); return; }
     state.page = 1; renderFilters(); render();
   });

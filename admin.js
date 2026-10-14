@@ -18,18 +18,10 @@
   };
 
   /* ---------- product store (admin can add/edit/delete) ---------- */
+  /* Delegates to the shared catalogue so the admin and the storefront always
+     agree: seed products + admin uploads, minus anything deleted. */
   function readProducts() {
-    var custom = S.read(K.products, null);
-    var deleted = S.read(K.deleted, []);
-    var base = S.PRODUCTS.filter(function (p) { return deleted.indexOf(p.id) < 0; });
-    if (!custom) return base;
-    /* custom holds overrides + new products */
-    var map = {};
-    base.forEach(function (p) { map[p.id] = p; });
-    custom.forEach(function (p) { map[p.id] = p; });
-    var out = [];
-    Object.keys(map).forEach(function (k) { out.push(map[k]); });
-    return out;
+    return S.catalogue();
   }
   function saveProduct(p) {
     var custom = S.read(K.products, []) || [];
@@ -134,7 +126,9 @@
       ['coupons', 'tag', 'Coupons', ''],
       ['customers', 'users', 'Customers', ''],
       ['delivery', 'route', 'Delivery &amp; fees', ''],
-      ['email', 'mail', 'Brevi email', '']
+      ['email', 'mail', 'Brevi email', ''],
+      ['integrations', 'plug', 'API keys', ''],
+      ['settings', 'store', 'Store details', '']
     ];
     el('adminNav').innerHTML = items.map(function (i) {
       return '<button type="button" data-tab="' + i[0] + '"' + (tab === i[0] ? ' class="on"' : '') + '>' +
@@ -200,6 +194,95 @@
 
   /* ---------- products ---------- */
   var editingProduct = null;
+  var editingImages = [];   /* [{ url, isPrimary }] for the product form */
+
+  /* ---------- product form (image upload + cover picker) ---------- */
+  function productForm(p) {
+    var isNew = !p.id;
+    var tiles = editingImages.map(function (im, i) {
+      return '<div class="upload-tile' + (im.isPrimary ? ' is-cover' : '') + '">' +
+        (im.isPrimary ? '<span class="ut-cover">Primary</span>' : '') +
+        '<button class="ut-remove" type="button" data-rmimg="' + i + '" aria-label="Remove image">' + icon('close') + '</button>' +
+        '<img src="' + esc(im.url) + '" alt="Product image ' + (i + 1) + '">' +
+        '<label class="ut-pick"><input type="radio" name="primaryImage" value="' + i + '"' + (im.isPrimary ? ' checked' : '') +
+          ' data-cover="' + i + '"><span>Primary image</span></label>' +
+      '</div>';
+    }).join('');
+
+    var drop = editingImages.length < 3
+      ? '<label class="upload-drop"><input type="file" id="prFiles" accept="image/*" multiple>' + icon('plus') +
+          '<span>Add image' + (editingImages.length ? '' : 's') + '</span><small>2\u20133 images \u00b7 JPG or PNG</small></label>'
+      : '';
+
+    return '<div class="panel" style="margin-bottom:20px"><div class="panel-head"><b>' + (isNew ? 'New product' : 'Edit \u2014 ' + esc(p.name)) + '</b>' +
+      '<button class="btn btn-ghost btn-sm" type="button" id="cancelProduct">Cancel</button></div>' +
+      '<div class="panel-body">' +
+        '<div class="field full" style="margin-bottom:18px"><label>Product images</label>' +
+          '<div class="upload-grid">' + tiles + drop + '</div>' +
+          '<div class="upload-note">Select <b>2 to 3 images</b> from your device, then tick <b>Primary image</b> under the one that should be the cover in the grocery grid. ' +
+            'Images upload to Cloudinary and the secure URLs are saved with the product.</div>' +
+        '</div>' +
+        '<div class="form-grid">' +
+          '<div class="field full"><label for="prName">Product name</label><input id="prName" value="' + esc(p.name || '') + '" placeholder="Fresh Organic Strawberries"></div>' +
+          '<div class="field"><label for="prCat">Category</label><select id="prCat">' +
+            S.CATEGORIES.map(function (c) { return '<option value="' + c.id + '"' + (p.category === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') +
+          '</select></div>' +
+          '<div class="field"><label for="prPrice">Price (\u20a6)</label><input id="prPrice" type="number" min="0" step="0.01" value="' + (p.price != null ? p.price : '') + '" placeholder="4500"></div>' +
+          '<div class="field full"><label for="prDesc">Description</label><textarea id="prDesc" rows="3" placeholder="What the customer is buying">' + esc(p.description || '') + '</textarea></div>' +
+        '</div>' +
+        '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn btn-primary" type="button" id="saveProduct">' + icon('check') + ' ' + (isNew ? 'Create product' : 'Save changes') + '</button>' +
+          '<span class="upload-note" id="uploadStatus" style="align-self:center;margin:0"></span>' +
+        '</div>' +
+      '</div></div>';
+  }
+
+  /* ---------- Cloudinary upload ---------- */
+  function readAsDataURL(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve(fr.result); };
+      fr.onerror = reject;
+      fr.readAsDataURL(file);
+    });
+  }
+  /* Uploads one file to Cloudinary (unsigned preset). Falls back to a local
+     data URL when no cloud name / preset is configured, so the form still
+     works end-to-end in demo mode. */
+  function uploadToCloudinary(file) {
+    var cfg = S.getIntegrations();
+    if (!cfg.cloudName || !cfg.cloudPreset) {
+      return readAsDataURL(file).then(function (d) { return { url: d, local: true }; });
+    }
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', cfg.cloudPreset);
+    return fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(cfg.cloudName) + '/image/upload', {
+      method: 'POST', body: fd
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.body && res.body.secure_url) return { url: res.body.secure_url };
+        throw new Error((res.body && res.body.error && res.body.error.message) || ('HTTP ' + res.status));
+      });
+  }
+
+  function handleFiles(files) {
+    var list = Array.prototype.slice.call(files || []).slice(0, 3 - editingImages.length);
+    if (!list.length) return;
+    var status = el('uploadStatus');
+    if (status) status.textContent = 'Uploading ' + list.length + ' image' + (list.length === 1 ? '' : 's') + '\u2026';
+    Promise.all(list.map(uploadToCloudinary)).then(function (results) {
+      results.forEach(function (r) {
+        editingImages.push({ url: r.url, isPrimary: editingImages.length === 0 });
+      });
+      if (!editingImages.some(function (i) { return i.isPrimary; }) && editingImages.length) editingImages[0].isPrimary = true;
+      S.toast(results.length + ' image' + (results.length === 1 ? '' : 's') + ' added', 'checkCircle');
+      renderPanel();
+    }).catch(function (err) {
+      S.toast('Upload failed: ' + err.message, 'alert');
+      if (status) status.textContent = '';
+    });
+  }
 
   function panelProducts() {
     var products = readProducts();
@@ -222,31 +305,6 @@
       '<div class="table-wrap"><div class="table-scroll"><table class="data"><thead><tr>' +
         '<th>Product</th><th>Price</th><th>Stock</th><th>Rating</th><th>Actions</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
-  }
-
-  function productForm(p) {
-    var isNew = !p.id;
-    return '<div class="panel" style="margin-bottom:20px"><div class="panel-head"><b>' + (isNew ? 'New product' : 'Edit — ' + esc(p.name)) + '</b>' +
-      '<button class="btn btn-ghost btn-sm" type="button" id="cancelProduct">Cancel</button></div>' +
-      '<div class="panel-body"><div class="form-grid">' +
-        '<div class="field"><label for="prName">Product name</label><input id="prName" value="' + esc(p.name || '') + '" placeholder="Premium Parboiled Rice"></div>' +
-        '<div class="field"><label for="prSize">Size / weight</label><input id="prSize" value="' + esc(p.size || '') + '" placeholder="10kg bag"></div>' +
-        '<div class="field"><label for="prCat">Category</label><select id="prCat">' +
-          S.CATEGORIES.map(function (c) { return '<option value="' + c.id + '"' + (p.category === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') +
-        '</select></div>' +
-        '<div class="field"><label for="prStock">Stock (units)</label><input id="prStock" type="number" min="0" value="' + (p.stock != null ? p.stock : 0) + '"></div>' +
-        '<div class="field"><label for="prPrice">Price (₦)</label><input id="prPrice" type="number" min="0" value="' + (p.price != null ? p.price : '') + '" placeholder="17500"></div>' +
-        '<div class="field"><label for="prOld">Compare-at price (₦, optional)</label><input id="prOld" type="number" min="0" value="' + (p.oldPrice != null ? p.oldPrice : '') + '" placeholder="19000"></div>' +
-        '<div class="field"><label for="prImage">Image path</label><input id="prImage" value="' + esc(p.image || 'images/rice-10kg.png') + '" placeholder="images/rice-10kg.png"><span class="hint">Relative to the site folder.</span></div>' +
-        '<div class="field"><label for="prBadge">Badge</label><select id="prBadge">' +
-          [['', 'None'], ['sale', 'Sale'], ['bestseller', 'Bestseller'], ['new', 'New']].map(function (b) {
-            return '<option value="' + b[0] + '"' + ((p.badge || '') === b[0] ? ' selected' : '') + '>' + b[1] + '</option>';
-          }).join('') + '</select></div>' +
-        '<div class="field full"><label for="prShort">Short description</label><input id="prShort" value="' + esc(p.short || '') + '" placeholder="One line shown on cards"></div>' +
-        '<div class="field full"><label for="prDesc">Full description</label><textarea id="prDesc" rows="3" placeholder="Longer description for the product page">' + esc(p.description || '') + '</textarea></div>' +
-      '</div><div style="margin-top:18px;display:flex;gap:10px">' +
-        '<button class="btn btn-primary" type="button" id="saveProduct">' + icon('check') + ' ' + (isNew ? 'Create product' : 'Save changes') + '</button>' +
-      '</div></div></div>';
   }
 
   /* ---------- inventory ---------- */
@@ -518,12 +576,45 @@
       '</div>';
   }
 
+  /* ---------- store details ---------- */
+  function panelSettings() {
+    var s = S.getStoreInfo();
+    return head('Store details', 'Contact information shown across the storefront \u2014 footer, header and help areas.', '') +
+      '<div class="settings-grid">' +
+        '<div class="setting-card"><h3>Contact information</h3>' +
+          '<p>Saved to localStorage and applied everywhere the store details appear. Leave a field blank to fall back to the default.</p>' +
+          '<div class="form-grid">' +
+            '<div class="field full"><label for="stName">Store name</label><input id="stName" value="' + esc(s.name) + '"></div>' +
+            '<div class="field"><label for="stPhone">Phone number</label><input id="stPhone" value="' + esc(s.phone) + '" placeholder="0801 234 5678">' +
+              '<span class="hint">Used for the click-to-call links.</span></div>' +
+            '<div class="field"><label for="stEmail">Email address</label><input id="stEmail" type="email" value="' + esc(s.email) + '"></div>' +
+            '<div class="field full"><label for="stAddress">Store address</label><input id="stAddress" value="' + esc(s.address) + '"></div>' +
+            '<div class="field full"><label for="stHours">Working days &amp; hours</label><input id="stHours" value="' + esc(s.hours) + '" placeholder="Mon\u2013Sat, 8am \u2013 8pm"></div>' +
+          '</div>' +
+          '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">' +
+            '<button class="btn btn-primary" type="button" id="saveStore">' + icon('check') + ' Save details</button>' +
+            '<button class="btn btn-outline" type="button" id="resetStore">' + icon('refresh') + ' Reset to defaults</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="setting-card"><h3>Live preview</h3><p>This is how the details render in the storefront footer.</p>' +
+          '<div class="store-preview">' +
+            '<div class="sp-row">' + icon('phone') + '<span>' + esc(s.phone) + '</span></div>' +
+            '<div class="sp-row">' + icon('mail') + '<span>' + esc(s.email) + '</span></div>' +
+            '<div class="sp-row">' + icon('mapPin') + '<span>' + esc(s.address) + '</span></div>' +
+            '<div class="sp-row">' + icon('clock') + '<span>' + esc(s.hours) + '</span></div>' +
+          '</div>' +
+          '<p class="muted" style="font-size:.82rem;margin-top:14px">The admin console is not linked anywhere on the storefront \u2014 reach it only by typing <b>/adeolaadaccess112</b>.</p>' +
+        '</div>' +
+      '</div>';
+  }
+
   /* ---------- panel router ---------- */
   function renderPanel() {
     var map = {
       dashboard: panelDashboard, products: panelProducts, inventory: panelInventory,
       orders: panelOrders, deliveries: panelDeliveries, coupons: panelCoupons,
-      customers: panelCustomers, delivery: panelDelivery, email: panelEmail
+      customers: panelCustomers, delivery: panelDelivery, email: panelEmail, settings: panelSettings,
+      integrations: panelIntegrations
     };
     el('adminMain').innerHTML = (map[tab] || panelDashboard)();
     renderNav();
@@ -537,11 +628,23 @@
     if (t.hasAttribute('data-tab')) { tab = t.getAttribute('data-tab'); editingProduct = null; editingCoupon = null; renderPanel(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
 
     /* products */
-    if (t.id === 'newProduct') { editingProduct = { id: '', name: '', size: '', category: 'rice-grains', price: '', oldPrice: '', stock: 0, image: 'images/rice-10kg.png', badge: '', short: '', description: '', rating: 4.5, reviewCount: 0, features: [], specs: {} }; renderPanel(); return; }
-    if (t.id === 'cancelProduct') { editingProduct = null; renderPanel(); return; }
+    if (t.id === 'newProduct') { editingProduct = { id: '', name: '', category: 'rice-grains', price: '', description: '' }; editingImages = []; renderPanel(); return; }
+    if (t.id === 'cancelProduct') { editingProduct = null; editingImages = []; renderPanel(); return; }
     if (t.hasAttribute('data-editprod')) {
       var pid = t.getAttribute('data-editprod');
       editingProduct = JSON.parse(JSON.stringify(readProducts().filter(function (p) { return p.id === pid; })[0]));
+      var imgs = (editingProduct.additionalImages || []).slice();
+      if (editingProduct.primaryImage && imgs.indexOf(editingProduct.primaryImage) < 0) imgs.unshift(editingProduct.primaryImage);
+      if (!imgs.length && editingProduct.image) imgs = [editingProduct.image];
+      editingImages = imgs.map(function (u) { return { url: u, isPrimary: u === (editingProduct.primaryImage || editingProduct.image) }; });
+      if (editingImages.length && !editingImages.some(function (i) { return i.isPrimary; })) editingImages[0].isPrimary = true;
+      renderPanel(); return;
+    }
+    if (t.hasAttribute('data-rmimg')) {
+      var ri = Number(t.getAttribute('data-rmimg'));
+      var wasPrimary = editingImages[ri] && editingImages[ri].isPrimary;
+      editingImages.splice(ri, 1);
+      if (wasPrimary && editingImages.length) editingImages[0].isPrimary = true;
       renderPanel(); return;
     }
     if (t.hasAttribute('data-delprod')) {
@@ -557,26 +660,36 @@
       var price = Number(el('prPrice').value);
       if (!name) { S.toast('Product name is required', 'alert'); return; }
       if (!price || price <= 0) { S.toast('Enter a valid price', 'alert'); return; }
+      if (!editingImages.length) { S.toast('Add at least one product image', 'alert'); return; }
+      var primary = (editingImages.filter(function (i) { return i.isPrimary; })[0] || editingImages[0]).url;
+      var extras = editingImages.map(function (i) { return i.url; }).filter(function (u) { return u !== primary; });
       var p = {
         id: editingProduct.id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString().slice(-4),
+        /* required data shape */
+        productName: name,
+        primaryImage: primary,
+        additionalImages: extras,
+        /* storefront fields */
         name: name,
-        size: el('prSize').value.trim() || 'Each',
+        size: editingProduct.size || 'Each',
         category: el('prCat').value,
         price: price,
-        oldPrice: el('prOld').value ? Number(el('prOld').value) : null,
-        stock: Number(el('prStock').value) || 0,
-        image: el('prImage').value.trim() || 'images/rice-10kg.png',
+        oldPrice: editingProduct.oldPrice || null,
+        stock: editingProduct.stock != null ? editingProduct.stock : 100,
+        image: primary,
+        images: [primary].concat(extras),
         scene: editingProduct.scene || 'images/scene-warehouse.png',
-        badge: el('prBadge').value || null,
-        short: el('prShort').value.trim(),
+        badge: editingProduct.badge || null,
+        short: (el('prDesc').value.trim() || name).slice(0, 90),
         description: el('prDesc').value.trim(),
         rating: editingProduct.rating || 4.5,
         reviewCount: editingProduct.reviewCount || 0,
         features: editingProduct.features && editingProduct.features.length ? editingProduct.features : ['Sealed packaging', 'Quality checked'],
-        specs: editingProduct.specs && Object.keys(editingProduct.specs).length ? editingProduct.specs : { Size: el('prSize').value.trim() || 'Each', Packaging: 'Sealed' }
+        specs: editingProduct.specs && Object.keys(editingProduct.specs).length ? editingProduct.specs : { Packaging: 'Sealed' }
       };
       saveProduct(p);
       editingProduct = null;
+      editingImages = [];
       S.toast('Product saved', 'checkCircle');
       renderPanel(); return;
     }
@@ -760,6 +873,68 @@
       return;
     }
     if (t.id === 'clearLog') { E.clearLog(); S.toast('Email log cleared', 'trash'); renderPanel(); return; }
+
+    /* integrations */
+    if (t.id === 'saveIntegrations') {
+      S.setIntegrations({
+        cloudName: el('inCloudName').value.trim(),
+        cloudApiKey: el('inCloudKey').value.trim(),
+        cloudPreset: el('inCloudPreset').value.trim(),
+        brevoKey: el('inBrevoKey').value.trim(),
+        brevoSenderEmail: el('inBrevoSender').value.trim(),
+        brevoReplyTo: el('inBrevoReply').value.trim(),
+        paystackPublic: el('inPayPublic').value.trim(),
+        paystackSecret: el('inPaySecret').value.trim()
+      });
+      /* keep the Brevi email tab in sync with the keys entered here */
+      if (E && E.setConfig) {
+        E.setConfig({
+          apiKey: el('inBrevoKey').value.trim(),
+          senderEmail: el('inBrevoSender').value.trim(),
+          replyTo: el('inBrevoReply').value.trim()
+        });
+      }
+      S.toast('API keys saved', 'checkCircle'); renderPanel(); return;
+    }
+    if (t.id === 'clearIntegrations') {
+      S.setIntegrations(S.INTEGRATION_DEFAULTS);
+      S.toast('API keys cleared', 'trash'); renderPanel(); return;
+    }
+    if (t.hasAttribute('data-reveal')) {
+      var f = el(t.getAttribute('data-reveal'));
+      if (f) { f.type = f.type === 'password' ? 'text' : 'password'; }
+      return;
+    }
+
+    /* store details */
+    if (t.id === 'saveStore') {
+      S.setStoreInfo({
+        name: el('stName').value.trim(),
+        phone: el('stPhone').value.trim(),
+        email: el('stEmail').value.trim(),
+        address: el('stAddress').value.trim(),
+        hours: el('stHours').value.trim()
+      });
+      S.mount('products'); /* re-render header/footer so the change shows immediately */
+      S.toast('Store details saved', 'checkCircle'); renderPanel(); return;
+    }
+    if (t.id === 'resetStore') {
+      S.setStoreInfo(S.STORE_DEFAULTS);
+      S.mount('products');
+      S.toast('Store details reset', 'refresh'); renderPanel(); return;
+    }
+  });
+
+  /* ---------- file input (delegated: inputs are re-rendered) ---------- */
+  document.addEventListener('change', function (e) {
+    if (!el('adminRoot') || !el('adminRoot').contains(e.target)) return;
+    var t = e.target;
+    if (t.id === 'prFiles') { handleFiles(t.files); return; }
+    if (t.hasAttribute('data-cover')) {
+      var ci = Number(t.getAttribute('data-cover'));
+      editingImages.forEach(function (im, i) { im.isPrimary = (i === ci); });
+      renderPanel(); return;
+    }
   });
 
   function adjustStock(id, delta) {
@@ -815,6 +990,58 @@
     el('orderModalClose').addEventListener('click', shut);
     el('orderModalOk').addEventListener('click', shut);
     el('orderModal').addEventListener('click', function (e) { if (e.target.id === 'orderModal') shut(); });
+  }
+
+  /* ---------- integrations (admin-editable API keys) ---------- */
+  function panelIntegrations() {
+    var c = S.getIntegrations();
+    function keyField(id, label, val, hint, badge, badgeCls) {
+      return '<div class="field full"><label for="' + id + '">' + label +
+        (badge ? '<span class="safe-badge ' + badgeCls + '">' + badge + '</span>' : '') + '</label>' +
+        '<div class="key-row"><input id="' + id + '" type="password" value="' + esc(val) + '" autocomplete="off" placeholder="' + esc(hint) + '">' +
+        '<button class="mini-btn" type="button" data-reveal="' + id + '" aria-label="Show or hide">' + icon('eye') + '</button></div></div>';
+    }
+    return head('API keys &amp; integrations', 'Enter your own keys here. They are saved in this browser (localStorage) and used by the store.', '') +
+      '<div class="settings-grid">' +
+        '<div class="setting-card"><h3>Cloudinary \u2014 product image uploads</h3>' +
+          '<p>Used by the product form to upload images and return secure URLs. Create an <b>unsigned upload preset</b> in your Cloudinary settings.</p>' +
+          '<div class="form-grid">' +
+            '<div class="field"><label for="inCloudName">Cloud name</label><input id="inCloudName" value="' + esc(c.cloudName) + '" placeholder="my-cloud"></div>' +
+            '<div class="field"><label for="inCloudPreset">Upload preset (unsigned)</label><input id="inCloudPreset" value="' + esc(c.cloudPreset) + '" placeholder="ladydee_unsigned"></div>' +
+            keyField('inCloudKey', 'API key (optional)', c.cloudApiKey, '123456789012345', 'safe client-side', 'ok') +
+          '</div>' +
+          '<div class="upload-note">An <b>unsigned preset</b> is designed to be public \u2014 it can only upload, never delete or read your library. Your Cloudinary <b>API secret</b> must never be put here.</div>' +
+        '</div>' +
+        '<div class="setting-card"><h3>Brevo \u2014 transactional email</h3>' +
+          '<p>Order confirmations, sign-up verification and password resets. These mirror the Brevi email tab.</p>' +
+          '<div class="form-grid">' +
+            keyField('inBrevoKey', 'Brevo API key', c.brevoKey, 'xkeysib-\u2026', 'testing only', 'warn') +
+            '<div class="field"><label for="inBrevoSender">Sender email</label><input id="inBrevoSender" type="email" value="' + esc(c.brevoSenderEmail) + '" placeholder="orders@ladydee.ng"></div>' +
+            '<div class="field"><label for="inBrevoReply">Reply-to email</label><input id="inBrevoReply" type="email" value="' + esc(c.brevoReplyTo) + '" placeholder="hello@ladydee.ng"></div>' +
+          '</div>' +
+          '<div class="upload-note">The sender email must be a <b>verified sender</b> in Brevo. The reply-to does not need verification.</div>' +
+        '</div>' +
+        '<div class="setting-card"><h3>Paystack \u2014 test-mode checkout</h3>' +
+          '<p>Used by the <b>Test checkout</b> page to walk through the payment and payout flow with no real money.</p>' +
+          '<div class="form-grid">' +
+            keyField('inPayPublic', 'Public key (test)', c.paystackPublic, 'pk_test_\u2026', 'safe client-side', 'ok') +
+            keyField('inPaySecret', 'Secret key (test)', c.paystackSecret, 'sk_test_\u2026', 'needs a server proxy', 'bad') +
+          '</div>' +
+          '<div class="upload-note">The <b>public key</b> is safe in the browser. The <b>secret key</b> must never be used client-side in production \u2014 it can move money. Route it through a small serverless function.</div>' +
+        '</div>' +
+        '<div class="setting-card"><h3>Which keys are safe in the browser?</h3>' +
+          '<div class="alert-row"><span class="alert-ico" style="color:var(--green)">' + icon('checkCircle') + '</span>' +
+            '<span><b>Safe client-side</b><small>Cloudinary cloud name + unsigned preset, Paystack public key, Brevo sender/reply-to addresses.</small></span></div>' +
+          '<div class="alert-row warn"><span class="alert-ico" style="color:var(--amber-dark)">' + icon('alert') + '</span>' +
+            '<span><b>Testing only</b><small>Brevo API key \u2014 anyone with DevTools can read it and send mail as you.</small></span></div>' +
+          '<div class="alert-row crit"><span class="alert-ico" style="color:var(--coral)">' + icon('lock') + '</span>' +
+            '<span><b>Needs a server proxy</b><small>Paystack secret key, Cloudinary API secret. Keep them in server-side environment variables.</small></span></div>' +
+          '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">' +
+            '<button class="btn btn-primary" type="button" id="saveIntegrations">' + icon('check') + ' Save keys</button>' +
+            '<button class="btn btn-outline" type="button" id="clearIntegrations">' + icon('trash') + ' Clear all keys</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
   }
 
   /* ---------- boot ---------- */

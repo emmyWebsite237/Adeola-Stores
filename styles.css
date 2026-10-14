@@ -1265,3 +1265,177 @@ table.data tr:hover td { background: var(--cream); }
   .topbar .wrap { justify-content: center; text-align: center; }
   .topbar-msg { font-size: .78rem; }
 }
+/* ---------- 26. Admin store-details preview ---------- */
+.store-preview { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.sp-row {
+  display: flex; align-items: center; gap: 10px; padding: 11px 13px;
+  background: var(--green-soft); border-radius: 11px; font-size: .88rem; font-weight: 600;
+}
+.sp-row svg { width: 17px; height: 17px; color: var(--green); flex: none; }
+.sp-row span { min-width: 0; overflow-wrap: anywhere; }
+
+/* ---------- 25. Sticky mobile bottom nav ----------
+   Hidden on desktop; on mobile it is fixed to the bottom and the body gets
+   matching bottom padding so nothing is ever hidden behind it. */
+.bottom-nav { display: none; }
+.bn-inner { display: flex; align-items: stretch; }
+.bn-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; padding: 7px 4px 6px; color: var(--muted); font-weight: 700;
+  transition: color .18s ease, background .18s ease;
+}
+.bn-ico { position: relative; display: grid; place-items: center; }
+.bn-ico svg { width: 21px; height: 21px; }
+.bn-label { font-size: .68rem; letter-spacing: .01em; }
+.bn-item.on { color: var(--green); }
+.bn-item.on .bn-ico::after {
+  content: ''; position: absolute; inset: -7px -11px; border-radius: 12px;
+  background: var(--green-soft); z-index: -1;
+}
+.bn-badge {
+  position: absolute; top: -6px; right: -9px; min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 9px; background: var(--amber); color: var(--ink);
+  font-size: .62rem; font-weight: 800; line-height: 17px; text-align: center;
+}
+@media (max-width: 767px) {
+  .bottom-nav {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;
+    background: var(--surface); border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 20px rgba(18, 36, 28, .09);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  body { padding-bottom: 62px; }
+  /* keep the toast clear of the bar */
+  .toast-wrap { bottom: 74px; }
+}
+
+/* ---------- 26. Lazy images + skeleton placeholder ----------
+   The media box already reserves its space (aspect-ratio 1/1), so the skeleton
+   simply fills it. The real image fades in on load — no layout shift. */
+.pcard-media .img-skel {
+  position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(100deg, #eef2ee 30%, #f7faf7 50%, #eef2ee 70%);
+  background-size: 220% 100%;
+  animation: skelShimmer 1.35s ease-in-out infinite;
+}
+@keyframes skelShimmer {
+  0%   { background-position: 130% 0; }
+  100% { background-position: -30% 0; }
+}
+.pcard-media img.lazy-img {
+  position: relative; z-index: 1;
+  opacity: 0; transition: opacity .45s var(--ease), transform .5s var(--ease);
+}
+.pcard-media img.lazy-img.is-loaded { opacity: 1; }
+.pcard-media.is-ready .img-skel { opacity: 0; transition: opacity .35s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .pcard-media .img-skel { animation: none; }
+  .pcard-media img.lazy-img { transition: none; }
+}
+
+/* ---------- 27. Admin — product image upload + cover picker ---------- */
+.upload-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px; margin-top: 4px;
+}
+.upload-tile {
+  position: relative; border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden; background: var(--cream); aspect-ratio: 1 / 1;
+}
+.upload-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.upload-tile .ut-cover {
+  position: absolute; top: 7px; left: 7px; z-index: 2;
+  background: var(--green); color: #fff; font-size: .64rem; font-weight: 800;
+  letter-spacing: .05em; text-transform: uppercase; padding: 3px 7px; border-radius: 6px;
+}
+.upload-tile .ut-remove {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(18, 36, 28, .72); color: #fff;
+}
+.upload-tile .ut-remove svg { width: 13px; height: 13px; }
+.upload-tile .ut-remove:hover { background: var(--coral); }
+.upload-tile .ut-pick {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  display: flex; align-items: center; gap: 7px; padding: 7px 9px;
+  background: rgba(18, 36, 28, .78); color: #fff; font-size: .74rem; font-weight: 700;
+  cursor: pointer;
+}
+.upload-tile .ut-pick input { width: 15px; height: 15px; accent-color: var(--amber); cursor: pointer; flex: none; }
+.upload-tile.is-cover { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-soft); }
+.upload-drop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  aspect-ratio: 1 / 1; border: 1.5px dashed var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--muted); cursor: pointer; text-align: center;
+  padding: 10px; font-size: .78rem; font-weight: 600; transition: border-color .18s ease, color .18s ease;
+}
+.upload-drop:hover { border-color: var(--green); color: var(--green); }
+.upload-drop svg { width: 22px; height: 22px; }
+.upload-drop input { display: none; }
+.upload-note { font-size: .78rem; color: var(--muted); margin-top: 10px; }
+.upload-note b { color: var(--ink); }
+
+/* ---------- 28. Admin — integration keys ---------- */
+.key-row { display: flex; align-items: center; gap: 8px; }
+.key-row input { flex: 1; min-width: 0; }
+.key-row .mini-btn { flex: none; }
+.safe-badge {
+  display: inline-block; font-size: .66rem; font-weight: 800; letter-spacing: .05em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 6px; margin-left: 7px;
+  vertical-align: middle;
+}
+.safe-badge.ok { background: var(--green-soft); color: var(--green); }
+.safe-badge.warn { background: var(--amber-soft); color: var(--amber-dark); }
+.safe-badge.bad { background: var(--coral-soft); color: var(--coral); }
+
+/* ---------- 29. Paystack test-mode checkout ---------- */
+.test-banner {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px;
+  background: var(--amber-soft); border: 1px solid #f0d9a8; color: var(--amber-dark);
+  font-weight: 700; font-size: .9rem; margin-bottom: 22px;
+}
+.test-banner svg { width: 20px; height: 20px; flex: none; }
+.test-banner small { display: block; font-weight: 500; color: #8a6a1f; margin-top: 2px; }
+.pay-card {
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+  padding: 20px; margin-bottom: 18px;
+}
+.pay-card h3 { font-size: 1rem; margin-bottom: 4px; }
+.pay-card > p { font-size: .86rem; color: var(--muted); margin-bottom: 16px; }
+.testcard-chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 9px;
+  background: var(--cream); border: 1px dashed var(--line); font-size: .82rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; margin: 0 8px 8px 0;
+}
+.testcard-chip:hover { border-color: var(--green); color: var(--green); }
+.pay-steps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.pay-step {
+  display: flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 999px;
+  background: var(--cream); border: 1px solid var(--line); font-size: .82rem; font-weight: 700; color: var(--muted);
+}
+.pay-step.on { background: var(--green-soft); border-color: #bfdccb; color: var(--green); }
+.pay-step.done { background: var(--green); border-color: var(--green); color: #fff; }
+.pay-step-n {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(0, 0, 0, .08); font-size: .72rem; font-weight: 800;
+}
+.pay-step.done .pay-step-n { background: rgba(255, 255, 255, .25); }
+.pay-result { text-align: center; padding: 26px 18px; }
+.pay-result .pr-ico {
+  width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 14px;
+}
+.pay-result .pr-ico svg { width: 30px; height: 30px; }
+.pay-result.ok .pr-ico { background: var(--green-soft); color: var(--green); }
+.pay-result.bad .pr-ico { background: var(--coral-soft); color: var(--coral); }
+.pay-result h3 { font-size: 1.15rem; margin-bottom: 6px; }
+.pay-result p { color: var(--muted); font-size: .9rem; }
+.receipt {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--cream);
+  padding: 16px; margin-top: 18px; text-align: left;
+}
+.receipt-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: .87rem; }
+.receipt-row span:first-child { color: var(--muted); }
+.receipt-row b { font-weight: 700; }
+.receipt-row.total { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 12px; font-size: 1rem; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .84rem; }
+

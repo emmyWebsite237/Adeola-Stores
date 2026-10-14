@@ -12,6 +12,7 @@
     { "source": "/signup", "destination": "/signup.html" },
     { "source": "/forgot", "destination": "/forgot.html" },
     { "source": "/workflows", "destination": "/workflows.html" },
+    { "source": "/checkout", "destination": "/checkout.html" },
     { "source": "/adeolaadaccess112", "destination": "/adeolaadaccess112.html" }
   ]
 }

@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body data-page="home">
 
@@ -140,8 +140,8 @@
 
 <div id="site-footer"></div>
 
-<script src="app.js?v=4"></script>
-<script src="brevi.js"></script>
+<script src="app.js?v=9"></script>
+<script src="brevi.js?v=9"></script>
 <script>
 (function () {
   var S = window.Ladydee;
@@ -163,7 +163,7 @@
   document.getElementById('trustTrack').innerHTML = items + items;
 
   document.getElementById('catGrid').innerHTML = S.CATEGORIES.map(function (c) {
-    var n = S.PRODUCTS.filter(function (p) { return p.category === c.id; }).length;
+    var n = S.catalogue().filter(function (p) { return p.category === c.id; }).length;
     return '<a class="cat-card reveal" href="/products?cat=' + c.id + '">' +
       '<span class="cat-card-ico">' + S.icon(c.icon) + '</span>' +
       '<b>' + S.esc(c.name) + '</b>' +
@@ -181,10 +181,10 @@
   });
   document.getElementById('delivTags').innerHTML = tags.join('');
 
-  var featured = S.PRODUCTS.filter(function (p) { return p.badge === 'bestseller' || p.rating >= 4.7; }).slice(0, 8);
+  var featured = S.catalogue().filter(function (p) { return p.badge === 'bestseller' || p.rating >= 4.7; }).slice(0, 8);
   document.getElementById('featuredGrid').innerHTML = featured.map(function (p) { return S.productCard(p); }).join('');
 
-  var deals = S.PRODUCTS.filter(function (p) { return p.oldPrice; })
+  var deals = S.catalogue().filter(function (p) { return p.oldPrice; })
     .sort(function (a, b) { return S.discountOf(b) - S.discountOf(a); }).slice(0, 4);
   document.getElementById('dealsGrid').innerHTML = deals.map(function (p) { return S.productCard(p); }).join('');
 

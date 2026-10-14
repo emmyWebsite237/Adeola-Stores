@@ -39,6 +39,7 @@ For **clean URLs** (`/cart` instead of `/cart.html`) serve the folder over HTTP 
 | Sign in | `/login` | `login.html` |
 | Forgot password | `/forgot` | `forgot.html` |
 | How it works | `/workflows` | `workflows.html` |
+| **Test checkout (Paystack)** | `/checkout` | `checkout.html` |
 | **Admin console** | `/adeolaadaccess112` | `adeolaadaccess112.html` |
 
 Shared code: `app.js` (catalogue, cart, auth, orders, delivery rules, coupons, header/footer), `brevi.js` (email), `admin.js` (admin console), `styles.css`.
@@ -99,7 +100,8 @@ Default endpoint: `https://api.brevo.com/v3/smtp/email` (change it in the admin 
 Path: **`/adeolaadaccess112`** (deliberately not `/admin`). Password: `ladydee2026`.
 
 - **Dashboard** — revenue, orders, pending confirmations, stock alerts, registered customers, coupon redemptions.
-- **Products** — add, edit and delete products (name, category, price, compare-at price, size, stock, image, badge, description).
+- **Products** — add, edit and delete products. The form takes **2–3 images from your device**, shows a preview tile for each with a **Primary image** radio to pick the cover, plus name, category, price and description. Images upload to **Cloudinary** and the secure URLs are saved with the product.
+- **API keys** — enter and save your own integration keys (Cloudinary cloud name / API key / upload preset, Brevo API key + sender + reply-to, Paystack public + secret). Stored in `localStorage` and used by the site. Each field is labelled with whether it is safe client-side, testing-only, or needs a server proxy.
 - **Inventory** — stock levels with low-stock (≤30) and out-of-stock alerts, quick ±10 adjustments and restock.
 - **Orders** — view every order, confirm or reject pending ones, advance status, open the full order detail.
 - **Live deliveries** — a five-column board (Placed → Confirmed → Packed → Out for delivery → Delivered) with move-forward/back controls and a tracking timeline.
@@ -123,7 +125,48 @@ The final fee, the saving and the reason are itemised in the order summary befor
 
 ---
 
-## 7. Notes
+## 7. Product images, lazy loading & filters
+
+**Uploading a product.** In the admin console → **Products** → **Add product**, pick 2–3 images from your device. Each appears as a preview tile; tick **Primary image** under the one that should be the cover in the grocery grid. Fill in name, category, price and description, then **Create product**. The product is saved in this shape:
+
+```json
+{
+  "productName": "Fresh Organic Strawberries",
+  "category": "Fruits",
+  "price": 4.50,
+  "primaryImage": "https://res.cloudinary.com/…/image/upload/…",
+  "additionalImages": ["https://…", "https://…"]
+}
+```
+
+Uploaded products appear in the storefront grid, search, wishlist and product pages immediately.
+
+**Cloudinary setup.** Create a free Cloudinary account, then in **Settings → Upload** create an **unsigned upload preset**. Enter your **cloud name** and the **preset name** in the admin's **API keys** tab. An unsigned preset is designed to be public — it can only upload, never read or delete your library. Your Cloudinary **API secret** must never be placed in the site.
+
+**No Cloudinary configured?** The form still works: images are stored as local data URLs so you can test the whole flow offline. Add the keys when you are ready to go live.
+
+**Fast image loading.** Product images are lazy-loaded — the real image is only requested from the CDN when its card is about to scroll into view (IntersectionObserver, 250px look-ahead). A shimmering skeleton box reserves the exact space so the layout never jumps, then the image fades in. Cloudinary URLs automatically get `f_auto,q_auto` appended, so modern browsers receive WebP/AVIF at an automatically compressed quality.
+
+**Filters.** The shop and search sidebars use simple text checkboxes only — **Category**, **Availability** (In Stock / Out of Stock), **Offers** (On sale / In stock only) — alongside the existing price and rating controls.
+
+---
+
+## 8. Paystack test-mode checkout
+
+Open **`/checkout`** (linked from the footer and the mobile drawer). It walks the whole payment and payout flow with **no real money**:
+
+1. **Keys** — paste a Paystack **test public key** (`pk_test_…`). Any value works for the demo.
+2. **Card** — click one of Paystack's published test cards to fill the form, or type your own. The card ending `667` is declined; the others succeed.
+3. **Result** — a simulated success or decline with a receipt (reference, card, mode, amount).
+4. **Payout** — a simulated seller transfer showing the gross charge, the test fee and the net payout.
+
+**Test cards:** `4084 0840 8408 4081` (success, Visa) · `5060 6666 6666 6666 666` (success, Verve) · `5060 6666 6666 6666 667` (declined).
+
+> The Paystack **public key** is safe in the browser. The **secret key** must never be used client-side in production — it can move money. Route it through a small serverless function.
+
+---
+
+## 9. Notes
 
 - Prices are in Naira (₦) and are realistic sample figures for a Nigerian groceries store.
 - Product images are original generated artwork with no third-party brand logos.
