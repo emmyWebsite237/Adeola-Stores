@@ -835,8 +835,11 @@
       '<div class="search-wrap" id="searchWrap">' +
         '<form class="search" id="searchForm" role="search" autocomplete="off">' +
           '<span class="search-ico">' + icon('search') + '</span>' +
-          '<input type="search" id="searchInput" placeholder="Search rice, oil, noodles, diapers\u2026" aria-label="Search products" value="' + esc(param('q') || '') + '">' +
-          '<button class="btn btn-primary btn-sm search-go" type="submit">Search</button>' +
+          '<input type="search" id="searchInput" placeholder="Search rice, oil, noodles\u2026" aria-label="Search products" value="' + esc(param('q') || '') + '">' +
+          '<button class="btn btn-primary btn-sm search-go" type="submit" aria-label="Search">' +
+            '<span class="search-go-ico">' + icon('search') + '</span>' +
+            '<span class="search-go-label">Search</span>' +
+          '</button>' +
         '</form>' +
         '<div class="search-drop" id="searchDrop" hidden></div>' +
       '</div>' +

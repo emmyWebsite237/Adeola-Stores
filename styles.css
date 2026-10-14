@@ -134,10 +134,10 @@ svg { flex: none; }
 /* ---------- 5. Topbar / header ---------- */
 .topbar { background: var(--ink); color: #c3d6c9; font-size: .82rem; }
 .topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; }
-.topbar-msg { display: inline-flex; align-items: center; gap: 8px; }
+.topbar-msg { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .topbar-msg svg { width: 16px; height: 16px; color: var(--amber); }
 .topbar-links { display: flex; gap: 20px; align-items: center; }
-.topbar-links a { display: inline-flex; align-items: center; gap: 6px; }
+.topbar-links a { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
 .topbar-links svg { width: 15px; height: 15px; }
 .topbar a:hover { color: #fff; }
 
@@ -149,7 +149,7 @@ svg { flex: none; }
   transition: box-shadow .3s var(--ease);
 }
 .header.is-stuck { box-shadow: var(--shadow); }
-.header .wrap { display: flex; align-items: center; gap: 16px; min-height: 72px; }
+.header .wrap { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 16px; min-height: 72px; min-width: 0; }
 .logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.22rem; letter-spacing: -.03em; flex: none; }
 .logo-mark {
   width: 38px; height: 38px; border-radius: 12px; flex: none;
@@ -161,14 +161,14 @@ svg { flex: none; }
 .logo-text small { font-size: .62rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .logo-light .logo-text small { color: #9fbfa9; }
 .menu-btn { display: none; }
-.mainnav { display: flex; gap: 4px; margin-left: auto; }
+.mainnav { display: flex; gap: 4px; margin-left: auto; flex: none; }
 .mainnav a {
   padding: 9px 14px; border-radius: var(--radius-pill); font-weight: 600; font-size: .93rem;
   color: var(--muted); transition: background .2s ease, color .2s ease;
 }
 .mainnav a:hover { background: var(--green-soft); color: var(--green); }
 .mainnav a.on { background: var(--green-soft); color: var(--green); font-weight: 700; }
-.head-actions { display: flex; align-items: center; gap: 4px; }
+.head-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
 .account-chip {
   display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px;
   border-radius: var(--radius-pill); background: var(--green-soft); color: var(--green);
@@ -198,23 +198,30 @@ svg { flex: none; }
 .cat-ico svg { width: 17px; height: 17px; }
 
 /* ---------- 6. Search ---------- */
-.search-wrap { position: relative; flex: 1; max-width: 460px; }
+.search-wrap { position: relative; flex: 1 1 240px; min-width: 240px; max-width: 460px; }
 .search {
-  display: flex; align-items: center; gap: 8px; background: var(--bg);
+  display: flex; align-items: center; gap: 8px; background: var(--bg); min-width: 0;
   border: 1.5px solid var(--line); border-radius: var(--radius-pill);
   padding: 5px 5px 5px 14px; transition: border-color .2s ease, background .2s ease;
 }
 .search:focus-within { border-color: var(--green); background: var(--surface); }
 .search-ico { color: var(--muted); display: grid; place-items: center; }
 .search-ico svg { width: 18px; height: 18px; }
-.search input { flex: 1; border: 0; background: none; outline: none; font-size: .93rem; min-width: 0; }
+.search input { flex: 1 1 auto; width: 100%; border: 0; background: none; outline: none; font-size: .93rem; min-width: 90px; }
 .search input::-webkit-search-cancel-button { display: none; }
-.search-go { padding: 8px 18px; }
+.search-go { padding: 8px 18px; flex: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+.search-go-ico { display: none; }
+.search-go-ico svg { width: 17px; height: 17px; }
 .search-drop {
   position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 70;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   box-shadow: var(--shadow-lg); overflow: hidden; max-height: 70vh; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #c3d2c9 transparent;
 }
+.search-drop::-webkit-scrollbar { width: 8px; }
+.search-drop::-webkit-scrollbar-track { background: transparent; }
+.search-drop::-webkit-scrollbar-thumb { background: #c9d8cf; border-radius: 999px; border: 2px solid var(--surface); }
+.search-drop::-webkit-scrollbar-thumb:hover { background: var(--green); }
 .sd-sec { padding: 14px 16px; border-bottom: 1px solid var(--line-2); }
 .sd-sec:last-of-type { border-bottom: 0; }
 .sd-label { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted-2); margin-bottom: 10px; }
@@ -1223,4 +1230,38 @@ table.data tr:hover td { background: var(--cream); }
   .step-line { width: 20px; }
   .citem { flex-wrap: wrap; }
   .citem-right { width: 100%; text-align: left; }
+}
+
+/* ---------- 24. Header / search responsive hardening ----------
+   The search field moves to its own full-width row below the logo once
+   the nav collapses, so it can never squeeze, clip or overflow the row. */
+@media (max-width: 1100px) {
+  .header .wrap { gap: 10px 12px; }
+  .search-wrap { order: 3; flex: 1 1 100%; min-width: 0; max-width: none; }
+  .search { min-height: 46px; }
+  .search input { font-size: .92rem; }
+}
+@media (max-width: 520px) {
+  .header .wrap { gap: 8px; row-gap: 10px; padding: 0 14px; }
+  .logo { gap: 8px; font-size: 1.07rem; }
+  .logo-mark { width: 34px; height: 34px; border-radius: 10px; }
+  .logo-mark svg { width: 19px; height: 19px; }
+  .logo-text small { font-size: .55rem; letter-spacing: .08em; }
+  .head-actions { gap: 2px; }
+  .icon-btn { width: 38px; height: 38px; border-radius: 10px; }
+  .icon-btn svg { width: 19px; height: 19px; }
+  .search { padding: 4px 4px 4px 12px; min-height: 44px; gap: 6px; }
+  .search-ico svg { width: 17px; height: 17px; }
+  .search input { font-size: .89rem; min-width: 0; }
+  .search-drop { max-height: 62vh; }
+}
+@media (max-width: 430px) {
+  /* Icon-only submit gives the input the width it needs for the placeholder */
+  .search-go { padding: 9px 12px; }
+  .search-go-label { display: none; }
+  .search-go-ico { display: grid; }
+  /* Single-line top bar: the phone number lives in the footer */
+  .topbar-links { display: none; }
+  .topbar .wrap { justify-content: center; text-align: center; }
+  .topbar-msg { font-size: .78rem; }
 }

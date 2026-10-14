@@ -1,0 +1,89 @@
+LADYDEE MINIMART STORE — SEARCH BAR / HEADER FIX
+=================================================
+Changed files for the header & search-bar layout fix.
+
+HOW TO USE
+----------
+Extract this ZIP and drop every file into the ROOT of your site folder
+(the same folder that already contains index.html, products.html, styles.css,
+app.js and the images/ folder). All paths below are relative to that root.
+Nothing here is a new file — every one overwrites an existing file.
+
+FILES IN THIS PACKAGE (14 files)
+--------------------------------
+
+  PATH IN YOUR REPO        FILE
+  -----------------------  -----------------------
+  /styles.css              styles.css
+  /app.js                  app.js
+  /index.html              index.html
+  /products.html           products.html
+  /product.html            product.html
+  /cart.html               cart.html
+  /search.html             search.html
+  /wishlist.html           wishlist.html
+  /account.html            account.html
+  /login.html              login.html
+  /signup.html             signup.html
+  /forgot.html             forgot.html
+  /workflows.html          workflows.html
+  /adeolaadaccess112.html  adeolaadaccess112.html   (the admin console)
+
+WHAT CHANGED IN EACH
+--------------------
+
+1. styles.css  (the actual fix)
+   - .header .wrap  : added flex-wrap:wrap and min-width:0 so the header row
+     can wrap instead of pushing content out of the row.
+   - .search-wrap   : now "flex: 1 1 240px; min-width: 240px" (was a soft
+     "flex:1" with min-width:auto) so the search field keeps a real minimum
+     width and can no longer be squeezed to nothing.
+   - .search input  : "flex: 1 1 auto; width: 100%; min-width: 90px".
+   - .mainnav / .head-actions : flex:none and margin-left:auto so the icons
+     never collide with the search button.
+   - .search-go     : flex:none + white-space:nowrap, and an icon+label pair.
+   - .topbar-msg / .topbar-links : min-width:0 and nowrap so the top bar text
+     can no longer be clipped.
+   - Search dropdown: thin custom scrollbar (was the thick default grey bar).
+   - NEW section 24 — "Header / search responsive hardening":
+       @media (max-width: 1100px)  search takes its own full-width row
+                                   under the logo, so it can never squeeze
+                                   the nav or overflow the header.
+       @media (max-width: 520px)   compact logo, icon buttons and field sizing.
+       @media (max-width: 430px)   submit button becomes icon-only (label
+                                   hidden) to give the input ~30px more room;
+                                   top bar becomes a single centred line
+                                   (phone number still lives in the footer).
+
+2. app.js
+   - Search submit button markup: now contains an icon + a "Search" label
+     (<span class="search-go-ico"> and <span class="search-go-label">) so the
+     CSS can hide the label on very small screens.
+   - Placeholder shortened from "Search rice, oil, noodles, diapers..." to
+     "Search rice, oil, noodles..." so it no longer clips.
+
+3. The 12 .html files
+   - Asset version query strings bumped so browsers and the CDN stop serving
+     the OLD cached styles.css / app.js:
+       styles.css          ->  styles.css?v=4
+       app.js?v=3          ->  app.js?v=4
+   - No other markup, text or layout changes in these pages.
+
+WHY THE VERSION BUMP MATTERS
+----------------------------
+Without it, a browser (and the CDN) keeps serving the previously cached
+styles.css and app.js, so the broken header can appear to persist even after
+you upload the fix. If you ever edit styles.css or app.js again, bump the
+number again (v=4 -> v=5) in all 12 pages.
+
+AFTER UPLOADING
+---------------
+Hard-refresh once (Ctrl+Shift+R on Windows/Linux, Cmd+Shift+R on Mac) to
+clear the old cached assets, then check the header at desktop, tablet and
+phone widths.
+
+NOT INCLUDED
+------------
+Nothing else changed, so this ZIP deliberately excludes the images folder,
+brevi.js, admin.js, the server config files (.htaccess, _redirects,
+vercel.json) and README.md. Keep using the ones already in your repo.
