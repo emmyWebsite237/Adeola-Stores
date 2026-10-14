@@ -42,7 +42,84 @@ For **clean URLs** (`/cart` instead of `/cart.html`) serve the folder over HTTP 
 | **Test checkout (Paystack)** | `/checkout` | `checkout.html` |
 | **Admin console** | `/adeolaadaccess112` | `adeolaadaccess112.html` |
 
-Shared code: `app.js` (catalogue, cart, auth, orders, delivery rules, coupons, header/footer), `brevi.js` (email), `admin.js` (admin console), `styles.css`.
+Shared code: `app.js` (catalogue, cart, auth, orders, delivery rules, coupons), `brevi.js` (email), `admin.js` (admin console), `styles.css`.
+
+### Shared components — edit once, every page updates
+
+The **header, footer and mobile bottom bar are no longer duplicated** inside the pages. They live in one file each and are loaded by `components.js` into their mount points (`#site-header`, `#site-footer`, `#bottomNav`):
+
+```
+components/header.html        ← topbar, nav, search, cart/wishlist badges, drawer
+components/footer.html        ← footer columns, contact details, payment pills
+components/bottom-nav.html    ← sticky mobile Search / Cart / Account bar
+components/gatekeeper.js      ← shared sign-in / verification guard for the <head>
+components.js                 ← the loader (fetch + inline fallback)
+build-components.js           ← regenerates the inline fallback
+```
+
+> **Changing the footer? Edit `components/footer.html` only.** Then run `node build-components.js` so the offline fallback copy stays in step.
+
+Markup uses `{{token}}` placeholders that `app.js → renderComponents()` fills with live data (cart count, signed-in user, store contact details, clean-URL hrefs, active nav item). Icons are `<span data-i="…">` placeholders swapped for inline SVG at render time.
+
+`components.js` resolves its own base path from the script tag, so the site works from the root, a sub-folder, or the CDN with no edits. It fetches the component files over HTTP and falls back to the generated inline copy when `fetch` is blocked (opening the files straight off disk with `file://`).
+
+### Backend (optional, /api)
+
+The site is fully functional **static-only**. Dropping it onto a host with serverless functions (Vercel, Netlify) additionally enables server-side keys. `api-client.js` probes `GET /api/health` once; if there is no backend, every caller silently falls back to the browser-only path.
+
+```
+api/health.js              GET  — reports which env vars are present (never their values)
+api/email/send.js          POST — Brevo proxy; key stays server-side, no CORS problem
+api/auth/signup.js         POST — server-side account creation + verification email
+api/auth/verify.js         GET  — consumes the verification token, redirects to /login
+api/checkout/ai-payout.js  POST — AI basket review before payout
+```
+
+```
+vercel.json   clean URLs + /api and /components headers
+_redirects    the same clean URLs for Netlify
+.env.example  every server environment variable, documented
+```
+
+**Server environment variables** (hosting dashboard, never the browser):
+
+| Variable | Enables |
+|---|---|
+| `DATABASE_URL` | Server-side accounts (Neon Postgres) |
+| `BREVO_API_KEY` | Transactional email — order, verify, reset |
+| `OPENAI_API_KEY` | AI basket review at checkout |
+| `CLOUDINARY_SECRET` | Signed Cloudinary operations |
+| `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` / `BREVO_REPLY_TO` | Sender + reply-to addresses |
+| `SITE_URL` | Base URL used in verification links |
+
+With `BREVO_API_KEY` set, `brevi.js` sends through `/api/email/send` and the key never reaches the browser — that is what fixes the previously blocked client-side mail setup. The admin console's **API keys** tab has a **Check backend** button that reports which integrations are live.
+
+### Optional sign-in gate
+
+`components/gatekeeper.js` is shipped but **not enabled** — no page carries
+`data-guard-page`, so cart, checkout, account and wishlist behave exactly as
+they always have. It exists so you have ONE place to enforce a sign-in rule
+instead of copying the same guard into four pages. To switch it on for a page,
+add `data-guard-page` to its `<html>` and the script to its `<head>`:
+
+| `data-guard-page` | Effect |
+|---|---|
+| `protected` | must be signed in |
+| `payout` | signed in **and** email-verified |
+| absent / `public` | nothing happens |
+
+```html
+<html lang="en" data-guard-page="payout">
+  …
+  <script src="components/gatekeeper.js?v=10"></script>
+</head>
+```
+
+A sensible starter set is `account.html` → `protected` and `checkout.html` →
+`payout`; leave `cart.html` and `wishlist.html` open so a guest can fill a
+basket and only be asked to sign in at checkout. Redirects resolve the sibling
+`login.html`, never an absolute `/login`, so it works from a sub-path too.
+
 
 ---
 

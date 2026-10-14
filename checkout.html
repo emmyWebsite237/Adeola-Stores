@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
-<link rel="stylesheet" href="styles.css?v=9">
+<link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body data-page="checkout">
 
@@ -41,8 +41,10 @@
 
 <div id="site-footer"></div>
 
-<script src="app.js?v=9"></script>
-<script src="brevi.js?v=9"></script>
+<script src="components.js?v=10"></script>
+<script src="api-client.js?v=10"></script>
+<script src="app.js?v=10"></script>
+<script src="brevi.js?v=10"></script>
 <script>
 (function () {
   var S = window.Ladydee;
@@ -135,6 +137,7 @@
       '<span class="pr-ico">' + S.icon(ok ? 'checkCircle' : 'alert') + '</span>' +
       '<h3>' + (ok ? 'Payment successful' : 'Payment declined') + '</h3>' +
       '<p>' + (ok ? 'The test charge went through. No real money moved.' : 'The test card was declined. Try the success card instead.') + '</p>' +
+      (ok ? '<div id="aiReview"></div>' : '') +
       '<div class="receipt">' +
         '<div class="receipt-row"><span>Reference</span><b class="mono">' + S.esc(state.reference) + '</b></div>' +
         '<div class="receipt-row"><span>Card</span><b class="mono">' + S.esc(state.card) + '</b></div>' +
@@ -170,12 +173,32 @@
     '</div>';
   }
 
+  /* The server reviews the basket before the payout step. With no backend
+     or no OPENAI_API_KEY this simply does not appear - the flow is
+     unaffected. It never blocks or fails the payment. */
+  function runAiReview() {
+    var box = document.getElementById('aiReview');
+    if (!box || !window.LadydeeAPI) return;
+    var lines = S.cartLines();
+    var items = lines.map(function (l) { return { name: l.name, qty: l.qty, price: l.price }; });
+    if (!items.length) return;
+    window.LadydeeAPI.aiPayout({
+      cartItems: items,
+      totalAmount: state.amount,
+      userEmail: (S.currentUser() && S.currentUser().email) || 'Guest'
+    }).then(function (r) {
+      if (r.used !== 'server' || !r.ok || !r.data || !r.data.aiAnalysis) return;
+      box.innerHTML = '<div class="ai-review">' + S.icon('sparkles') +
+        '<span><b>Basket review</b>' + S.esc(r.data.aiAnalysis) + '</span></div>';
+    });
+  }
+
   function render() {
     document.getElementById('paySteps').innerHTML = stepsHTML();
     var body = document.getElementById('payBody');
     if (state.step === 1) body.innerHTML = stepKeys();
     else if (state.step === 2) body.innerHTML = stepCard();
-    else if (state.step === 3) body.innerHTML = stepResult();
+    else if (state.step === 3) { body.innerHTML = stepResult(); runAiReview(); }
     else body.innerHTML = stepPayout();
   }
 

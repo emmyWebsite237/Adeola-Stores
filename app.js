@@ -865,143 +865,166 @@
     }, 1200);
   }
 
-  /* ---------- Header / footer ---------- */
-  function headerHTML(active) {
+  /* ---------- Shared components (header / footer / bottom nav) ----------
+     The header, footer and sticky mobile bottom bar are NOT duplicated
+     inside the 13 pages any more. They live in ONE file each:
+
+         components/header.html
+         components/footer.html
+         components/bottom-nav.html
+
+     components.js fetches those files into their mount points
+     (#site-header, #site-footer, #bottomNav) and adds the inline fallback
+     copy so the site still works when opened straight off disk. app.js then
+     fills the {{tokens}} below with live data and wires the interactive parts
+     (search, drawer, badges). Edit a component file and every page updates.
+
+     Regenerate the inline fallback after editing components/*.html:
+         node build-components.js                                            */
+
+  var COMPONENT_ORDER = ['header', 'footer', 'bottom-nav'];
+  var COMPONENT_TOKENS = [
+    'topbarMsg', 'nav', 'catBar', 'drawerLinks', 'drawerCats', 'accountArea',
+    'footShop', 'payPills', 'items', 'year', 'searchValue',
+    'cartCount', 'wishCount', 'cartBadgeHidden', 'wishBadgeHidden'
+  ];
+  var HREF_KEYS = ['home', 'products', 'workflows', 'wishlist', 'cart', 'checkout', 'account', 'login', 'signup', 'search'];
+  var STORE_KEYS = ['name', 'phone', 'phoneHref', 'email', 'address', 'hours', 'hoursShort'];
+
+  function blankTokens() {
+    var t = { store: {}, href: {} };
+    COMPONENT_TOKENS.forEach(function (k) { t[k] = ''; });
+    HREF_KEYS.forEach(function (k) { t.href[k] = ''; });
+    STORE_KEYS.forEach(function (k) { t.store[k] = ''; });
+    return t;
+  }
+
+  /* One token map serves all three components - fill every possible token,
+     then hand it to each template after masking irrelevant names. */
+  function buildTokens(active) {
     var u = currentUser();
     var store = getStoreInfo();
-    var nav = [
+    var t = blankTokens();
+    var cCount = cartCount();
+    var wCount = wishCount();
+
+    HREF_KEYS.forEach(function (k) { t.href[k] = toHref('/' + (k === 'home' ? '' : k)); });
+    STORE_KEYS.forEach(function (k) { t.store[k] = esc(store[k] == null ? '' : store[k]); });
+
+    t.year = String(new Date().getFullYear());
+    t.searchValue = esc(param('q') || '');
+    t.topbarMsg = 'Free delivery on orders over ' + money(getDeliveryRules().freeOver) + ' across Lagos';
+    t.cartCount = String(cCount);
+    t.wishCount = String(wCount);
+    t.cartBadgeHidden = cCount ? '' : ' hidden';
+    t.wishBadgeHidden = wCount ? '' : ' hidden';
+
+    t.nav = [
       { href: '/', label: 'Home', key: 'home' },
       { href: '/products', label: 'Shop', key: 'products' },
       { href: '/workflows', label: 'How it works', key: 'workflows' }
-    ];
-    var cats = CATEGORIES.map(function (c) {
-      return '<a class="cat-link" href="' + toHref('/products?cat=' + c.id) + '">' +
-        '<span class="cat-ico">' + icon(c.icon) + '</span><span><b>' + esc(c.name) + '</b><small>' + esc(c.blurb) + '</small></span></a>';
+    ].map(function (n) {
+      return '<a href="' + toHref(n.href) + '"' + (active === n.key ? ' class="on"' : '') + '>' + n.label + '</a>';
     }).join('');
 
-    return '' +
-    '<div class="topbar"><div class="wrap">' +
-      '<span class="topbar-msg">' + icon('truck') + ' Free delivery on orders over ' + money(getDeliveryRules().freeOver) + ' across Lagos</span>' +
-      '<span class="topbar-links">' +
-        '<a href="' + toHref('/workflows') + '">Delivery &amp; returns</a>' +
-        '<a href="tel:' + esc(store.phoneHref) + '">' + icon('phone') + ' ' + esc(store.phone) + '</a>' +
-      '</span>' +
-    '</div></div>' +
-    '<header class="header" id="siteHeader"><div class="wrap">' +
-      '<button class="icon-btn menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false">' + icon('menu') + '</button>' +
-      '<a class="logo" href="' + toHref('/') + '">' +
-        '<span class="logo-mark">' + icon('basket') + '</span>' +
-        '<span class="logo-text">Ladydee<small>Minimart Store</small></span>' +
-      '</a>' +
-      '<div class="search-wrap" id="searchWrap">' +
-        '<form class="search" id="searchForm" role="search" autocomplete="off">' +
-          '<span class="search-ico">' + icon('search') + '</span>' +
-          '<input type="search" id="searchInput" placeholder="Search rice, oil, noodles\u2026" aria-label="Search products" value="' + esc(param('q') || '') + '">' +
-          '<button class="btn btn-primary btn-sm search-go" type="submit" aria-label="Search">' +
-            '<span class="search-go-ico">' + icon('search') + '</span>' +
-            '<span class="search-go-label">Search</span>' +
-          '</button>' +
-        '</form>' +
-        '<div class="search-drop" id="searchDrop" hidden></div>' +
-      '</div>' +
-      '<nav class="mainnav" aria-label="Main">' +
-        nav.map(function (n) {
-          return '<a href="' + toHref(n.href) + '"' + (active === n.key ? ' class="on"' : '') + '>' + n.label + '</a>';
-        }).join('') +
-      '</nav>' +
-      '<div class="head-actions">' +
-        '<a class="icon-btn" href="' + toHref('/wishlist') + '" aria-label="Wishlist">' + icon('heart') +
-          '<span class="badge" id="wishBadge"' + (wishCount() ? '' : ' hidden') + '>' + wishCount() + '</span></a>' +
-        '<a class="icon-btn" href="' + toHref('/cart') + '" aria-label="Cart">' + icon('cart') +
-          '<span class="badge" id="cartBadge"' + (cartCount() ? '' : ' hidden') + '>' + cartCount() + '</span></a>' +
-        (u
-          ? '<a class="account-chip" href="' + toHref('/account') + '"><span class="ac-av">' + esc((u.name || 'A').charAt(0).toUpperCase()) + '</span><span class="ac-name">' + esc((u.name || '').split(' ')[0]) + '</span></a>'
-          : '<a class="icon-btn" href="' + toHref('/login') + '" aria-label="Sign in">' + icon('user') + '</a>') +
-      '</div>' +
-    '</div>' +
-    '<div class="catbar"><div class="wrap">' + cats + '</div></div>' +
-    '</header>' +
-    '<div class="drawer-scrim" id="drawerScrim" hidden></div>' +
-    '<aside class="drawer" id="drawer" aria-hidden="true">' +
-      '<div class="drawer-head">' +
-        '<a class="logo" href="' + toHref('/') + '"><span class="logo-mark">' + icon('basket') + '</span><span class="logo-text">Ladydee<small>Minimart Store</small></span></a>' +
-        '<button class="icon-btn" id="drawerClose" aria-label="Close menu">' + icon('close') + '</button>' +
-      '</div>' +
-      '<div class="drawer-body">' +
-        '<form class="search drawer-search" id="drawerSearchForm" role="search">' +
-          '<span class="search-ico">' + icon('search') + '</span>' +
-          '<input type="search" id="drawerSearchInput" placeholder="Search products\u2026" aria-label="Search products">' +
-        '</form>' +
-        '<div class="drawer-sec">' +
-          '<span class="drawer-label">Menu</span>' +
-          nav.map(function (n) { return '<a class="drawer-link" href="' + toHref(n.href) + '">' + n.label + '</a>'; }).join('') +
-          '<a class="drawer-link" href="' + toHref('/wishlist') + '">Wishlist</a>' +
-          '<a class="drawer-link" href="' + toHref('/cart') + '">Cart</a>' +
-          '<a class="drawer-link" href="' + toHref('/checkout') + '">Test checkout</a>' +
-          (u ? '<a class="drawer-link" href="' + toHref('/account') + '">My account</a>'
-             : '<a class="drawer-link" href="' + toHref('/login') + '">Sign in</a><a class="drawer-link" href="' + toHref('/signup') + '">Create account</a>') +
-        '</div>' +
-        '<div class="drawer-sec">' +
-          '<span class="drawer-label">Shop by category</span>' +
-          '<div class="drawer-cats">' + CATEGORIES.map(function (c) {
-            return '<a class="drawer-cat" href="' + toHref('/products?cat=' + c.id) + '"><span class="cat-ico">' + icon(c.icon) + '</span>' + esc(c.name) + '</a>';
-          }).join('') + '</div>' +
-        '</div>' +
-        '<div class="drawer-sec drawer-help">' +
-          '<span class="drawer-label">Need help?</span>' +
-          '<a class="drawer-link" href="tel:' + esc(store.phoneHref) + '">' + icon('phone') + ' ' + esc(store.phone) + '</a>' +
-          '<a class="drawer-link" href="mailto:' + esc(store.email) + '">' + icon('mail') + ' ' + esc(store.email) + '</a>' +
-        '</div>' +
-      '</div>' +
-    '</aside>';
+    t.catBar = CATEGORIES.map(function (c) {
+      return '<a class="cat-link" href="' + toHref('/products?cat=' + c.id) + '">' +
+        '<span class="cat-ico" data-i="' + c.icon + '"></span>' +
+        '<span><b>' + esc(c.name) + '</b><small>' + esc(c.blurb) + '</small></span></a>';
+    }).join('');
+
+    t.accountArea = u
+      ? '<a class="account-chip" href="' + toHref('/account') + '"><span class="ac-av">' + esc((u.name || 'A').charAt(0).toUpperCase()) + '</span><span class="ac-name">' + esc((u.name || '').split(' ')[0]) + '</span></a>'
+      : '<a class="icon-btn" href="' + toHref('/login') + '" aria-label="Sign in"><span data-i="user"></span></a>';
+
+    t.drawerLinks =
+      t.nav.replace(/<a href=/g, '<a class="drawer-link" href=') +
+      '<a class="drawer-link" href="' + toHref('/wishlist') + '">Wishlist</a>' +
+      '<a class="drawer-link" href="' + toHref('/cart') + '">Cart</a>' +
+      '<a class="drawer-link" href="' + toHref('/checkout') + '">Test checkout</a>' +
+      (u ? '<a class="drawer-link" href="' + toHref('/account') + '">My account</a>'
+         : '<a class="drawer-link" href="' + toHref('/login') + '">Sign in</a><a class="drawer-link" href="' + toHref('/signup') + '">Create account</a>');
+
+    t.drawerCats = CATEGORIES.map(function (c) {
+      return '<a class="drawer-cat" href="' + toHref('/products?cat=' + c.id) + '"><span class="cat-ico" data-i="' + c.icon + '"></span>' + esc(c.name) + '</a>';
+    }).join('');
+
+    t.footShop = CATEGORIES.slice(0, 5).map(function (c) {
+      return '<a href="' + toHref('/products?cat=' + c.id) + '">' + esc(c.name) + '</a>';
+    }).join('') + '<a href="' + toHref('/products') + '">All products</a>';
+
+    t.payPills = ['Card', 'Bank transfer', 'Pay on delivery', 'USSD'].map(function (p) {
+      return '<span class="pay-pill">' + p + '</span>';
+    }).join('');
+
+    t.items = bottomNavItems(t, u);
+
+    return t;
   }
 
-  function footerHTML() {
-    var year = new Date().getFullYear();
-    var store = getStoreInfo();
-    return '<footer class="footer"><div class="wrap">' +
-      '<div class="foot-grid">' +
-        '<div class="foot-brand">' +
-          '<a class="logo logo-light" href="' + toHref('/') + '"><span class="logo-mark">' + icon('basket') + '</span><span class="logo-text">Ladydee<small>Minimart Store</small></span></a>' +
-          '<p>Everyday groceries, sealed and delivered across Nigeria. Rice, oil, noodles, household and baby essentials at fair prices.</p>' +
-          '<div class="foot-social">' +
-            '<a href="#" aria-label="Facebook">' + icon('facebook') + '</a>' +
-            '<a href="#" aria-label="Instagram">' + icon('instagram') + '</a>' +
-            '<a href="#" aria-label="X">' + icon('twitter') + '</a>' +
-            '<a href="#" aria-label="WhatsApp">' + icon('whatsapp') + '</a>' +
-          '</div>' +
-        '</div>' +
-        '<div class="foot-col"><h4>Shop</h4>' +
-          CATEGORIES.slice(0, 5).map(function (c) {
-            return '<a href="' + toHref('/products?cat=' + c.id) + '">' + esc(c.name) + '</a>';
-          }).join('') +
-          '<a href="' + toHref('/products') + '">All products</a>' +
-        '</div>' +
-        '<div class="foot-col"><h4>Account</h4>' +
-          '<a href="' + toHref('/account') + '">My account</a>' +
-          '<a href="' + toHref('/login') + '">Sign in</a>' +
-          '<a href="' + toHref('/signup') + '">Create account</a>' +
-          '<a href="' + toHref('/wishlist') + '">Wishlist</a>' +
-          '<a href="' + toHref('/cart') + '">Cart &amp; checkout</a>' +
-        '</div>' +
-        '<div class="foot-col"><h4>Company</h4>' +
-          '<a href="' + toHref('/workflows') + '">How it works</a>' +
-          '<a href="' + toHref('/workflows') + '">Delivery &amp; returns</a>' +
-          '<a href="' + toHref('/workflows') + '">Integrations</a>' +
-          '<a href="' + toHref('/checkout') + '">Test checkout (Paystack)</a>' +
-        '</div>' +
-        '<div class="foot-col foot-contact"><h4>Contact</h4>' +
-          '<a href="tel:' + esc(store.phoneHref) + '">' + icon('phone') + ' ' + esc(store.phone) + '</a>' +
-          '<a href="mailto:' + esc(store.email) + '">' + icon('mail') + ' ' + esc(store.email) + '</a>' +
-          '<span>' + icon('mapPin') + ' ' + esc(store.address) + '</span>' +
-          '<span>' + icon('clock') + ' ' + esc(store.hours) + '</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="foot-bottom">' +
-        '<span>&copy; ' + year + ' Ladydee Minimart Store. Demo store — no real payments are processed.</span>' +
-        '<span class="foot-pay">' + ['Card', 'Bank transfer', 'Pay on delivery', 'USSD'].map(function (p) { return '<span class="pay-pill">' + p + '</span>'; }).join('') + '</span>' +
-      '</div>' +
-    '</div></footer>';
+  /* Bottom bar follows the template in components/bottom-nav.html:
+     one <a class="bn-item"> per entry, each with {{label}}, {{href}} and an
+     optional cart badge token. Only the cart entry shows the badge. */
+  function bottomNavItems(t, u) {
+    var page = (document.body && document.body.getAttribute('data-page')) || '';
+    var entries = [
+      { href: toHref('/search'), label: 'Search', ico: 'search', on: page === 'search' },
+      { href: toHref('/cart'), label: 'Cart', ico: 'cart', on: page === 'cart', badge: true },
+      { href: u ? toHref('/account') : toHref('/login'), label: u ? 'Account' : 'Sign in', ico: 'user', on: page === 'account' || page === 'login' }
+    ];
+    return entries.map(function (e) {
+      return '<a class="bn-item' + (e.on ? ' on' : '') + '" href="' + e.href + '"' + (e.on ? ' aria-current="page"' : '') + '>' +
+        '<span class="bn-ico"><span data-i="' + e.ico + '"></span>' +
+          (e.badge ? '<span class="bn-badge" id="bnCartBadge"' + (cartCount() ? '' : ' hidden') + '>' + cartCount() + '</span>' : '') +
+        '</span><span class="bn-label">' + e.label + '</span></a>';
+    }).join('');
+  }
+
+  /* Replace {{token}} and {{a.b}} placeholders. Unknown tokens are left
+     untouched on purpose so the token-coverage check can spot a typo. */
+  function fillTokens(html, t) {
+    return String(html).replace(/\{\{\s*([\w.]+)\s*\}\}/g, function (m, path) {
+      var parts = path.split('.');
+      var v = t;
+      for (var i = 0; i < parts.length; i++) {
+        if (v == null || typeof v !== 'object' || !(parts[i] in v)) return m;
+        v = v[parts[i]];
+      }
+      return (v == null) ? '' : String(v);
+    });
+  }
+
+  /* Swap <span data-i="name"> placeholders for the real inline SVG icons.
+     Scoped to the components so a page's own [data-i] pass is untouched. */
+  function fillIcons(root) {
+    (root || document).querySelectorAll('[data-i]').forEach(function (e) {
+      e.innerHTML = icon(e.getAttribute('data-i'));
+      e.removeAttribute('data-i');
+    });
+  }
+
+  function renderComponents(active) {
+    var C = window.LadydeeComponents;
+    if (!C || typeof C.load !== 'function') return false;
+    var map = { 'header': 'site-header', 'footer': 'site-footer', 'bottom-nav': 'bottomNav' };
+    var any = false;
+    Object.keys(map).forEach(function (name) {
+      var el = document.getElementById(map[name]);
+      if (!el || el.getAttribute('data-loaded') !== '1') return;
+      var tpl = el.__raw || C.INLINE[name] || el.innerHTML;
+      el.innerHTML = fillTokens(tpl, buildTokens(active));
+      fillIcons(el);
+      any = true;
+    });
+    refreshBadges();
+    return any;
+  }
+
+  /* Wire the interactive parts of the freshly rendered components. Called
+     again after a re-render, so it must be safe to run more than once. */
+  function initComponents() {
+    initSearch();
+    initDrawer();
   }
 
   /* ---------- Live search dropdown ---------- */
@@ -1103,25 +1126,6 @@
     if (wb) { var w = wishCount(); wb.textContent = w; wb.hidden = !w; }
     var bb = document.getElementById('bnCartBadge');
     if (bb) { var m = cartCount(); bb.textContent = m > 99 ? '99+' : m; bb.hidden = !m; }
-  }
-
-  /* ---------- Sticky mobile bottom nav ---------- */
-  function bottomNavHTML() {
-    var page = (document.body && document.body.getAttribute('data-page')) || '';
-    var u = currentUser();
-    var items = [
-      { href: '/search', label: 'Search', ico: 'search', on: page === 'search' },
-      { href: '/cart', label: 'Cart', ico: 'cart', on: page === 'cart', badge: true },
-      { href: u ? '/account' : '/login', label: u ? 'Account' : 'Sign in', ico: 'user', on: page === 'account' || page === 'login' }
-    ];
-    return '<nav class="bottom-nav" aria-label="Quick navigation"><div class="bn-inner">' +
-      items.map(function (i) {
-        return '<a class="bn-item' + (i.on ? ' on' : '') + '" href="' + toHref(i.href) + '"' + (i.on ? ' aria-current="page"' : '') + '>' +
-          '<span class="bn-ico">' + icon(i.ico) +
-            (i.badge ? '<span class="bn-badge" id="bnCartBadge"' + (cartCount() ? '' : ' hidden') + '>' + cartCount() + '</span>' : '') +
-          '</span><span class="bn-label">' + i.label + '</span></a>';
-      }).join('') +
-    '</div></nav>';
   }
 
   /* ---------- Product card ---------- */
@@ -1252,20 +1256,13 @@
   /* ---------- Boot ---------- */
   function mount(active) {
     seed();
-    var h = document.getElementById('site-header');
-    if (h) h.innerHTML = headerHTML(active);
-    var f = document.getElementById('site-footer');
-    if (f) f.innerHTML = footerHTML();
-    /* sticky mobile bottom nav — injected on every page, shown only on mobile */
-    var bn = document.getElementById('bottomNav');
-    if (!bn) {
-      bn = document.createElement('div');
-      bn.id = 'bottomNav';
-      document.body.appendChild(bn);
-    }
-    bn.innerHTML = bottomNavHTML();
-    initSearch();
-    initDrawer();
+    /* Shared header / footer / bottom bar come from components/*.html.
+       If the loader has not finished yet, renderComponents() is a no-op and
+       initComponents() re-runs from the loader callback below. */
+    ACTIVE_PAGE = active;
+    var ready = renderComponents(active);
+    if (ready) initComponents();
+    bootComponents(active);
     initGlobalEvents();
     refreshBadges();
     normalizeLinks();
@@ -1296,6 +1293,32 @@
     }, { passive: true });
   }
 
+  /* ---------- Component bootstrap ----------
+     Kicks the shared components off once the page is interactive. mount()
+     records which page we're on (for the active nav link / bottom bar),
+     then once components.js has the markup we fill the tokens and wire the
+     interactive parts. Safe to call more than once - the loader is
+     idempotent and re-rendering is harmless. */
+  var ACTIVE_PAGE = '';
+  function bootComponents(active) {
+    if (active !== undefined) ACTIVE_PAGE = active;
+    var C = window.LadydeeComponents;
+    if (!C || typeof C.load !== 'function') return;
+    C.load(COMPONENT_ORDER, function () {
+      renderComponents(ACTIVE_PAGE);
+      initComponents();
+      normalizeLinks();
+    });
+  }
+
+  /* Safety net: if a page never calls mount(), still load the components. */
+  function autoBoot() { bootComponents(); }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoBoot);
+  } else {
+    setTimeout(autoBoot, 0);
+  }
+
   /* ---------- Public API ---------- */
   window.Ladydee = {
     icon: icon, esc: esc, money: money, param: param, stars: stars, fmtDate: fmtDate, daysFromNow: daysFromNow,
@@ -1315,6 +1338,8 @@
     orderStatuses: orderStatuses, statusLabel: statusLabel,
     toHref: toHref, go: go, normalizeLinks: normalizeLinks, fileMode: fileMode,
     toast: toast, observeReveals: observeReveals, productCard: productCard, refreshBadges: refreshBadges,
-    mount: mount, read: read, write: write, K: K
+    mount: mount, renderComponents: renderComponents, initComponents: initComponents, bootComponents: bootComponents,
+    fillTokens: fillTokens, COMPONENT_ORDER: COMPONENT_ORDER, COMPONENT_TOKENS: COMPONENT_TOKENS,
+    read: read, write: write, K: K
   };
 })();

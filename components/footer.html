@@ -1,0 +1,57 @@
+<!-- ============================================================
+     Ladydee Minimart Store — SHARED FOOTER COMPONENT
+     ------------------------------------------------------------
+     The ONE place the site footer lives. Edit here and every page
+     updates — no need to touch the 13 HTML pages.
+
+     There is deliberately NO link to the admin console here: the staff
+     console is reachable only by typing its direct URL (/adeolaadaccess112).
+     ============================================================ -->
+<footer class="footer" data-component="footer"><div class="wrap">
+  <div class="foot-grid">
+
+    <div class="foot-brand">
+      <a class="logo logo-light" href="{{href.home}}">
+        <span class="logo-mark"><span data-i="basket"></span></span>
+        <span class="logo-text">Ladydee<small>Minimart Store</small></span>
+      </a>
+      <p>Everyday groceries, sealed and delivered across Nigeria. Rice, oil, noodles, household and baby essentials at fair prices.</p>
+      <div class="foot-social">
+        <a href="#" aria-label="Facebook"><span data-i="facebook"></span></a>
+        <a href="#" aria-label="Instagram"><span data-i="instagram"></span></a>
+        <a href="#" aria-label="X"><span data-i="twitter"></span></a>
+        <a href="#" aria-label="WhatsApp"><span data-i="whatsapp"></span></a>
+      </div>
+    </div>
+
+    <div class="foot-col"><h4>Shop</h4>{{footShop}}</div>
+
+    <div class="foot-col"><h4>Account</h4>
+      <a href="{{href.account}}">My account</a>
+      <a href="{{href.login}}">Sign in</a>
+      <a href="{{href.signup}}">Create account</a>
+      <a href="{{href.wishlist}}">Wishlist</a>
+      <a href="{{href.cart}}">Cart &amp; checkout</a>
+    </div>
+
+    <div class="foot-col"><h4>Company</h4>
+      <a href="{{href.workflows}}">How it works</a>
+      <a href="{{href.workflows}}">Delivery &amp; returns</a>
+      <a href="{{href.workflows}}">Integrations</a>
+      <a href="{{href.checkout}}">Test checkout (Paystack)</a>
+    </div>
+
+    <div class="foot-col foot-contact"><h4>Contact</h4>
+      <a href="tel:{{store.phoneHref}}"><span data-i="phone"></span> {{store.phone}}</a>
+      <a href="mailto:{{store.email}}"><span data-i="mail"></span> {{store.email}}</a>
+      <span><span data-i="mapPin"></span> {{store.address}}</span>
+      <span><span data-i="clock"></span> {{store.hours}}</span>
+    </div>
+
+  </div>
+
+  <div class="foot-bottom">
+    <span>&copy; {{year}} Ladydee Minimart Store. Demo store &mdash; no real payments are processed.</span>
+    <span class="foot-pay">{{payPills}}</span>
+  </div>
+</div></footer>

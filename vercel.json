@@ -14,5 +14,20 @@
     { "source": "/workflows", "destination": "/workflows.html" },
     { "source": "/checkout", "destination": "/checkout.html" },
     { "source": "/adeolaadaccess112", "destination": "/adeolaadaccess112.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/components/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    }
   ]
 }

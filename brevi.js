@@ -43,6 +43,16 @@
     var c = read(K.config, null) || {};
     var out = {};
     for (var k in DEFAULTS) if (Object.prototype.hasOwnProperty.call(DEFAULTS, k)) out[k] = (c[k] !== undefined ? c[k] : DEFAULTS[k]);
+
+    /* The admin's "API keys" tab stores the same Brevo values in
+       ladydee_integrations. Use those when the Brevi tab has no value, so
+       configuring either place works. The Brevi tab always wins. */
+    var I = (window.Ladydee && window.Ladydee.getIntegrations) ? window.Ladydee.getIntegrations() : null;
+    if (I) {
+      if (!out.apiKey && I.brevoKey) out.apiKey = I.brevoKey;
+      if (!c.senderEmail && I.brevoSenderEmail) out.senderEmail = I.brevoSenderEmail;
+      if (!c.replyTo && I.brevoReplyTo) out.replyTo = I.brevoReplyTo;
+    }
     return out;
   }
   function setConfig(patch) {
@@ -51,11 +61,27 @@
     write(K.config, c);
     return c;
   }
+  /* True when mail can really be sent - either the server proxy is
+     configured (preferred: the key stays on the server) or a client-side
+     key has been entered (testing only). */
+  var serverLive = false;
   function isLive() {
+    if (serverLive) return true;
     var c = getConfig();
     return !!(c.enabled && c.apiKey && c.apiKey.trim().length > 8);
   }
+  function viaServer() { return serverLive; }
   function mode() { return isLive() ? 'live' : 'demo'; }
+
+  /* Ask the backend once whether server-side email is available. When it is,
+     the key never has to exist in the browser at all. */
+  (function probeServer() {
+    var API = window.LadydeeAPI;
+    if (!API || typeof API.probe !== 'function') return;
+    API.probe().then(function (api) {
+      serverLive = !!(api && api.available && api.integrations && api.integrations.brevo);
+    });
+  })();
 
   /* ---------- Email log (demo mode + audit trail) ---------- */
   function getLog() { return read(K.log, []); }
@@ -68,7 +94,17 @@
     return entry;
   }
 
-  /* ---------- Sending ---------- */
+  /* ---------- Sending ----------
+     Three routes, tried in this order:
+
+       1. SERVER PROXY  POST /api/email/send - used whenever the backend is
+          present and BREVO_API_KEY is set on it. The key stays server-side
+          and there is no CORS problem. This is the production path.
+       2. DIRECT CLIENT - a key pasted into the admin. Works for a quick
+          test, but the key is readable in the browser and Brevo's API has
+          no CORS headers, so a real send usually gets blocked. Testing only.
+       3. DEMO MODE    - nothing leaves the browser; the exact email is
+          logged and can be previewed. This is the default with no keys.   */
   function send(opts) {
     var cfg = getConfig();
     var entry = {
@@ -77,37 +113,71 @@
       subject: opts.subject, html: opts.html,
       template: opts.template || 'generic',
       at: new Date().toISOString(),
-      mode: mode(), status: 'queued'
+      mode: 'demo', status: 'queued'
     };
 
-    if (!isLive()) {
-      entry.status = 'demo';
-      logEmail(entry);
-      return Promise.resolve({ ok: true, demo: true, entry: entry });
-    }
+    var API = window.LadydeeAPI;
+    var probeDone = (API && typeof API.probe === 'function') ? API.probe() : Promise.resolve(null);
 
-    var body = {
-      sender: { name: cfg.senderName, email: cfg.senderEmail },
-      to: [{ email: opts.to, name: opts.toName || opts.to }],
-      replyTo: { email: cfg.replyTo, name: cfg.senderName },
-      subject: opts.subject,
-      htmlContent: opts.html
-    };
+    return probeDone.then(function (api) {
+      if (api && api.available && api.integrations && api.integrations.brevo) {
+        serverLive = true;
+        entry.mode = 'live';
+        entry.via = 'server';
+        return fetch('/api/email/send', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify({
+            to: opts.to, toName: opts.toName || '',
+            subject: opts.subject, html: opts.html,
+            template: entry.template,
+            replyTo: cfg.replyTo, senderName: cfg.senderName
+          })
+        }).then(function (r) {
+          entry.status = r.ok ? 'sent' : 'failed';
+          entry.httpStatus = r.status;
+          logEmail(entry);
+          return { ok: r.ok, demo: false, entry: entry, status: r.status, via: 'server' };
+        }).catch(function (err) {
+          entry.status = 'failed';
+          entry.error = String(err && err.message ? err.message : err);
+          logEmail(entry);
+          return { ok: false, demo: false, entry: entry, error: entry.error, via: 'server' };
+        });
+      }
 
-    return fetch(cfg.endpoint, {
-      method: 'POST',
-      headers: { 'api-key': cfg.apiKey, 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify(body)
-    }).then(function (r) {
-      entry.status = r.ok ? 'sent' : 'failed';
-      entry.httpStatus = r.status;
-      logEmail(entry);
-      return { ok: r.ok, demo: false, entry: entry, status: r.status };
-    }).catch(function (err) {
-      entry.status = 'failed';
-      entry.error = String(err && err.message ? err.message : err);
-      logEmail(entry);
-      return { ok: false, demo: false, entry: entry, error: entry.error };
+      if (!isLive()) {
+        entry.status = 'demo';
+        logEmail(entry);
+        return { ok: true, demo: true, entry: entry };
+      }
+
+      /* direct client-side send (testing only) */
+      entry.mode = 'live';
+      entry.via = 'client';
+      var body = {
+        sender: { name: cfg.senderName, email: cfg.senderEmail },
+        to: [{ email: opts.to, name: opts.toName || opts.to }],
+        replyTo: { email: cfg.replyTo, name: cfg.senderName },
+        subject: opts.subject,
+        htmlContent: opts.html
+      };
+
+      return fetch(cfg.endpoint, {
+        method: 'POST',
+        headers: { 'api-key': cfg.apiKey, 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function (r) {
+        entry.status = r.ok ? 'sent' : 'failed';
+        entry.httpStatus = r.status;
+        logEmail(entry);
+        return { ok: r.ok, demo: false, entry: entry, status: r.status, via: 'client' };
+      }).catch(function (err) {
+        entry.status = 'failed';
+        entry.error = String(err && err.message ? err.message : err);
+        logEmail(entry);
+        return { ok: false, demo: false, entry: entry, error: entry.error, via: 'client' };
+      });
     });
   }
 
@@ -276,13 +346,14 @@
   function showPreview(entry) {
     var m = ensureModal();
     var live = entry.mode === 'live';
-    m.querySelector('#breviModalKicker').textContent = live ? 'Sent via Brevi' : 'Demo mode — not actually sent';
+    var how = entry.via === 'server' ? 'Sent via Brevi (server proxy)' : live ? 'Sent via Brevi (browser)' : 'Demo mode — not actually sent';
+    m.querySelector('#breviModalKicker').textContent = how;
     m.querySelector('#breviModalTitle').textContent = entry.subject;
     m.querySelector('#breviModalMeta').innerHTML =
       '<span class="mm-row"><b>To</b> ' + esc(entry.toName ? entry.toName + ' <' + entry.to + '>' : entry.to) + '</span>' +
       '<span class="mm-row"><b>From</b> ' + esc(getConfig().senderName + ' <' + getConfig().senderEmail + '>') + '</span>' +
       '<span class="mm-row"><b>Status</b> <span class="pill ' + (live ? 'pill-ok' : 'pill-warn') + '">' + esc(entry.status) + '</span></span>' +
-      (live ? '' : '<span class="mm-note">No API key is configured, so nothing left the browser. Add your Brevi key in the admin settings to send for real.</span>');
+      (live ? '' : '<span class="mm-note">No email integration is configured, so nothing left the browser. Either set BREVO_API_KEY on your server, or add a Brevi key in the admin settings to send for real.</span>');
     m.querySelector('#breviModalBody').innerHTML = entry.html;
     m.hidden = false;
     document.body.classList.add('no-scroll');
@@ -290,7 +361,7 @@
 
   /* ---------- Public API ---------- */
   window.LadydeeEmail = {
-    getConfig: getConfig, setConfig: setConfig, isLive: isLive, mode: mode,
+    getConfig: getConfig, setConfig: setConfig, isLive: isLive, mode: mode, viaServer: viaServer,
     send: send, getLog: getLog, clearLog: clearLog,
     orderConfirmationHTML: orderConfirmationHTML, verifyHTML: verifyHTML, resetHTML: resetHTML,
     sendOrderConfirmation: sendOrderConfirmation,

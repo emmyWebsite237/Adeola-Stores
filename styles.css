@@ -1439,3 +1439,28 @@ table.data tr:hover td { background: var(--cream); }
 .receipt-row.total { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 12px; font-size: 1rem; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .84rem; }
 
+/* ---- shared components: env-var checklist in the admin API-keys tab ---- */
+.env-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface); margin-bottom: 8px;
+}
+.env-row code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .78rem; font-weight: 700; color: var(--ink);
+  background: var(--cream); border: 1px solid var(--line);
+  border-radius: 6px; padding: 3px 7px; flex: none;
+}
+.env-row > span:first-of-type { flex: 1; font-size: .84rem; color: var(--muted); min-width: 180px; }
+.env-row .safe-badge { flex: none; }
+
+/* ---- AI basket review shown after a successful test charge ---- */
+.ai-review {
+  display: flex; gap: 10px; align-items: flex-start; text-align: left;
+  background: var(--green-soft); border: 1px solid rgba(15, 81, 50, .18);
+  border-radius: 12px; padding: 14px 16px; margin: 18px 0 0;
+}
+.ai-review svg { width: 18px; height: 18px; color: var(--green); flex: none; margin-top: 2px; }
+.ai-review span { font-size: .86rem; line-height: 1.55; color: var(--ink); }
+.ai-review b { display: block; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: var(--green); margin-bottom: 4px; }
+

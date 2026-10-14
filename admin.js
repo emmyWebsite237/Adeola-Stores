@@ -875,6 +875,25 @@
     if (t.id === 'clearLog') { E.clearLog(); S.toast('Email log cleared', 'trash'); renderPanel(); return; }
 
     /* integrations */
+    if (t.id === 'checkBackend') {
+      var outEl = el('backendResult');
+      if (outEl) outEl.textContent = 'Checking\u2026';
+      var API = window.LadydeeAPI;
+      if (!API) { if (outEl) outEl.textContent = 'api-client.js is not loaded on this page.'; return; }
+      API.probe().then(function (api) {
+        if (!outEl) return;
+        if (!api.available) {
+          outEl.innerHTML = '<b>No backend found.</b> This build is running static-only \u2014 the site works, but server keys have no effect until it is deployed to a host with the /api functions.';
+          return;
+        }
+        var i = api.integrations || {};
+        outEl.innerHTML = 'Backend online \u2014 ' +
+          ['database', 'brevo', 'openai', 'cloudinary'].map(function (k) {
+            return '<b>' + k + '</b> ' + (i[k] ? '\u2705' : '\u274c not set');
+          }).join(' \u00b7 ');
+      });
+      return;
+    }
     if (t.id === 'saveIntegrations') {
       S.setIntegrations({
         cloudName: el('inCloudName').value.trim(),
@@ -1001,6 +1020,12 @@
         '<div class="key-row"><input id="' + id + '" type="password" value="' + esc(val) + '" autocomplete="off" placeholder="' + esc(hint) + '">' +
         '<button class="mini-btn" type="button" data-reveal="' + id + '" aria-label="Show or hide">' + icon('eye') + '</button></div></div>';
     }
+    /* A server environment variable - read-only here, set in the host dashboard. */
+    function envRow(name, what, level) {
+      return '<div class="env-row ' + level + '"><code>' + name + '</code>' +
+        '<span>' + what + '</span>' +
+        '<span class="safe-badge ' + level + '">' + (level === 'ok' ? 'public' : level === 'warn' ? 'verified sender' : 'server only') + '</span></div>';
+    }
     return head('API keys &amp; integrations', 'Enter your own keys here. They are saved in this browser (localStorage) and used by the store.', '') +
       '<div class="settings-grid">' +
         '<div class="setting-card"><h3>Cloudinary \u2014 product image uploads</h3>' +
@@ -1028,6 +1053,23 @@
             keyField('inPaySecret', 'Secret key (test)', c.paystackSecret, 'sk_test_\u2026', 'needs a server proxy', 'bad') +
           '</div>' +
           '<div class="upload-note">The <b>public key</b> is safe in the browser. The <b>secret key</b> must never be used client-side in production \u2014 it can move money. Route it through a small serverless function.</div>' +
+        '</div>' +
+        '<div class="setting-card"><h3>Server environment variables</h3>' +
+          '<p>These are the keys that must <b>never</b> live in the browser. Set them in your hosting dashboard (Vercel \u2192 Settings \u2192 Environment Variables) and the site picks them up automatically through the <span class="mono">/api</span> routes.</p>' +
+          '<div class="settings-grid">' +
+            envRow('DATABASE_URL', 'Server-side accounts (Neon Postgres)', 'bad') +
+            envRow('BREVO_API_KEY', 'Transactional email \u2014 order, verify, reset', 'bad') +
+            envRow('OPENAI_API_KEY', 'AI basket review at checkout', 'bad') +
+            envRow('CLOUDINARY_SECRET', 'Signed Cloudinary operations', 'bad') +
+            envRow('BREVO_SENDER_EMAIL', 'From address (must be a verified sender)', 'warn') +
+            envRow('BREVO_REPLY_TO', 'Where customer replies go', 'ok') +
+            envRow('SITE_URL', 'Base URL used in verification links', 'ok') +
+          '</div>' +
+          '<div class="upload-note">With <b>BREVO_API_KEY</b> set, <span class="mono">brevi.js</span> sends through <span class="mono">/api/email/send</span> and the key never reaches the browser \u2014 that is the fix for the blocked client-side setup. A copy of this list is in <b>.env.example</b>.</div>' +
+          '<div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+            '<button class="btn btn-outline" type="button" id="checkBackend">' + icon('plug') + ' Check backend</button>' +
+            '<span id="backendResult" class="muted" style="font-size:.85rem">Not checked yet.</span>' +
+          '</div>' +
         '</div>' +
         '<div class="setting-card"><h3>Which keys are safe in the browser?</h3>' +
           '<div class="alert-row"><span class="alert-ico" style="color:var(--green)">' + icon('checkCircle') + '</span>' +

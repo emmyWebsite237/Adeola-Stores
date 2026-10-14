@@ -1,0 +1,88 @@
+<!-- ============================================================
+     Ladydee Minimart Store — SHARED HEADER COMPONENT
+     ------------------------------------------------------------
+     This is the ONE place the site header lives. Edit here and every
+     page updates. Tokens written as double-brace placeholders are filled
+     at runtime by app.js -> renderComponents() with live data (cart count,
+     signed-in user, store contact details, clean-URL hrefs).
+
+     Structure markup ONLY. No data, no logic. Icons are <span data-i="…">
+     placeholders that the loader swaps for the real inline SVG.
+     ============================================================ -->
+<div class="topbar" data-component="header"><div class="wrap">
+  <span class="topbar-msg"><span data-i="truck"></span> {{topbarMsg}}</span>
+  <span class="topbar-links">
+    <a href="{{href.workflows}}">Delivery &amp; returns</a>
+    <a href="tel:{{store.phoneHref}}"><span data-i="phone"></span> {{store.phone}}</a>
+  </span>
+</div></div>
+
+<header class="header" id="siteHeader"><div class="wrap">
+  <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false"><span data-i="menu"></span></button>
+
+  <a class="logo" href="{{href.home}}">
+    <span class="logo-mark"><span data-i="basket"></span></span>
+    <span class="logo-text">Ladydee<small>Minimart Store</small></span>
+  </a>
+
+  <div class="search-wrap" id="searchWrap">
+    <form class="search" id="searchForm" role="search" autocomplete="off">
+      <span class="search-ico"><span data-i="search"></span></span>
+      <input type="search" id="searchInput" placeholder="Search rice, oil, noodles&#8230;" aria-label="Search products" value="{{searchValue}}">
+      <button class="btn btn-primary btn-sm search-go" type="submit" aria-label="Search">
+        <span class="search-go-ico"><span data-i="search"></span></span>
+        <span class="search-go-label">Search</span>
+      </button>
+    </form>
+    <div class="search-drop" id="searchDrop" hidden></div>
+  </div>
+
+  <nav class="mainnav" aria-label="Main">{{nav}}</nav>
+
+  <div class="head-actions">
+    <a class="icon-btn" href="{{href.wishlist}}" aria-label="Wishlist"><span data-i="heart"></span>
+      <span class="badge" id="wishBadge"{{wishBadgeHidden}}>{{wishCount}}</span></a>
+
+    <a class="icon-btn" href="{{href.cart}}" aria-label="Cart"><span data-i="cart"></span>
+      <span class="badge" id="cartBadge"{{cartBadgeHidden}}>{{cartCount}}</span></a>
+
+    {{accountArea}}
+  </div>
+</div>
+
+<div class="catbar"><div class="wrap">{{catBar}}</div></div>
+</header>
+
+<!-- mobile drawer -->
+<div class="drawer-scrim" id="drawerScrim" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <a class="logo" href="{{href.home}}">
+      <span class="logo-mark"><span data-i="basket"></span></span>
+      <span class="logo-text">Ladydee<small>Minimart Store</small></span>
+    </a>
+    <button class="icon-btn" id="drawerClose" aria-label="Close menu"><span data-i="close"></span></button>
+  </div>
+  <div class="drawer-body">
+    <form class="search drawer-search" id="drawerSearchForm" role="search">
+      <span class="search-ico"><span data-i="search"></span></span>
+      <input type="search" id="drawerSearchInput" placeholder="Search products&#8230;" aria-label="Search products">
+    </form>
+
+    <div class="drawer-sec">
+      <span class="drawer-label">Menu</span>
+      {{drawerLinks}}
+    </div>
+
+    <div class="drawer-sec">
+      <span class="drawer-label">Shop by category</span>
+      <div class="drawer-cats">{{drawerCats}}</div>
+    </div>
+
+    <div class="drawer-sec drawer-help">
+      <span class="drawer-label">Need help?</span>
+      <a class="drawer-link" href="tel:{{store.phoneHref}}"><span data-i="phone"></span> {{store.phone}}</a>
+      <a class="drawer-link" href="mailto:{{store.email}}"><span data-i="mail"></span> {{store.email}}</a>
+    </div>
+  </div>
+</aside>

@@ -14,5 +14,8 @@
 /checkout            /checkout.html            200
 /adeolaadaccess112   /adeolaadaccess112.html   200
 
+# Keep the serverless API functions out of the SPA fallback below.
+/api/*               /api/:splat               200
+
 # Fallback for any other clean path
 /*  /index.html  200
