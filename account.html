@@ -271,6 +271,18 @@
     if (t.id === 'savePw') {
       var cur = document.getElementById('cPw').value;
       var nw = document.getElementById('nPw').value;
+      if (S.serverAccounts()) {
+        window.LadydeeAPI.auth('change-password', { currentPassword: cur, newPassword: nw }, S.authToken()).then(function (r) {
+          var d = r.data || {};
+          if (r.ok && d.success) {
+            S.toast('Password updated', 'checkCircle');
+            document.getElementById('cPw').value = ''; document.getElementById('nPw').value = '';
+          } else {
+            S.toast(d.error || r.error || 'Could not update the password', 'alert');
+          }
+        });
+        return;
+      }
       if (cur !== user.password) { S.toast('Current password is not correct', 'alert'); return; }
       if (nw.length < 8) { S.toast('New password must be at least 8 characters', 'alert'); return; }
       user = S.updateUser({ password: nw });

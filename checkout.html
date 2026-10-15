@@ -187,7 +187,7 @@
       totalAmount: state.amount,
       userEmail: (S.currentUser() && S.currentUser().email) || 'Guest'
     }).then(function (r) {
-      if (r.used !== 'server' || !r.ok || !r.data || !r.data.aiAnalysis) return;
+      if (r.used !== 'server' || !r.ok || !r.data || !r.data.aiAnalysis || r.data.aiConfigured === false) return;
       box.innerHTML = '<div class="ai-review">' + S.icon('sparkles') +
         '<span><b>Basket review</b>' + S.esc(r.data.aiAnalysis) + '</span></div>';
     });

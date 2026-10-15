@@ -766,6 +766,31 @@
     return { ok: false, reason: 'No account found with that email.' };
   }
   function logout() { localStorage.removeItem(K.session); }
+
+  /* Real accounts live on the server when it has a database and working email. */
+  function serverAccounts() {
+    var a = window.LadydeeAPI;
+    return !!(a && a.available && a.integrations && a.integrations.accounts);
+  }
+  /* After a successful server login: keep a local profile (addresses, etc.) and start the session. */
+  function sessionFromServer(user, token) {
+    var users = getUsers();
+    var email = String(user.email || '').toLowerCase();
+    var found = null;
+    for (var i = 0; i < users.length; i++) if (users[i].email === email) { found = users[i]; break; }
+    if (!found) {
+      found = { id: 's' + user.id, name: user.name, email: email, phone: user.phone || '', password: '',
+        verified: true, createdAt: new Date().toISOString(), addresses: [] };
+      users.push(found);
+    } else {
+      found.name = user.name; found.verified = true; found.password = '';
+      if (user.phone) found.phone = user.phone;
+    }
+    setUsers(users);
+    write(K.session, { id: found.id, email: found.email, name: found.name, at: Date.now(), token: token || '' });
+    return found;
+  }
+  function authToken() { var s = read(K.session, null); return (s && s.token) || ''; }
   function updateUser(patch) {
     var u = currentUser(); if (!u) return null;
     var users = getUsers();
@@ -1376,6 +1401,7 @@
     CATEGORIES: CATEGORIES, PRODUCTS: PRODUCTS, ZONES: ZONES,
     catalogue: catalogue, imgUrl: imgUrl, initLazyImages: initLazyImages,
     getRecent: getRecent, trackViewed: trackViewed, whatsappLink: whatsappLink,
+    serverAccounts: serverAccounts, sessionFromServer: sessionFromServer, authToken: authToken,
     product: product, catName: catName, catIcon: catIcon, discountOf: discountOf, searchProducts: searchProducts,
     getCart: getCart, addToCart: addToCart, setQty: setQty, removeFromCart: removeFromCart,
     clearCart: clearCart, cartCount: cartCount, cartLines: cartLines, cartSubtotal: cartSubtotal,

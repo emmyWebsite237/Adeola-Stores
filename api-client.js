@@ -131,6 +131,26 @@
     });
   }
 
+  /* Account actions: POST /api/auth/<action>. Never throws; resolves { ok, status, data }. */
+  function auth(action, body, token) {
+    if (!hasFetch()) return Promise.resolve({ ok: false, status: 0, error: 'fetch is unavailable' });
+    var headers = { 'content-type': 'application/json', accept: 'application/json' };
+    if (token) headers.authorization = 'Bearer ' + token;
+    return withTimeout(
+      fetch('/api/auth/' + action, { method: 'POST', headers: headers, body: JSON.stringify(body || {}) })
+        .then(function (r) {
+          return r.text().then(function (text) {
+            var data = {};
+            try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { raw: text }; }
+            return { ok: r.ok, status: r.status, data: data };
+          });
+        })
+    ).catch(function (err) {
+      return { ok: false, status: 0, error: String(err && err.message ? err.message : err) };
+    });
+  }
+
+  api.auth = auth;
   api.probe = probe;
   api.ready = ready;
   api.signup = signup;

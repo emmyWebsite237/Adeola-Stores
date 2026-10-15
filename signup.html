@@ -67,7 +67,7 @@
     setSteps(1);
     document.getElementById('authBody').innerHTML =
       '<h1>Create your account</h1><p>It takes less than a minute.</p>' +
-      '<div class="demo-note">' + S.icon('info') + '<span><b>Demo store.</b> Your details are stored only in this browser (localStorage). Nothing is sent to a server.</span></div>' +
+      (S.serverAccounts() ? '' : '<div class="demo-note">' + S.icon('info') + '<span><b>Demo store.</b> Your details are stored only in this browser (localStorage). Nothing is sent to a server.</span></div>') +
       '<form class="auth-form" id="signupForm" novalidate>' +
         '<div class="field"><label for="sName">Full name</label><input id="sName" value="' + S.esc(draft.name) + '" placeholder="Alex Morgan" autocomplete="name"></div>' +
         '<div class="field"><label for="sEmail">Email address</label><input id="sEmail" type="email" value="' + S.esc(draft.email) + '" placeholder="you@example.com" autocomplete="email"></div>' +
@@ -108,6 +108,8 @@
       if (draft.password.length < 8) { S.toast('Password must be at least 8 characters', 'alert'); return; }
       if (!document.getElementById('sTerms').checked) { S.toast('Please accept the terms', 'alert'); return; }
 
+      if (S.serverAccounts()) { submitToServer(); return; }
+
       var res = S.signup(draft);
       if (!res.ok) { S.toast(res.reason, 'alert'); return; }
 
@@ -118,6 +120,44 @@
       });
       renderVerify();
     });
+  }
+
+  /* ----- real accounts: confirm by clicking the link in the email (valid 1 hour) ----- */
+  function submitToServer() {
+    var btn = document.querySelector('#signupForm button[type=submit]');
+    if (btn) btn.disabled = true;
+    window.LadydeeAPI.auth('signup', { fullName: draft.name, email: draft.email, phone: draft.phone, password: draft.password }).then(function (r) {
+      if (btn) btn.disabled = false;
+      var d = r.data || {};
+      if (r.ok && d.success) { draft.password = ''; renderCheckEmail(); return; }
+      S.toast(d.error || r.error || 'Could not create the account. Please try again.', 'alert');
+    });
+  }
+
+  function renderCheckEmail() {
+    setSteps(2);
+    document.getElementById('authBody').innerHTML =
+      '<div style="text-align:center"><div class="confirm-badge">' + S.icon('mail') + '</div>' +
+      '<h1>Check your email</h1>' +
+      '<p>We sent a confirmation link to <b>' + S.esc(draft.email) + '</b>. Click it to activate your account. You cannot sign in until you do.</p></div>' +
+      '<div class="deliv-note" style="margin:16px 0">' + S.icon('info') + '<span>The link works for <b>1 hour</b>. If you do not confirm in time, this sign-up is deleted and you can start again. Check your spam folder too.</span></div>' +
+      '<div style="display:grid;gap:10px">' +
+        '<button class="btn btn-primary btn-lg btn-block" id="resendLink" type="button">Resend the link</button>' +
+        '<button class="btn btn-outline btn-lg btn-block" id="otherEmail" type="button">Use a different email</button>' +
+      '</div>' +
+      '<p class="auth-alt">Already confirmed? <a href="/login">Sign in</a></p>';
+
+    document.getElementById('resendLink').addEventListener('click', function () {
+      var b = this; b.disabled = true;
+      window.LadydeeAPI.auth('resend', { email: draft.email }).then(function (r) {
+        b.disabled = false;
+        var d = r.data || {};
+        if (r.ok && d.success) { S.toast('A new link is on its way', 'mail'); return; }
+        S.toast(d.error || r.error || 'Could not resend. Please try again.', 'alert');
+        if (d.code === 'not_found') renderDetails();
+      });
+    });
+    document.getElementById('otherEmail').addEventListener('click', function () { draft.email = ''; renderDetails(); });
   }
 
   function renderVerify() {
@@ -185,7 +225,8 @@
       '</div>';
   }
 
-  renderDetails();
+  var API = window.LadydeeAPI;
+  (API && API.probe ? API.probe() : Promise.resolve()).then(renderDetails);
 })();
 </script>
 </body>

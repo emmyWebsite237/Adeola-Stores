@@ -19,6 +19,8 @@ export default async function handler(req, res) {
     integrations: {
       database: !!process.env.DATABASE_URL,
       brevo: !!(s.brevo_api_key && s.brevo_sender_email),
+      /* real sign-up/login needs the database AND working email */
+      accounts: !!process.env.DATABASE_URL && !!(s.brevo_api_key && s.brevo_sender_email),
       brevoKey: !!s.brevo_api_key,
       brevoSender: !!s.brevo_sender_email,
       openai: !!s.openai_api_key,

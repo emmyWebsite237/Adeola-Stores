@@ -1,0 +1,6 @@
+Delete these files from your GitHub repo BEFORE deploying:
+
+  api/auth/signup.js     (replaced by api/auth/[action].js - if left in place it would still answer /api/auth/signup with the OLD code)
+  api/auth/verify.js     (same reason)
+  build-catalog.js       (replaced by build-catalog.cjs)
+  build-components.js    (replaced by build-components.cjs)

@@ -57,11 +57,65 @@
 (function () {
   var S = window.Ladydee;
   S.mount('products');
+  var API = window.LadydeeAPI;
+  (API && API.probe ? API.probe() : Promise.resolve()).then(init);
+
+  function init() {
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
 
   /* the demo note is static markup — inject its icon */
   var note = document.querySelector('.demo-note');
-  if (note) note.innerHTML = S.icon('info') + '<span><b>Demo account:</b> alex@example.com / demo1234</span>';
+  if (note) {
+    if (S.serverAccounts()) note.parentNode.removeChild(note);
+    else note.innerHTML = S.icon('info') + '<span><b>Demo account:</b> alex@example.com / demo1234</span>';
+  }
+
+  var form = document.getElementById('loginForm');
+  /* messages coming back from the confirmation link */
+  if (S.param('verified')) {
+    form.insertAdjacentHTML('beforebegin', '<div class="deliv-note" id="verifyNotice" style="margin-bottom:16px">' + S.icon('checkCircle') + '<span><b>Email confirmed.</b> You can sign in now.</span></div>');
+  } else if (S.param('verify')) {
+    form.insertAdjacentHTML('beforebegin', '<div class="deliv-note warn" id="verifyNotice" style="margin-bottom:16px">' + S.icon('alert') + '<span>That confirmation link is no longer valid. If you already confirmed, sign in below. Otherwise <a href="/signup" style="font-weight:700">sign up again</a>.</span></div>');
+  }
+  form.insertAdjacentHTML('beforebegin', '<div id="unverifiedBox"></div>');
+
+  function goNext() {
+    var next = S.param('redirect');
+    if (next && /^\//.test(next) && next.indexOf('//') !== 0) setTimeout(function () { S.go(next); }, 500);
+    else setTimeout(function () { S.go('/account'); }, 500);
+  }
+
+  function showUnverified(email) {
+    var box = document.getElementById('unverifiedBox');
+    box.innerHTML = '<div class="deliv-note warn" style="margin-bottom:16px">' + S.icon('mail') +
+      '<span><b>Confirm your email first.</b> Open the link we sent to ' + S.esc(email) + ' (check spam too). ' +
+      '<a href="#" id="resendConfirm" style="font-weight:700">Send a new link</a></span></div>';
+    document.getElementById('resendConfirm').addEventListener('click', function (e) {
+      e.preventDefault();
+      API.auth('resend', { email: email }).then(function (r) {
+        var d = r.data || {};
+        if (r.ok && d.success) S.toast('A new link is on its way', 'mail');
+        else S.toast(d.error || r.error || 'Could not resend. Please try again.', 'alert');
+      });
+    });
+  }
+
+  function serverLogin(email, pass) {
+    var btn = form.querySelector('button[type=submit]');
+    if (btn) btn.disabled = true;
+    API.auth('login', { email: email, password: pass }).then(function (r) {
+      if (btn) btn.disabled = false;
+      var d = r.data || {};
+      if (r.ok && d.success) {
+        var u = S.sessionFromServer(d.user, d.token);
+        S.toast('Welcome back, ' + (u.name || '').split(' ')[0], 'checkCircle');
+        goNext();
+        return;
+      }
+      if (d.code === 'unverified') { showUnverified(email); return; }
+      S.toast(d.error || r.error || 'Could not sign in. Please try again.', 'alert');
+    });
+  }
 
   var pw = document.getElementById('lPw');
   var toggle = document.getElementById('pwToggle');
@@ -77,6 +131,7 @@
     var email = document.getElementById('lEmail').value.trim();
     var pass = pw.value;
     if (!email || !pass) { S.toast('Enter your email and password', 'alert'); return; }
+    if (S.serverAccounts()) { serverLogin(email, pass); return; }
     var res = S.login(email, pass);
     if (!res.ok) { S.toast(res.reason, 'alert'); return; }
     S.toast('Welcome back, ' + (res.user.name || '').split(' ')[0], 'checkCircle');
@@ -90,6 +145,7 @@
       setTimeout(function () { S.go('/account'); }, 500);
     }
   });
+  }
 })();
 </script>
 </body>

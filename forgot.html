@@ -146,7 +146,80 @@
     });
   }
 
-  renderEmail();
+  /* ----- real accounts: emailed reset link (valid 1 hour) ----- */
+  function renderServerEmail() {
+    setSteps(1);
+    document.getElementById('authBody').innerHTML =
+      '<h1>Reset your password</h1><p>Enter the email on your account and we will send you a reset link.</p>' +
+      '<form class="auth-form" id="fpForm" novalidate>' +
+        '<div class="field"><label for="fpEmail">Email address</label><input id="fpEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>' +
+        '<button class="btn btn-primary btn-lg btn-block" type="submit">Send reset link</button>' +
+      '</form>' +
+      '<p class="auth-alt">Remembered it? <a href="/login">Back to sign in</a></p>';
+    document.getElementById('fpForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var addr = document.getElementById('fpEmail').value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr)) { S.toast('Please enter a valid email', 'alert'); return; }
+      var btn = this.querySelector('button[type=submit]'); btn.disabled = true;
+      window.LadydeeAPI.auth('forgot', { email: addr }).then(function (r) {
+        btn.disabled = false;
+        var d = r.data || {};
+        if (r.ok && d.success) { renderServerSent(addr); return; }
+        S.toast(d.error || r.error || 'Could not send the email. Please try again.', 'alert');
+      });
+    });
+  }
+
+  function renderServerSent(addr) {
+    setSteps(2);
+    document.getElementById('authBody').innerHTML =
+      '<div style="text-align:center"><div class="confirm-badge">' + S.icon('mail') + '</div><h1>Check your email</h1>' +
+      '<p>If an account exists for <b>' + S.esc(addr) + '</b>, we sent a link to choose a new password. It works for 1 hour.</p></div>' +
+      '<p class="auth-alt"><a href="/login">Back to sign in</a></p>';
+  }
+
+  function renderServerNew(token) {
+    setSteps(3);
+    document.getElementById('authBody').innerHTML =
+      '<h1>Set a new password</h1><p>Choose something you have not used before.</p>' +
+      '<form class="auth-form" id="npForm" novalidate>' +
+        '<div class="field"><label for="npPw">New password</label><input id="npPw" type="password" placeholder="At least 8 characters" autocomplete="new-password"></div>' +
+        '<div class="field"><label for="npPw2">Confirm new password</label><input id="npPw2" type="password" placeholder="Repeat it" autocomplete="new-password"></div>' +
+        '<button class="btn btn-primary btn-lg btn-block" type="submit">Update password</button>' +
+      '</form>';
+    document.getElementById('npForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var a = document.getElementById('npPw').value, b = document.getElementById('npPw2').value;
+      if (a.length < 8) { S.toast('Password must be at least 8 characters', 'alert'); return; }
+      if (a !== b) { S.toast('The two passwords do not match', 'alert'); return; }
+      var btn = this.querySelector('button[type=submit]'); btn.disabled = true;
+      window.LadydeeAPI.auth('reset', { token: token, password: a }).then(function (r) {
+        btn.disabled = false;
+        var d = r.data || {};
+        if (r.ok && d.success) {
+          document.getElementById('authBody').innerHTML =
+            '<div style="text-align:center"><div class="confirm-badge">' + S.icon('checkCircle') + '</div><h1>Password updated</h1>' +
+            '<p class="muted" style="margin-bottom:24px">You can now sign in with your new password.</p>' +
+            '<a class="btn btn-primary btn-lg btn-block" href="/login">Go to sign in</a></div>';
+          return;
+        }
+        S.toast(d.error || r.error || 'Could not update the password.', 'alert');
+        if (d.code === 'expired') {
+          document.getElementById('authBody').insertAdjacentHTML('beforeend', '<p class="auth-alt"><a href="/forgot">Request a new reset link</a></p>');
+        }
+      });
+    });
+  }
+
+  var API = window.LadydeeAPI;
+  (API && API.probe ? API.probe() : Promise.resolve()).then(function () {
+    if (S.serverAccounts()) {
+      var t = S.param('token');
+      if (t) renderServerNew(t); else renderServerEmail();
+    } else {
+      renderEmail();
+    }
+  });
 })();
 </script>
 </body>

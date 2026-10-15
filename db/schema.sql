@@ -1,14 +1,18 @@
--- Run once in the Neon SQL Editor. Matches api/auth/signup.js and api/auth/verify.js.
+-- OPTIONAL. The API creates and upgrades these tables itself on first use,
+-- so you do not have to run this. Kept as a reference of the final shape.
 CREATE TABLE IF NOT EXISTS users (
-  id            SERIAL PRIMARY KEY,
-  name          TEXT        NOT NULL,
-  email         TEXT        NOT NULL UNIQUE,
-  password_hash TEXT        NOT NULL,
-  verified      BOOLEAN     NOT NULL DEFAULT FALSE,
-  token         TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                SERIAL PRIMARY KEY,
+  name              TEXT        NOT NULL,
+  email             TEXT        NOT NULL UNIQUE,
+  phone             TEXT,
+  password_hash     TEXT        NOT NULL,
+  verified          BOOLEAN     NOT NULL DEFAULT FALSE,
+  token             TEXT,                 -- hash of the confirmation link token
+  token_expires_at  TIMESTAMPTZ,          -- 60 minutes after sign-up; unconfirmed rows are deleted after this
+  reset_token       TEXT,
+  reset_expires_at  TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS users_token_idx ON users (token);
 
 -- Settings saved from Admin -> Integrations. The API creates this table
 -- automatically on first use, so running this part is optional.
