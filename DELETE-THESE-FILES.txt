@@ -1,6 +1,8 @@
-Delete these files from your GitHub repo BEFORE deploying:
+Delete these files from your GitHub repo (they belong to the old catalogue / old code):
 
-  api/auth/signup.js     (replaced by api/auth/[action].js - if left in place it would still answer /api/auth/signup with the OLD code)
-  api/auth/verify.js     (same reason)
-  build-catalog.js       (replaced by build-catalog.cjs)
-  build-components.js    (replaced by build-components.cjs)
+  utils/products-manifest.js            (old product list - replaced by data/products.csv)
+  api/utils/cloudinary-auto-seed.js     (needed the old list; images are now uploaded per product in the admin)
+  api/auth/signup.js                    (replaced by api/auth/[action].js - if left, it answers with the OLD code)
+  api/auth/verify.js                    (same reason)
+  build-catalog.js                      (replaced by build-catalog.cjs)
+  build-components.js                   (replaced by build-components.cjs)

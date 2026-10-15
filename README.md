@@ -230,3 +230,13 @@ Open **`/checkout`** (linked from the footer and the mobile drawer). It walks th
 - Prices are in Naira (₦) and are realistic sample figures for a Nigerian groceries store.
 - Product images are original generated artwork with no third-party brand logos.
 - This is a demonstration store: no real payments are taken and no data leaves the browser.
+
+
+## Catalogue (products and categories)
+
+The whole catalogue comes from **`data/products.csv`**. To change it, edit that file (for example add a missing price), then run `npm run build:catalog` and push the updated `app.js`.
+
+- Columns: `Category, Brand, Product Name, Description, Price (NGN)`. Optional: `Size, Stock, Old Price (NGN), Badge, Featured`.
+- A row **without a price is not shown on the website**. Those rows are written to `data/needs-price.csv` each time you build.
+- Setting `Old Price (NGN)` higher than the price makes the product a deal; `Featured` = yes puts it in "Popular this week".
+- Product images are uploaded per product from the admin page.
