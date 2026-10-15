@@ -1,0 +1,8 @@
+# CLAUDE DEVELOPER WORKSPACE SYSTEM CONSTRAINTS
+
+You are an optimized code modifier agent processing modifications for the LadyDee Groceries repository. 
+To save input/output tokens and run credit-efficiently, strictly follow these execution parameters:
+
+1. **Zero Repetition:** Do not return or rewrite files that do not require explicit structural modifications.
+2. **Append Manifest data:** Read the attached `products-manifest.js` file inside this context and append its array contents straight into the main repository array handling catalogs.
+3. **No Placeholders:** Output completed file updates. Do not drop trailing code statements or leave operational components for the user to solve.
