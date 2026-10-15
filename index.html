@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body data-page="home">
 
@@ -115,6 +115,19 @@
   </div>
 </section>
 
+<!-- RECENTLY VIEWED -->
+<section class="section--tight" id="recentSection" style="display:none">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Pick up where you left off</span>
+        <h2>Recently viewed</h2>
+      </div>
+    </div>
+    <div class="pgrid" id="recentGrid"></div>
+  </div>
+</section>
+
 <!-- VALUE PROPS -->
 <section class="section--tight">
   <div class="wrap">
@@ -140,10 +153,10 @@
 
 <div id="site-footer"></div>
 
-<script src="components.js?v=10"></script>
-<script src="api-client.js?v=10"></script>
-<script src="app.js?v=10"></script>
-<script src="brevi.js?v=10"></script>
+<script src="components.js?v=11"></script>
+<script src="api-client.js?v=11"></script>
+<script src="app.js?v=11"></script>
+<script src="brevi.js?v=11"></script>
 <script>
 (function () {
   var S = window.Ladydee;
@@ -183,12 +196,34 @@
   });
   document.getElementById('delivTags').innerHTML = tags.join('');
 
-  var featured = S.catalogue().filter(function (p) { return p.badge === 'bestseller' || p.rating >= 4.7; }).slice(0, 8);
-  document.getElementById('featuredGrid').innerHTML = featured.map(function (p) { return S.productCard(p); }).join('');
+  /* Popular: products flagged in admin first, then bestsellers / top-rated, then anything in stock.
+     So the section is never empty as long as the store has products. */
+  var all = S.catalogue();
+  function inStock(p) { return p.stock > 0; }
+  var featured = [];
+  function take(list) { list.forEach(function (p) { if (featured.length < 8 && featured.indexOf(p) < 0) featured.push(p); }); }
+  take(all.filter(function (p) { return p.featured && inStock(p); }));
+  take(all.filter(function (p) { return (p.badge === 'bestseller' || p.rating >= 4.7) && inStock(p); }));
+  take(all.filter(inStock));
+  document.getElementById('featuredGrid').innerHTML = featured.length
+    ? featured.map(function (p) { return S.productCard(p); }).join('')
+    : '<p class="muted">Products are being added. Please check back soon.</p>';
 
-  var deals = S.catalogue().filter(function (p) { return p.oldPrice; })
+  /* Deals: products that have an old price higher than the price. Hidden when there are none. */
+  var deals = all.filter(function (p) { return p.oldPrice && p.oldPrice > p.price && inStock(p); })
     .sort(function (a, b) { return S.discountOf(b) - S.discountOf(a); }).slice(0, 4);
-  document.getElementById('dealsGrid').innerHTML = deals.map(function (p) { return S.productCard(p); }).join('');
+  if (deals.length) {
+    document.getElementById('dealsGrid').innerHTML = deals.map(function (p) { return S.productCard(p); }).join('');
+  } else {
+    document.getElementById('dealsGrid').closest('section').style.display = 'none';
+  }
+
+  /* Recently viewed (browser only) */
+  var recent = S.getRecent().map(function (id) { return S.product(id); }).filter(Boolean).slice(0, 4);
+  if (recent.length) {
+    document.getElementById('recentSection').style.display = '';
+    document.getElementById('recentGrid').innerHTML = recent.map(function (p) { return S.productCard(p); }).join('');
+  }
 
   function tick() {
     var now = new Date();

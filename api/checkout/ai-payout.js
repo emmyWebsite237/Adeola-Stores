@@ -11,6 +11,8 @@
    receipt summary, so the checkout flow never breaks because the AI
    add-on is not configured.
    ============================================================ */
+import { getSettings } from '../../lib/settings.js';
+
 const FALLBACK_SUMMARY = 'Thank you for your order! We are preparing your items for dispatch.';
 
 export default async function handler(req, res) {
@@ -27,7 +29,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'cartItems (non-empty array) and totalAmount are required' });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  const cfg = await getSettings();
+  if (!cfg.openai_api_key) {
     return res.status(200).json({
       success: true,
       aiConfigured: false,
@@ -40,11 +43,11 @@ export default async function handler(req, res) {
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + process.env.OPENAI_API_KEY,
+        Authorization: 'Bearer ' + cfg.openai_api_key,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        model: cfg.openai_model || 'gpt-4o-mini',
         messages: [
           {
             role: 'system',

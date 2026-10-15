@@ -24,7 +24,9 @@
   var api = {
     checked: false,
     available: false,
-    integrations: { database: false, brevo: false, openai: false, cloudinary: false }
+    integrations: { database: false, brevo: false, openai: false, cloudinary: false },
+    publicConfig: {},
+    adminLogin: false
   };
 
   function hasFetch() { return typeof fetch === 'function'; }
@@ -82,6 +84,8 @@
       .then(function (data) {
         api.available = !!(data && data.server);
         api.integrations = (data && data.integrations) || api.integrations;
+        api.publicConfig = (data && data.publicConfig) || {};
+        api.adminLogin = !!(data && data.adminLogin);
         api.checked = true;
         return api;
       })

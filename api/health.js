@@ -1,28 +1,29 @@
 /* ============================================================
    Ladydee Minimart Store — /api/health
-   ------------------------------------------------------------
    GET /api/health
-
-   Lets the frontend find out, once, whether the serverless backend
-   exists AND which integrations are configured — without ever leaking a
-   key. The static build has no /api directory, so this returns a 404
-   there and api-client.js quietly falls back to browser-only behaviour.
-
-   Nothing here reads or returns a secret value; it only reports whether
-   each environment variable is PRESENT.
+   Reports whether the backend exists and which integrations are ready.
+   Never returns a secret: only true/false flags and the public values the
+   browser needs (Cloudinary cloud name + unsigned preset).
    ============================================================ */
-export default function handler(req, res) {
+import { getSettings, adminConfigured } from '../lib/settings.js';
+
+export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  const s = await getSettings();
   res.status(200).json({
     ok: true,
     server: true,
     service: 'ladydee-api',
     time: new Date().toISOString(),
+    adminLogin: adminConfigured(),
     integrations: {
       database: !!process.env.DATABASE_URL,
-      brevo: !!process.env.BREVO_API_KEY,
-      openai: !!process.env.OPENAI_API_KEY,
-      cloudinary: !!(process.env.CLOUDINARY_SECRET || process.env.CLOUDINARY_CLOUD_NAME)
-    }
+      brevo: !!(s.brevo_api_key && s.brevo_sender_email),
+      brevoKey: !!s.brevo_api_key,
+      brevoSender: !!s.brevo_sender_email,
+      openai: !!s.openai_api_key,
+      cloudinary: !!(s.cloudinary_cloud_name && s.cloudinary_upload_preset)
+    },
+    publicConfig: { cloudinary: { cloudName: s.cloudinary_cloud_name, uploadPreset: s.cloudinary_upload_preset } }
   });
 }

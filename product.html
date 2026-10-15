@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body data-page="product">
 
@@ -19,10 +19,10 @@
 
 <div id="site-footer"></div>
 
-<script src="components.js?v=10"></script>
-<script src="api-client.js?v=10"></script>
-<script src="app.js?v=10"></script>
-<script src="brevi.js?v=10"></script>
+<script src="components.js?v=11"></script>
+<script src="api-client.js?v=11"></script>
+<script src="app.js?v=11"></script>
+<script src="brevi.js?v=11"></script>
 <script>
 (function () {
   var S = window.Ladydee;
@@ -38,6 +38,7 @@
   var out = p.stock <= 0;
   var low = p.stock > 0 && p.stock <= 30;
   var wished = S.inWish(p.id);
+  S.trackViewed(p.id);
 
   /* gallery: product shot + scene shot */
   var shots = [p.image, p.scene].filter(Boolean);
@@ -115,6 +116,7 @@
         '<button class="btn btn-outline btn-lg" id="buyBtn" type="button"' + (out ? ' disabled' : '') + '>Buy now</button>' +
         '<button class="icon-btn wish-btn-lg' + (wished ? ' on' : '') + '" id="wishBtn" type="button" aria-label="' + (wished ? 'Remove from wishlist' : 'Add to wishlist') + '" aria-pressed="' + wished + '" style="width:52px;height:52px;border:1.5px solid var(--line);border-radius:50%;position:static;box-shadow:none;background:var(--surface)">' + S.icon('heart') + '</button>' +
       '</div>' +
+      '<a class="wa-btn" target="_blank" rel="noopener" href="' + S.esc(S.whatsappLink('Hello, I would like to order: ' + p.name + ' (' + p.size + ') - ' + S.money(p.price))) + '">' + S.icon('whatsapp') + 'Order on WhatsApp</a>' +
 
       '<div class="pdp-perks">' +
         '<div class="pdp-perk">' + S.icon('truck') + '<span><b>Free delivery</b> on orders over ' + S.money(S.getDeliveryRules().freeOver) + '</span></div>' +

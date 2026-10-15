@@ -1512,3 +1512,15 @@ table.data tr:hover td { background: var(--cream); }
   background: #ffffff; padding: 24px; border-radius: 8px;
   width: 90%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
+
+
+/* ---------- Quick wins: low-stock tag, free-delivery bar, WhatsApp button, integrations ---------- */
+.tag-low { background: #fff3cd; color: #7a5200; }
+.wa-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 12px 18px; border-radius: 999px; background: #25d366; color: #06361a; font-weight: 700; font-size: .92rem; text-decoration: none; }
+.wa-btn svg { width: 18px; height: 18px; }
+.wa-btn:hover { filter: brightness(.95); }
+.fd-bar .fd-text { display: flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--ink); }
+.fd-bar .fd-text svg { width: 18px; height: 18px; color: var(--green); flex: none; }
+.fd-track { height: 8px; background: var(--green-soft); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.fd-track span { display: block; height: 100%; background: var(--green); border-radius: 999px; transition: width .3s; }
+.intg-src { font-size: .72rem; font-weight: 500; color: var(--muted); margin-left: 6px; }

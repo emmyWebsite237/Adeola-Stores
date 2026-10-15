@@ -92,7 +92,7 @@ _redirects    the same clean URLs for Netlify
 | `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` / `BREVO_REPLY_TO` | Sender + reply-to addresses |
 | `SITE_URL` | Base URL used in verification links |
 
-With `BREVO_API_KEY` set, `brevi.js` sends through `/api/email/send` and the key never reaches the browser — that is what fixes the previously blocked client-side mail setup. The admin console's **API keys** tab has a **Check backend** button that reports which integrations are live.
+With `BREVO_API_KEY` set, `brevi.js` sends through `/api/email/send` and the key never reaches the browser — that is what fixes the previously blocked client-side mail setup. The admin console's **System status** tab has a **Check backend** button that reports which integrations are live.
 
 ### Optional sign-in gate
 
@@ -142,35 +142,18 @@ Config files are included for the common static hosts:
 
 ---
 
-## 4. Brevi email
+## 4. Integrations (one admin tab)
 
-Order confirmations, sign-up verification and password-reset emails are sent through **Brevi** (Brevo-compatible transactional email API).
+Every key is entered in **Admin → Integrations** and saved on the server (Neon `settings` table). Nothing is stored in the browser.
 
-### Demo mode (default)
+Only two variables are needed in Vercel (Settings → Environment Variables), then redeploy:
 
-With no API key configured, nothing is sent anywhere. Instead the exact email that *would* be sent is stored locally and can be previewed:
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Neon connection string. Without it nothing can be saved. |
+| `ADMIN_PASSWORD` | The admin sign-in password, checked on the server. |
 
-- After checkout → **“Preview confirmation email”** on the order confirmation screen.
-- On sign-up / forgot-password → the **“Preview email”** button on the verification step.
-- In the admin console → **Brevi email** tab → the email log, with a preview button per message.
-
-### Going live
-
-1. Get an API key from your Brevi / Brevo account.
-2. Open the admin console → **Brevi email**.
-3. Paste the key into **Brevi API key**, check the sender name and email, and save.
-4. Click **Send test email** to confirm it works.
-
-The key is stored in `localStorage` only and is sent to nothing except the configured endpoint. You can also set it from the browser console:
-
-```js
-LadydeeEmail.setConfig({ apiKey: 'xkeysib-…' });
-LadydeeEmail.isLive();   // true once a key is set
-```
-
-Default endpoint: `https://api.brevo.com/v3/smtp/email` (change it in the admin settings if your Brevi endpoint differs).
-
----
+Then sign in at the admin page and fill the tab: Brevo (API key + verified sender email), Cloudinary (cloud name + unsigned preset), OpenAI (optional), Paystack, site URL. Use **Send test** under Email to confirm it works; failures show Brevo's reason.
 
 ## 5. Admin console
 
@@ -178,14 +161,13 @@ Path: **`/adeolaadaccess112`** (deliberately not `/admin`). Password: `ladydee20
 
 - **Dashboard** — revenue, orders, pending confirmations, stock alerts, registered customers, coupon redemptions.
 - **Products** — add, edit and delete products. The form takes **2–3 images from your device**, shows a preview tile for each with a **Primary image** radio to pick the cover, plus name, category, price and description. Images upload to **Cloudinary** and the secure URLs are saved with the product.
-- **API keys** — enter and save your own integration keys (Cloudinary cloud name / API key / upload preset, Brevo API key + sender + reply-to, Paystack public + secret). Stored in `localStorage` and used by the site. Each field is labelled with whether it is safe client-side, testing-only, or needs a server proxy.
+- **Integrations** — the single tab for every API key and setting (saved on the server).
 - **Inventory** — stock levels with low-stock (≤30) and out-of-stock alerts, quick ±10 adjustments and restock.
 - **Orders** — view every order, confirm or reject pending ones, advance status, open the full order detail.
 - **Live deliveries** — a five-column board (Placed → Confirmed → Packed → Out for delivery → Delivered) with move-forward/back controls and a tracking timeline.
 - **Coupons** — create percentage coupons with a **usage limit** and a live redemption counter; activate, deactivate or delete.
 - **Customers** — every registered account with order count, total spend, verification status and CSV export.
 - **Delivery & fees** — edit zone fees, the free-delivery threshold, the percentage-off-delivery rule, the member perk, and add or remove delivery promo codes.
-- **Brevi email** — API key, sender details, test send and the full email log.
 
 ---
 
@@ -218,7 +200,7 @@ The final fee, the saving and the reason are itemised in the order summary befor
 
 Uploaded products appear in the storefront grid, search, wishlist and product pages immediately.
 
-**Cloudinary setup.** Create a free Cloudinary account, then in **Settings → Upload** create an **unsigned upload preset**. Enter your **cloud name** and the **preset name** in the admin's **API keys** tab. An unsigned preset is designed to be public — it can only upload, never read or delete your library. Your Cloudinary **API secret** must never be placed in the site.
+**Cloudinary setup.** Create a free Cloudinary account, then in **Settings → Upload** create an **unsigned upload preset**. Set `CLOUDINARY_CLOUD_NAME` and `CLOUDINARY_UPLOAD_PRESET` as server environment variables and redeploy; the product form picks them up from `/api/health`. An unsigned preset can only upload, never read or delete. Never put your API secret in the site.
 
 **No Cloudinary configured?** The form still works: images are stored as local data URLs so you can test the whole flow offline. Add the keys when you are ready to go live.
 

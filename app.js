@@ -482,8 +482,13 @@
     emails: 'ladydee_email_log', brevi: 'ladydee_brevi_config', seeded: 'ladydee_seeded_v1',
     store: 'ladydee_store_info',
     adminProducts: 'ladydee_admin_products', adminDeleted: 'ladydee_admin_deleted',
-    integrations: 'ladydee_integrations', paystack: 'ladydee_paystack_demo'
+    paystack: 'ladydee_paystack_demo'
   };
+
+  /* One-time cleanup: API keys used to be typed into the admin and kept in
+     localStorage. They now live only in server environment variables, so any
+     leftovers in this browser are removed. */
+  try { ['ladydee_integrations', 'ladydee_brevi_config'].forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
 
   /* ---------- Store contact details (editable in the admin console) ---------- */
   var STORE_DEFAULTS = {
@@ -829,7 +834,7 @@
         var d = daysFromNow(-daysAgo);
         return {
           code: code, date: d.toISOString(), status: status,
-          items: items.map(function (it) {
+          items: items.filter(function (it) { return product(it.id); }).map(function (it) {
             var p = product(it.id);
             return { id: it.id, name: p.name, size: p.size, image: p.image, price: p.price, qty: it.qty };
           }),
@@ -845,7 +850,7 @@
         mk('LDM-2026-10482', 2, 'out-for-delivery', [{ id: 'rice-10kg', qty: 1 }, { id: 'oil-5l', qty: 1 }, { id: 'tomato-paste', qty: 4 }], 'island', 'Card'),
         mk('LDM-2026-10391', 9, 'delivered', [{ id: 'noodles', qty: 1 }, { id: 'milk-powder', qty: 2 }, { id: 'sugar', qty: 1 }], 'mainland', 'Bank transfer'),
         mk('LDM-2026-10277', 21, 'delivered', [{ id: 'rice-50kg', qty: 1 }, { id: 'beans-10kg', qty: 1 }], 'island', 'Pay on delivery')
-      ]);
+      ].filter(function (o) { return o.items.length; }));
     }
     write(K.seeded, true);
   }
@@ -1197,6 +1202,7 @@
           (p.badge === 'bestseller' ? '<span class="tag tag-best">Bestseller</span>' : '') +
           (p.badge === 'new' ? '<span class="tag tag-new">New</span>' : '') +
           (out ? '<span class="tag tag-out">Out of stock</span>' : '') +
+          (!out && p.stock > 0 && p.stock <= 10 ? '<span class="tag tag-low">Only ' + p.stock + ' left</span>' : '') +
         '</div>' +
         '<button class="wish-btn' + (wished ? ' on' : '') + '" data-wish="' + p.id + '" type="button" aria-label="' +
           (wished ? 'Remove from wishlist' : 'Add to wishlist') + '" aria-pressed="' + wished + '">' + icon('heart') + '</button>' +
@@ -1254,25 +1260,18 @@
     }, 2500);
   }
 
-  /* ---------- Integration settings (admin-editable API keys) ---------- */
-  var INTEGRATION_DEFAULTS = {
-    cloudName: '', cloudApiKey: '', cloudPreset: '',
-    brevoKey: '', brevoSenderEmail: '', brevoReplyTo: '',
-    paystackPublic: '', paystackSecret: ''
-  };
-  function getIntegrations() {
-    var saved = read(K.integrations, null) || {};
-    var out = {};
-    Object.keys(INTEGRATION_DEFAULTS).forEach(function (k) {
-      out[k] = (saved[k] != null) ? String(saved[k]) : INTEGRATION_DEFAULTS[k];
-    });
-    return out;
+  /* ---------- Recently viewed + WhatsApp ordering ---------- */
+  var RECENT_KEY = 'ladydee_recent';
+  function getRecent() { var r = read(RECENT_KEY, []); return Array.isArray(r) ? r : []; }
+  function trackViewed(id) {
+    if (!id) return;
+    var r = getRecent().filter(function (x) { return x !== id; });
+    r.unshift(id);
+    write(RECENT_KEY, r.slice(0, 8));
   }
-  function setIntegrations(patch) {
-    var cur = getIntegrations();
-    Object.keys(patch || {}).forEach(function (k) { if (k in INTEGRATION_DEFAULTS) cur[k] = patch[k]; });
-    write(K.integrations, cur);
-    return getIntegrations();
+  function whatsappLink(text) {
+    var n = String(getStoreInfo().phoneHref || '').replace(/\D/g, '');
+    return 'https://wa.me/' + n + (text ? '?text=' + encodeURIComponent(text) : '');
   }
 
   /* ---------- Global delegated events ---------- */
@@ -1376,7 +1375,7 @@
     icon: icon, esc: esc, money: money, param: param, stars: stars, fmtDate: fmtDate, daysFromNow: daysFromNow,
     CATEGORIES: CATEGORIES, PRODUCTS: PRODUCTS, ZONES: ZONES,
     catalogue: catalogue, imgUrl: imgUrl, initLazyImages: initLazyImages,
-    getIntegrations: getIntegrations, setIntegrations: setIntegrations, INTEGRATION_DEFAULTS: INTEGRATION_DEFAULTS,
+    getRecent: getRecent, trackViewed: trackViewed, whatsappLink: whatsappLink,
     product: product, catName: catName, catIcon: catIcon, discountOf: discountOf, searchProducts: searchProducts,
     getCart: getCart, addToCart: addToCart, setQty: setQty, removeFromCart: removeFromCart,
     clearCart: clearCart, cartCount: cartCount, cartLines: cartLines, cartSubtotal: cartSubtotal,

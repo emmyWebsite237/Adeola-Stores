@@ -1,14 +1,14 @@
 /* ============================================================
    Ladydee Minimart Store — admin console
    Products CRUD · coupons · orders · live delivery board
-   inventory · customers · delivery config · Brevi settings
-   All state is client-side (localStorage) — demo only.
+   inventory · customers · delivery config · integrations
+   Orders and products are client-side (localStorage); API keys are saved
+   on the server through Admin → Integrations.
    ============================================================ */
 (function () {
   'use strict';
 
   var S = window.Ladydee;
-  var E = window.LadydeeEmail;
 
   var ADMIN_PASSWORD = 'ladydee2026';
   var K = {
@@ -53,21 +53,35 @@
       .reduce(function (n, o) { return n + o.total; }, 0);
   }
 
+  /* ---------- server sign-in helpers ---------- */
+  var TOKEN_KEY = 'ladydee_admin_token';
+  function getToken() { try { return sessionStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; } }
+  function setToken(t) { try { if (t) sessionStorage.setItem(TOKEN_KEY, t); else sessionStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+  function hasToken() {
+    var t = getToken();
+    if (!t) return false;
+    try { return JSON.parse(atob(t.split('.')[0].replace(/-/g, '+').replace(/_/g, '/'))).exp > Date.now(); } catch (e) { return false; }
+  }
+  /* true when the backend exists AND ADMIN_PASSWORD is set on it */
+  function serverMode() { var a = window.LadydeeAPI; return !!(a && a.available && a.adminLogin); }
+  function authHeaders() { return { 'content-type': 'application/json', accept: 'application/json', authorization: 'Bearer ' + getToken() }; }
+
   /* ---------- gate ---------- */
-  function renderGate() {
+  function renderGate(server) {
+    if (server === undefined) server = serverMode();
     el('adminRoot').innerHTML =
       '<div class="admin-gate"><div class="gate-card">' +
         '<span class="logo-mark">' + icon('lock') + '</span>' +
         '<h1>Staff portal</h1>' +
         '<p>Sign in to manage products, orders and deliveries.</p>' +
-        '<div class="demo-note">' + icon('info') + '<span><b>Demo password:</b> ' + ADMIN_PASSWORD + '</span></div>' +
+        (server ? '' : '<div class="demo-note">' + icon('info') + '<span><b>Demo password:</b> ' + ADMIN_PASSWORD + '</span></div>') +
         '<form class="auth-form" id="gateForm">' +
           '<div class="field"><label for="gatePw">Admin password</label>' +
             '<div class="pw-wrap"><input id="gatePw" type="password" placeholder="Enter password" autocomplete="current-password">' +
             '<button class="pw-toggle" type="button" id="gateToggle" aria-label="Show password">' + icon('eye') + '</button></div></div>' +
           '<button class="btn btn-primary btn-lg btn-block" type="submit">' + icon('logOut') + ' Sign in</button>' +
         '</form>' +
-        '<p class="auth-alt"><a href="/">← Back to the store</a></p>' +
+        '<p class="auth-alt"><a href="/">\u2190 Back to the store</a></p>' +
       '</div></div>';
 
     var pw = el('gatePw');
@@ -78,6 +92,16 @@
     });
     el('gateForm').addEventListener('submit', function (e) {
       e.preventDefault();
+      if (server) {
+        fetch('/api/admin/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: pw.value }) })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+            if (res.ok && res.j.token) { setToken(res.j.token); S.write(K.session, { at: Date.now() }); renderShell(); }
+            else S.toast((res.j && res.j.error) || 'Sign-in failed', 'alert');
+          })
+          .catch(function () { S.toast('Could not reach the server', 'alert'); });
+        return;
+      }
       if (pw.value !== ADMIN_PASSWORD) { S.toast('Incorrect password', 'alert'); return; }
       S.write(K.session, { at: Date.now() });
       renderShell();
@@ -105,6 +129,7 @@
 
     el('adminLogout').addEventListener('click', function () {
       localStorage.removeItem(K.session);
+      setToken('');
       S.toast('Signed out of admin', 'logOut');
       renderGate();
     });
@@ -126,8 +151,7 @@
       ['coupons', 'tag', 'Coupons', ''],
       ['customers', 'users', 'Customers', ''],
       ['delivery', 'route', 'Delivery &amp; fees', ''],
-      ['email', 'mail', 'Brevi email', ''],
-      ['integrations', 'plug', 'API keys', ''],
+      ['integrations', 'plug', 'Integrations', ''],
       ['settings', 'store', 'Store details', '']
     ];
     el('adminNav').innerHTML = items.map(function (i) {
@@ -228,6 +252,12 @@
             S.CATEGORIES.map(function (c) { return '<option value="' + c.id + '"' + (p.category === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') +
           '</select></div>' +
           '<div class="field"><label for="prPrice">Price (\u20a6)</label><input id="prPrice" type="number" min="0" step="0.01" value="' + (p.price != null ? p.price : '') + '" placeholder="4500"></div>' +
+          '<div class="field"><label for="prOld">Old price (\u20a6) \u2014 optional, makes it a deal</label><input id="prOld" type="number" min="0" step="0.01" value="' + (p.oldPrice || '') + '" placeholder="5000"></div>' +
+          '<div class="field"><label for="prBadge">Badge</label><select id="prBadge">' +
+            '<option value="">None</option><option value="bestseller"' + (p.badge === 'bestseller' ? ' selected' : '') + '>Bestseller</option><option value="new"' + (p.badge === 'new' ? ' selected' : '') + '>New</option></select></div>' +
+          '<div class="field"><label for="prSize">Size label</label><input id="prSize" value="' + esc(p.size || '') + '" placeholder="5kg bag"></div>' +
+          '<div class="field"><label for="prStock">Stock</label><input id="prStock" type="number" min="0" step="1" value="' + (p.stock != null ? p.stock : 100) + '"></div>' +
+          '<div class="field full"><label style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="prFeatured"' + (p.featured ? ' checked' : '') + ' style="width:auto"> Show in \u201cPopular this week\u201d on the home page</label></div>' +
           '<div class="field full"><label for="prDesc">Description</label><textarea id="prDesc" rows="3" placeholder="What the customer is buying">' + esc(p.description || '') + '</textarea></div>' +
         '</div>' +
         '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">' +
@@ -250,20 +280,25 @@
      data URL when no cloud name / preset is configured, so the form still
      works end-to-end in demo mode. */
   function uploadToCloudinary(file) {
-    var cfg = S.getIntegrations();
-    if (!cfg.cloudName || !cfg.cloudPreset) {
-      return readAsDataURL(file).then(function (d) { return { url: d, local: true }; });
-    }
-    var fd = new FormData();
-    fd.append('file', file);
-    fd.append('upload_preset', cfg.cloudPreset);
-    return fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(cfg.cloudName) + '/image/upload', {
-      method: 'POST', body: fd
-    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }); })
-      .then(function (res) {
-        if (res.ok && res.body && res.body.secure_url) return { url: res.body.secure_url };
-        throw new Error((res.body && res.body.error && res.body.error.message) || ('HTTP ' + res.status));
-      });
+    var API = window.LadydeeAPI;
+    var ready = (API && typeof API.probe === 'function') ? API.probe() : Promise.resolve(null);
+    return ready.then(function (api) {
+      /* Cloud name + unsigned preset are public values served by /api/health. */
+      var cfg = (api && api.publicConfig && api.publicConfig.cloudinary) || {};
+      if (!cfg.cloudName || !cfg.uploadPreset) {
+        return readAsDataURL(file).then(function (d) { return { url: d, local: true }; });
+      }
+      var fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', cfg.uploadPreset);
+      return fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(cfg.cloudName) + '/image/upload', {
+        method: 'POST', body: fd
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }); })
+        .then(function (res) {
+          if (res.ok && res.body && res.body.secure_url) return { url: res.body.secure_url };
+          throw new Error((res.body && res.body.error && res.body.error.message) || ('HTTP ' + res.status));
+        });
+    });
   }
 
   function handleFiles(files) {
@@ -276,7 +311,8 @@
         editingImages.push({ url: r.url, isPrimary: editingImages.length === 0 });
       });
       if (!editingImages.some(function (i) { return i.isPrimary; }) && editingImages.length) editingImages[0].isPrimary = true;
-      S.toast(results.length + ' image' + (results.length === 1 ? '' : 's') + ' added', 'checkCircle');
+      var local = results.some(function (r) { return r.local; });
+      S.toast(local ? 'Cloudinary is not set up on the server, so images were kept in this browser only' : results.length + ' image' + (results.length === 1 ? '' : 's') + ' added', local ? 'alert' : 'checkCircle');
       renderPanel();
     }).catch(function (err) {
       S.toast('Upload failed: ' + err.message, 'alert');
@@ -532,50 +568,6 @@
       '<div style="margin-top:16px"><button class="btn btn-primary" type="button" id="saveZones">' + icon('check') + ' Save zone fees</button></div>';
   }
 
-  /* ---------- brevi email ---------- */
-  function panelEmail() {
-    var cfg = E.getConfig();
-    var live = E.isLive();
-    var log = E.getLog();
-
-    var logRows = log.map(function (e) {
-      return '<div class="email-item"><span class="ei-ico">' + icon('mail') + '</span>' +
-        '<span><b>' + esc(e.subject) + '</b><small>' + esc(e.to) + ' · ' + S.fmtDate(new Date(e.at)) + ' · ' + esc(e.template) + '</small></span>' +
-        '<span class="ei-right"><span class="pill ' + (e.status === 'sent' ? 'pill-ok' : e.status === 'failed' ? 'pill-bad' : 'pill-warn') + '">' + esc(e.status) + '</span>' +
-        '<button class="mini-btn" type="button" data-viewemail="' + e.id + '" aria-label="Preview email">' + icon('eye') + '</button></span></div>';
-    }).join('');
-
-    return head('Brevi email', 'Transactional email for order confirmations and account verification.', '') +
-      '<div class="settings-grid">' +
-        '<div class="setting-card"><h3>Connection</h3>' +
-          '<p>Paste your Brevi API key to send real email. Without a key the store runs in demo mode and shows a preview instead.</p>' +
-          '<div class="alert-row ' + (live ? '' : 'warn') + '" style="margin-bottom:18px">' +
-            '<span class="alert-ico" style="color:' + (live ? 'var(--green)' : 'var(--amber-dark)') + '">' + icon(live ? 'checkCircle' : 'info') + '</span>' +
-            '<span><b>' + (live ? 'Live mode — emails will be sent' : 'Demo mode — nothing is sent') + '</b>' +
-            '<small>' + (live ? 'Your key is stored in this browser only.' : 'Add a key below to switch to live sending.') + '</small></span></div>' +
-          '<div class="form-grid">' +
-            '<div class="field full"><label for="brKey">Brevi API key</label>' +
-              '<input id="brKey" type="password" value="' + esc(cfg.apiKey) + '" placeholder="xkeysib-…" autocomplete="off">' +
-              '<span class="hint">Stored in localStorage. Never sent anywhere except the Brevi endpoint.</span></div>' +
-            '<div class="field full"><label for="brEndpoint">API endpoint</label><input id="brEndpoint" value="' + esc(cfg.endpoint) + '"></div>' +
-            '<div class="field"><label for="brSenderName">Sender name</label><input id="brSenderName" value="' + esc(cfg.senderName) + '"></div>' +
-            '<div class="field"><label for="brSenderEmail">Sender email</label><input id="brSenderEmail" value="' + esc(cfg.senderEmail) + '"></div>' +
-            '<div class="field full"><label for="brReplyTo">Reply-to email</label><input id="brReplyTo" value="' + esc(cfg.replyTo) + '"></div>' +
-          '</div>' +
-          '<div class="setting-row" style="margin-top:8px"><span><b>Email sending enabled</b><small>Turn off to force demo mode</small></span>' +
-            '<label class="switch"><input type="checkbox" id="brEnabled"' + (cfg.enabled ? ' checked' : '') + '><span class="switch-track"></span></label></div>' +
-          '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">' +
-            '<button class="btn btn-primary" type="button" id="saveBrevi">' + icon('check') + ' Save settings</button>' +
-            '<button class="btn btn-outline" type="button" id="testBrevi">' + icon('send') + ' Send test email</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="setting-card"><h3>Email log</h3><p>Every email the store has prepared or sent from this browser.</p>' +
-          '<div class="email-log">' + (logRows || '<p class="muted" style="font-size:.86rem">No emails yet. Place an order or sign up to generate one.</p>') + '</div>' +
-          (log.length ? '<div style="margin-top:16px"><button class="btn btn-danger btn-sm" type="button" id="clearLog">' + icon('trash') + ' Clear log</button></div>' : '') +
-        '</div>' +
-      '</div>';
-  }
-
   /* ---------- store details ---------- */
   function panelSettings() {
     var s = S.getStoreInfo();
@@ -613,7 +605,7 @@
     var map = {
       dashboard: panelDashboard, products: panelProducts, inventory: panelInventory,
       orders: panelOrders, deliveries: panelDeliveries, coupons: panelCoupons,
-      customers: panelCustomers, delivery: panelDelivery, email: panelEmail, settings: panelSettings,
+      customers: panelCustomers, delivery: panelDelivery, settings: panelSettings,
       integrations: panelIntegrations
     };
     el('adminMain').innerHTML = (map[tab] || panelDashboard)();
@@ -664,6 +656,9 @@
       if (!editingImages.length) { S.toast('Add at least one product image', 'alert'); return; }
       var primary = (editingImages.filter(function (i) { return i.isPrimary; })[0] || editingImages[0]).url;
       var extras = editingImages.map(function (i) { return i.url; }).filter(function (u) { return u !== primary; });
+      var oldP = Number(el('prOld').value);
+      var sv = el('prStock').value.trim();
+      var stockVal = sv === '' ? 100 : Math.max(0, Math.floor(Number(sv)) || 0);
       var p = {
         id: editingProduct.id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString().slice(-4),
         /* required data shape */
@@ -672,15 +667,16 @@
         additionalImages: extras,
         /* storefront fields */
         name: name,
-        size: editingProduct.size || 'Each',
+        size: el('prSize').value.trim() || editingProduct.size || 'Each',
         category: el('prCat').value,
         price: price,
-        oldPrice: editingProduct.oldPrice || null,
-        stock: editingProduct.stock != null ? editingProduct.stock : 100,
+        oldPrice: (oldP && oldP > price) ? oldP : null,
+        stock: stockVal,
+        featured: el('prFeatured').checked,
         image: primary,
         images: [primary].concat(extras),
         scene: editingProduct.scene || 'images/scene-warehouse.png',
-        badge: editingProduct.badge || null,
+        badge: el('prBadge').value || null,
         short: (el('prDesc').value.trim() || name).slice(0, 90),
         description: el('prDesc').value.trim(),
         rating: editingProduct.rating != null ? editingProduct.rating : 4.5,
@@ -834,48 +830,7 @@
       S.toast('Zone fees saved', 'checkCircle'); renderPanel(); return;
     }
 
-    /* brevi */
-    if (t.id === 'saveBrevi') {
-      E.setConfig({
-        apiKey: el('brKey').value.trim(),
-        endpoint: el('brEndpoint').value.trim(),
-        senderName: el('brSenderName').value.trim(),
-        senderEmail: el('brSenderEmail').value.trim(),
-        replyTo: el('brReplyTo').value.trim(),
-        enabled: el('brEnabled').checked
-      });
-      S.toast('Brevi settings saved', 'checkCircle'); renderPanel(); return;
-    }
-    if (t.id === 'testBrevi') {
-      var to = prompt('Send a test email to:', (S.currentUser() && S.currentUser().email) || 'you@example.com');
-      if (!to) return;
-      E.send({
-        to: to, toName: 'Test recipient',
-        subject: 'Ladydee test email',
-        html: E.orderConfirmationHTML({
-          code: 'LDM-TEST-0001', items: [{ name: 'Premium Parboiled Rice', size: '10kg bag', price: 17500, qty: 1 }],
-          subtotal: 17500, discount: 0, deliveryFee: 0, deliveryDiscount: 2000, tax: 1313, total: 18813,
-          coupon: null, payment: 'Card', eta: 'Same day',
-          customer: { name: 'Test recipient', address: '27 Bourdillon Road', city: 'Lagos' }
-        }),
-        template: 'test'
-      }).then(function (res) {
-        if (res.demo) { S.toast('Demo mode — preview opened', 'mail'); E.showPreview(res.entry); }
-        else if (res.ok) S.toast('Test email sent', 'mail');
-        else S.toast('Send failed: ' + (res.error || res.status), 'alert');
-        renderPanel();
-      });
-      return;
-    }
-    if (t.hasAttribute('data-viewemail')) {
-      var eid = t.getAttribute('data-viewemail');
-      var entry = E.getLog().filter(function (x) { return x.id === eid; })[0];
-      if (entry) E.showPreview(entry);
-      return;
-    }
-    if (t.id === 'clearLog') { E.clearLog(); S.toast('Email log cleared', 'trash'); renderPanel(); return; }
-
-    /* integrations */
+    /* system status */
     if (t.id === 'checkBackend') {
       var outEl = el('backendResult');
       if (outEl) outEl.textContent = 'Checking\u2026';
@@ -888,41 +843,11 @@
           return;
         }
         var i = api.integrations || {};
-        outEl.innerHTML = 'Backend online \u2014 ' +
-          ['database', 'brevo', 'openai', 'cloudinary'].map(function (k) {
-            return '<b>' + k + '</b> ' + (i[k] ? '\u2705' : '\u274c not set');
-          }).join(' \u00b7 ');
+        var rows = [['database', 'Database'], ['brevoKey', 'BREVO_API_KEY'], ['brevoSender', 'BREVO_SENDER_EMAIL'], ['openai', 'OpenAI (optional)'], ['cloudinary', 'Cloudinary uploads']];
+        outEl.innerHTML = 'Backend online — ' + rows.map(function (r) {
+          return '<b>' + r[1] + '</b> ' + (i[r[0]] ? '✅' : '❌ not set');
+        }).join(' · ');
       });
-      return;
-    }
-    if (t.id === 'saveIntegrations') {
-      S.setIntegrations({
-        cloudName: el('inCloudName').value.trim(),
-        cloudApiKey: el('inCloudKey').value.trim(),
-        cloudPreset: el('inCloudPreset').value.trim(),
-        brevoKey: el('inBrevoKey').value.trim(),
-        brevoSenderEmail: el('inBrevoSender').value.trim(),
-        brevoReplyTo: el('inBrevoReply').value.trim(),
-        paystackPublic: el('inPayPublic').value.trim(),
-        paystackSecret: el('inPaySecret').value.trim()
-      });
-      /* keep the Brevi email tab in sync with the keys entered here */
-      if (E && E.setConfig) {
-        E.setConfig({
-          apiKey: el('inBrevoKey').value.trim(),
-          senderEmail: el('inBrevoSender').value.trim(),
-          replyTo: el('inBrevoReply').value.trim()
-        });
-      }
-      S.toast('API keys saved', 'checkCircle'); renderPanel(); return;
-    }
-    if (t.id === 'clearIntegrations') {
-      S.setIntegrations(S.INTEGRATION_DEFAULTS);
-      S.toast('API keys cleared', 'trash'); renderPanel(); return;
-    }
-    if (t.hasAttribute('data-reveal')) {
-      var f = el(t.getAttribute('data-reveal'));
-      if (f) { f.type = f.type === 'password' ? 'text' : 'password'; }
       return;
     }
 
@@ -1012,86 +937,157 @@
     el('orderModal').addEventListener('click', function (e) { if (e.target.id === 'orderModal') shut(); });
   }
 
-  /* ---------- integrations (admin-editable API keys) ---------- */
+  /* ---------- integrations: every key in ONE tab, saved on the server ---------- */
+  var INTG = [
+    { id: 'email', title: 'Email \u2014 Brevo', note: 'Order confirmations, verification and password-reset emails. In Brevo: SMTP & API \u2192 API Keys, and verify your sender under Senders.', fields: [
+      ['brevo_api_key', 'Brevo API key', 'secret', 'xkeysib-\u2026'],
+      ['brevo_sender_email', 'Sender email (verified in Brevo)', 'text', 'orders@yourdomain.com'],
+      ['brevo_sender_name', 'Sender name', 'text', 'Ladydee Minimart Store'],
+      ['brevo_reply_to', 'Reply-to email', 'text', 'hello@yourdomain.com'] ] },
+    { id: 'images', title: 'Product images \u2014 Cloudinary', note: 'Used by the product form. The cloud name and the unsigned upload preset are public values (the preset can only upload).', fields: [
+      ['cloudinary_cloud_name', 'Cloud name', 'text', 'your-cloud-name'],
+      ['cloudinary_upload_preset', 'Unsigned upload preset', 'text', 'ladydee_products'] ] },
+    { id: 'ai', title: 'AI basket review \u2014 OpenAI (optional)', note: 'Checkout works without it.', fields: [
+      ['openai_api_key', 'OpenAI API key', 'secret', 'sk-\u2026'],
+      ['openai_model', 'Model', 'text', 'gpt-4o-mini'] ] },
+    { id: 'pay', title: 'Payments \u2014 Paystack', note: 'Saved for the real Paystack checkout step. The demo checkout does not use these yet.', fields: [
+      ['paystack_public_key', 'Public key', 'text', 'pk_live_\u2026'],
+      ['paystack_secret_key', 'Secret key', 'secret', 'sk_live_\u2026'] ] },
+    { id: 'site', title: 'Website', note: 'Used for links inside emails.', fields: [
+      ['site_url', 'Site URL', 'text', 'https://your-site.vercel.app'] ] }
+  ];
+  var intg = null;
+
   function panelIntegrations() {
-    var c = S.getIntegrations();
-    function keyField(id, label, val, hint, badge, badgeCls) {
-      return '<div class="field full"><label for="' + id + '">' + label +
-        (badge ? '<span class="safe-badge ' + badgeCls + '">' + badge + '</span>' : '') + '</label>' +
-        '<div class="key-row"><input id="' + id + '" type="password" value="' + esc(val) + '" autocomplete="off" placeholder="' + esc(hint) + '">' +
-        '<button class="mini-btn" type="button" data-reveal="' + id + '" aria-label="Show or hide">' + icon('eye') + '</button></div></div>';
+    setTimeout(loadIntegrations, 0);
+    return head('Integrations', 'Enter every key and setting here, once. They are saved on the server, never in this browser.', '') +
+      '<div id="intgBody"><div class="muted" style="padding:20px">Loading\u2026</div></div>';
+  }
+
+  function intgNotice(msg) { return '<div class="setting-card"><p style="margin:0">' + msg + '</p></div>'; }
+
+  function postSettings(payload) {
+    return fetch('/api/admin/settings', { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); });
+  }
+
+  function intgExpired() { setToken(''); S.toast('Session expired, please sign in again', 'alert'); renderGate(true); }
+
+  function refreshApi() { var A = window.LadydeeAPI; if (A) { A.checked = false; A.probe(); } }
+
+  function loadIntegrations() {
+    var body = el('intgBody');
+    if (!body) return;
+    if (!serverMode()) {
+      var A = window.LadydeeAPI;
+      body.innerHTML = intgNotice(A && A.available
+        ? 'To use this page, add <code>ADMIN_PASSWORD</code> in Vercel (Settings \u2192 Environment Variables), redeploy, then sign out and sign in again with that password.'
+        : 'The server (<code>/api</code>) cannot be reached. Open the deployed site on Vercel to use this page.');
+      return;
     }
-    /* A server environment variable - read-only here, set in the host dashboard. */
-    function envRow(name, what, level) {
-      return '<div class="env-row ' + level + '"><code>' + name + '</code>' +
-        '<span>' + what + '</span>' +
-        '<span class="safe-badge ' + level + '">' + (level === 'ok' ? 'public' : level === 'warn' ? 'verified sender' : 'server only') + '</span></div>';
-    }
-    return head('API keys &amp; integrations', 'Enter your own keys here. They are saved in this browser (localStorage) and used by the store.', '') +
-      '<div class="settings-grid">' +
-        '<div class="setting-card"><h3>Cloudinary \u2014 product image uploads</h3>' +
-          '<p>Used by the product form to upload images and return secure URLs. Create an <b>unsigned upload preset</b> in your Cloudinary settings.</p>' +
-          '<div class="form-grid">' +
-            '<div class="field"><label for="inCloudName">Cloud name</label><input id="inCloudName" value="' + esc(c.cloudName) + '" placeholder="my-cloud"></div>' +
-            '<div class="field"><label for="inCloudPreset">Upload preset (unsigned)</label><input id="inCloudPreset" value="' + esc(c.cloudPreset) + '" placeholder="ladydee_unsigned"></div>' +
-            keyField('inCloudKey', 'API key (optional)', c.cloudApiKey, '123456789012345', 'safe client-side', 'ok') +
-          '</div>' +
-          '<div class="upload-note">An <b>unsigned preset</b> is designed to be public \u2014 it can only upload, never delete or read your library. Your Cloudinary <b>API secret</b> must never be put here.</div>' +
-        '</div>' +
-        '<div class="setting-card"><h3>Brevo \u2014 transactional email</h3>' +
-          '<p>Order confirmations, sign-up verification and password resets. These mirror the Brevi email tab.</p>' +
-          '<div class="form-grid">' +
-            keyField('inBrevoKey', 'Brevo API key', c.brevoKey, 'xkeysib-\u2026', 'testing only', 'warn') +
-            '<div class="field"><label for="inBrevoSender">Sender email</label><input id="inBrevoSender" type="email" value="' + esc(c.brevoSenderEmail) + '" placeholder="orders@ladydee.ng"></div>' +
-            '<div class="field"><label for="inBrevoReply">Reply-to email</label><input id="inBrevoReply" type="email" value="' + esc(c.brevoReplyTo) + '" placeholder="hello@ladydee.ng"></div>' +
-          '</div>' +
-          '<div class="upload-note">The sender email must be a <b>verified sender</b> in Brevo. The reply-to does not need verification.</div>' +
-        '</div>' +
-        '<div class="setting-card"><h3>Paystack \u2014 test-mode checkout</h3>' +
-          '<p>Used by the <b>Test checkout</b> page to walk through the payment and payout flow with no real money.</p>' +
-          '<div class="form-grid">' +
-            keyField('inPayPublic', 'Public key (test)', c.paystackPublic, 'pk_test_\u2026', 'safe client-side', 'ok') +
-            keyField('inPaySecret', 'Secret key (test)', c.paystackSecret, 'sk_test_\u2026', 'needs a server proxy', 'bad') +
-          '</div>' +
-          '<div class="upload-note">The <b>public key</b> is safe in the browser. The <b>secret key</b> must never be used client-side in production \u2014 it can move money. Route it through a small serverless function.</div>' +
-        '</div>' +
-        '<div class="setting-card"><h3>Server environment variables</h3>' +
-          '<p>These are the keys that must <b>never</b> live in the browser. Set them in your hosting dashboard (Vercel \u2192 Settings \u2192 Environment Variables) and the site picks them up automatically through the <span class="mono">/api</span> routes.</p>' +
-          '<div class="settings-grid">' +
-            envRow('DATABASE_URL', 'Server-side accounts (Neon Postgres)', 'bad') +
-            envRow('BREVO_API_KEY', 'Transactional email \u2014 order, verify, reset', 'bad') +
-            envRow('OPENAI_API_KEY', 'AI basket review at checkout', 'bad') +
-            envRow('CLOUDINARY_SECRET', 'Signed Cloudinary operations', 'bad') +
-            envRow('BREVO_SENDER_EMAIL', 'From address (must be a verified sender)', 'warn') +
-            envRow('BREVO_REPLY_TO', 'Where customer replies go', 'ok') +
-            envRow('SITE_URL', 'Base URL used in verification links', 'ok') +
-          '</div>' +
-          '<div class="upload-note">With <b>BREVO_API_KEY</b> set, <span class="mono">brevi.js</span> sends through <span class="mono">/api/email/send</span> and the key never reaches the browser \u2014 that is the fix for the blocked client-side setup. A copy of this list is in <b>.env.example</b>.</div>' +
-          '<div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
-            '<button class="btn btn-outline" type="button" id="checkBackend">' + icon('plug') + ' Check backend</button>' +
-            '<span id="backendResult" class="muted" style="font-size:.85rem">Not checked yet.</span>' +
-          '</div>' +
-        '</div>' +
-        '<div class="setting-card"><h3>Which keys are safe in the browser?</h3>' +
-          '<div class="alert-row"><span class="alert-ico" style="color:var(--green)">' + icon('checkCircle') + '</span>' +
-            '<span><b>Safe client-side</b><small>Cloudinary cloud name + unsigned preset, Paystack public key, Brevo sender/reply-to addresses.</small></span></div>' +
-          '<div class="alert-row warn"><span class="alert-ico" style="color:var(--amber-dark)">' + icon('alert') + '</span>' +
-            '<span><b>Testing only</b><small>Brevo API key \u2014 anyone with DevTools can read it and send mail as you.</small></span></div>' +
-          '<div class="alert-row crit"><span class="alert-ico" style="color:var(--coral)">' + icon('lock') + '</span>' +
-            '<span><b>Needs a server proxy</b><small>Paystack secret key, Cloudinary API secret. Keep them in server-side environment variables.</small></span></div>' +
-          '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">' +
-            '<button class="btn btn-primary" type="button" id="saveIntegrations">' + icon('check') + ' Save keys</button>' +
-            '<button class="btn btn-outline" type="button" id="clearIntegrations">' + icon('trash') + ' Clear all keys</button>' +
-          '</div>' +
-        '</div>' +
+    if (!hasToken()) { renderGate(true); return; }
+    fetch('/api/admin/settings', { headers: authHeaders() })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+      .then(function (res) {
+        if (res.status === 401) { intgExpired(); return; }
+        if (!res.j || !res.j.success) { body.innerHTML = intgNotice(esc((res.j && res.j.error) || 'Could not load settings')); return; }
+        intg = res.j;
+        drawIntegrations();
+      })
+      .catch(function () { body.innerHTML = intgNotice('Could not reach the server.'); });
+  }
+
+  function srcBadge(key) {
+    var s = intg.source && intg.source[key];
+    return '<span class="intg-src">' + (s === 'admin' ? 'saved here' : s === 'env' ? 'from a server variable' : 'not set') + '</span>';
+  }
+
+  function drawIntegrations() {
+    var body = el('intgBody');
+    if (!body || !intg) return;
+    var warn = intg.dbReady ? '' :
+      '<div class="deliv-note warn" style="margin-bottom:16px">' + icon('alert') +
+      '<span>The database is not connected, so nothing can be saved yet. Add <code>DATABASE_URL</code> (your Neon connection string) in Vercel, then redeploy.</span></div>';
+
+    var cards = INTG.map(function (g) {
+      var fields = g.fields.map(function (f) {
+        var key = f[0], input;
+        if (f[2] === 'secret') {
+          var st = (intg.secrets && intg.secrets[key]) || {};
+          input = '<input id="intg_' + key + '" type="password" autocomplete="new-password" placeholder="' +
+            (st.set ? 'Saved (' + esc(st.preview) + ') \u2014 leave blank to keep' : esc(f[3])) + '">' +
+            (st.set && intg.source[key] === 'admin' ? '<button class="btn btn-ghost btn-sm" type="button" data-intgclear="' + key + '" style="margin-top:6px">Remove saved key</button>' : '');
+        } else {
+          input = '<input id="intg_' + key + '" type="text" autocomplete="off" value="' + esc((intg.values && intg.values[key]) || '') + '" placeholder="' + esc(f[3]) + '">';
+        }
+        return '<div class="field"><label for="intg_' + key + '">' + f[1] + ' ' + srcBadge(key) + '</label>' + input + '</div>';
+      }).join('');
+      var test = g.id !== 'email' ? '' :
+        '<div class="field" style="margin-top:14px"><label for="intg_test_to">Send a test email to (save first)</label>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="intg_test_to" type="email" placeholder="you@example.com" style="flex:1;min-width:200px">' +
+        '<button class="btn btn-outline" type="button" id="testEmail">Send test</button></div>' +
+        '<div class="upload-note" id="testResult"></div></div>';
+      return '<div class="setting-card" style="margin-bottom:16px"><h3>' + g.title + '</h3><p>' + g.note + '</p><div class="form-grid">' + fields + '</div>' + test + '</div>';
+    }).join('');
+
+    body.innerHTML = warn + cards +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:6px">' +
+        '<button class="btn btn-primary" type="button" id="saveIntegrations"' + (intg.dbReady ? '' : ' disabled') + '>' + icon('check') + ' Save all</button>' +
+        '<button class="btn btn-outline" type="button" id="checkBackend">' + icon('plug') + ' Check backend</button>' +
+        '<span id="backendResult" class="muted" style="font-size:.85rem"></span>' +
       '</div>';
+
+    el('saveIntegrations').addEventListener('click', saveIntegrations);
+    el('testEmail').addEventListener('click', testEmail);
+    body.querySelectorAll('[data-intgclear]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var key = b.getAttribute('data-intgclear');
+        if (!window.confirm('Remove the saved key? Features that need it will stop working until you add it again.')) return;
+        postSettings({ clear: [key] }).then(function (res) {
+          if (res.status === 401) { intgExpired(); return; }
+          if (res.j && res.j.success) { S.toast('Saved key removed', 'checkCircle'); refreshApi(); loadIntegrations(); }
+          else S.toast((res.j && res.j.error) || 'Could not remove', 'alert');
+        });
+      });
+    });
+  }
+
+  function saveIntegrations() {
+    var values = {};
+    INTG.forEach(function (g) { g.fields.forEach(function (f) { values[f[0]] = el('intg_' + f[0]).value; }); });
+    var btn = el('saveIntegrations');
+    btn.disabled = true;
+    postSettings({ values: values }).then(function (res) {
+      btn.disabled = false;
+      if (res.status === 401) { intgExpired(); return; }
+      if (res.j && res.j.success) { S.toast('Integrations saved', 'checkCircle'); refreshApi(); loadIntegrations(); }
+      else S.toast((res.j && res.j.error) || 'Could not save', 'alert');
+    }).catch(function () { btn.disabled = false; S.toast('Could not reach the server', 'alert'); });
+  }
+
+  function testEmail() {
+    var out = el('testResult');
+    var to = el('intg_test_to').value.trim();
+    if (!to) { out.textContent = 'Enter an email address first.'; return; }
+    out.textContent = 'Sending\u2026';
+    postSettings({ action: 'test-email', to: to }).then(function (res) {
+      if (res.status === 401) { intgExpired(); return; }
+      var j = res.j || {};
+      if (j.success) { out.textContent = 'Sent. Check the inbox (and spam) of ' + to + '.'; return; }
+      out.textContent = (j.error || 'Failed') + (j.detail ? ' \u2014 Brevo says: ' + j.detail : '');
+    }).catch(function () { out.textContent = 'Could not reach the server.'; });
   }
 
   /* ---------- boot ---------- */
   function boot() {
     S.mount('products');
-    if (S.read(K.session, null)) renderShell();
-    else renderGate();
+    var A = window.LadydeeAPI;
+    var ready = (A && typeof A.probe === 'function') ? A.probe() : Promise.resolve(null);
+    ready.then(function () {
+      var server = serverMode();
+      if (server ? hasToken() : S.read(K.session, null)) renderShell();
+      else renderGate(server);
+    });
   }
 
   window.LadydeeAdmin = { boot: boot, readProducts: readProducts, saveProduct: saveProduct, deleteProduct: deleteProduct };

@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 <script ></script>
 </head>
 <body data-page="cart">
@@ -35,10 +35,10 @@
 
 <div id="site-footer"></div>
 
-<script src="components.js?v=10"></script>
-<script src="api-client.js?v=10"></script>
-<script src="app.js?v=10"></script>
-<script src="brevi.js?v=10"></script>
+<script src="components.js?v=11"></script>
+<script src="api-client.js?v=11"></script>
+<script src="app.js?v=11"></script>
+<script src="brevi.js?v=11"></script>
 <script>
 (function () {
   var S = window.Ladydee;
@@ -115,9 +115,12 @@
     if (t.q.reasons.length) {
       html += '<div class="deliv-note" style="margin-top:14px">' + S.icon('sparkles') + '<span>' + t.q.reasons.join(' · ') + '</span></div>';
     } else if (t.sub > 0 && t.sub < S.getDeliveryRules().freeOver) {
-      var gap = S.getDeliveryRules().freeOver - t.sub;
-      html += '<div class="deliv-note warn" style="margin-top:14px">' + S.icon('truck') +
-        '<span>Add ' + S.money(gap) + ' more to unlock free delivery.</span></div>';
+      var freeAt = S.getDeliveryRules().freeOver;
+      var gap = freeAt - t.sub;
+      var pct = Math.max(4, Math.min(100, Math.round(t.sub / freeAt * 100)));
+      html += '<div class="fd-bar" style="margin-top:14px"><div class="fd-text">' + S.icon('truck') +
+        '<span>Add <b>' + S.money(gap) + '</b> more to unlock free delivery</span></div>' +
+        '<div class="fd-track"><span style="width:' + pct + '%"></span></div></div>';
     }
 
     if (!opts.hidePromo) {
@@ -137,6 +140,10 @@
     }
 
     if (opts.cta) html += '<div style="margin-top:18px">' + opts.cta + '</div>';
+    if (lines.length) {
+      var waText = 'Hello, I would like to order:\n' + lines.map(function (l) { return '- ' + l.qty + ' x ' + l.product.name + ' (' + S.money(l.line) + ')'; }).join('\n') + '\nSubtotal: ' + S.money(t.sub);
+      html += '<a class="wa-btn" style="width:100%;justify-content:center" target="_blank" rel="noopener" href="' + S.esc(S.whatsappLink(waText)) + '">' + S.icon('whatsapp') + 'Order on WhatsApp instead</a>';
+    }
     html += '<div class="secure-note">' + S.icon('lock') + 'Demo checkout — no real payment is taken</div>';
     html += '</div></div>';
     return html;
