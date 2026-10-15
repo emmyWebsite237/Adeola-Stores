@@ -99,7 +99,7 @@
     '<div class="pdp-info">' +
       '<span class="pcard-cat">' + S.esc(S.catName(p.category)) + '</span>' +
       '<h1>' + S.esc(p.name) + '</h1>' +
-      '<div class="pdp-meta">' + S.stars(p.rating) + '<span>' + p.rating + ' · ' + p.reviewCount + ' reviews</span>' +
+      '<div class="pdp-meta">' + (p.reviewCount ? S.stars(p.rating) + '<span>' + p.rating + ' · ' + p.reviewCount + ' reviews</span>' : '<span>New in store</span>') +
         '<span>·</span><span>' + S.esc(p.size) + '</span></div>' +
       '<div class="pdp-price"><b>' + S.money(p.price) + '</b>' +
         (p.oldPrice ? '<s>' + S.money(p.oldPrice) + '</s><span class="pdp-save">Save ' + d + '%</span>' : '') + '</div>' +

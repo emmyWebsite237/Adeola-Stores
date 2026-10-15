@@ -637,6 +637,7 @@
       if (editingProduct.primaryImage && imgs.indexOf(editingProduct.primaryImage) < 0) imgs.unshift(editingProduct.primaryImage);
       if (!imgs.length && editingProduct.image) imgs = [editingProduct.image];
       editingImages = imgs.map(function (u) { return { url: u, isPrimary: u === (editingProduct.primaryImage || editingProduct.image) }; });
+      if (editingProduct.noImage) editingImages = []; /* placeholder is not a real image: start empty so the first upload becomes the cover */
       if (editingImages.length && !editingImages.some(function (i) { return i.isPrimary; })) editingImages[0].isPrimary = true;
       renderPanel(); return;
     }
@@ -682,7 +683,7 @@
         badge: editingProduct.badge || null,
         short: (el('prDesc').value.trim() || name).slice(0, 90),
         description: el('prDesc').value.trim(),
-        rating: editingProduct.rating || 4.5,
+        rating: editingProduct.rating != null ? editingProduct.rating : 4.5,
         reviewCount: editingProduct.reviewCount || 0,
         features: editingProduct.features && editingProduct.features.length ? editingProduct.features : ['Sealed packaging', 'Quality checked'],
         specs: editingProduct.specs && Object.keys(editingProduct.specs).length ? editingProduct.specs : { Packaging: 'Sealed' }
