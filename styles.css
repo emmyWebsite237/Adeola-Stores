@@ -942,6 +942,18 @@ input[type="range"] { width: 100%; accent-color: var(--green); }
 .admin-nav button .an-badge { margin-left: auto; font-size: .7rem; font-weight: 800; background: var(--amber); color: #3a2600; border-radius: 7px; padding: 1px 6px; }
 .admin-main { padding: 26px 28px 60px; background: var(--bg); min-width: 0; }
 .admin-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+.admin-searchbar { display:flex; align-items:center; gap:10px; max-width:760px; min-height:52px; margin:0 0 7px; padding:8px 12px; background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:0 4px 16px rgba(15,23,42,.035); }
+.admin-searchbar:focus-within { border-color:var(--green); box-shadow:0 0 0 3px rgba(31,125,82,.11); }
+.admin-search-icon { display:flex; color:var(--muted); flex:none; }
+.admin-search-icon svg { width:19px; height:19px; }
+.admin-searchbar input { width:100%; min-width:0; border:0; outline:0; background:transparent; color:var(--ink); font:inherit; font-size:.92rem; }
+.admin-searchbar input::placeholder { color:var(--muted); opacity:.9; }
+.admin-searchbar kbd { flex:none; padding:2px 7px; border:1px solid var(--line); border-radius:6px; color:var(--muted); background:var(--cream); font:600 .75rem ui-monospace,monospace; }
+.admin-search-clear { flex:none; color:var(--green); font-size:.8rem; font-weight:800; padding:5px 7px; border-radius:7px; }
+.admin-search-clear:hover { background:var(--cream); }
+.admin-search-clear[hidden] { display:none; }
+.admin-search-status { min-height:17px; margin:0 0 17px 2px; color:var(--muted); font-size:.76rem; }
+
 .admin-head h1 { font-size: 1.5rem; }
 .admin-head p { color: var(--muted); font-size: .88rem; margin-top: 3px; }
 .admin-panel { display: none; }
@@ -1524,3 +1536,5 @@ table.data tr:hover td { background: var(--cream); }
 .fd-track { height: 8px; background: var(--green-soft); border-radius: 999px; overflow: hidden; margin-top: 8px; }
 .fd-track span { display: block; height: 100%; background: var(--green); border-radius: 999px; transition: width .3s; }
 .intg-src { font-size: .72rem; font-weight: 500; color: var(--muted); margin-left: 6px; }
+
+@media (max-width: 640px) { .admin-searchbar { max-width:none; } .admin-searchbar kbd { display:none; } }

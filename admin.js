@@ -110,6 +110,30 @@
 
   /* ---------- shell ---------- */
   var tab = 'dashboard';
+  var adminSearchTerm = '';
+
+  function searchPlaceholder() {
+    var labels = { products: 'products by name, category, size…', inventory: 'products, stock status…', orders: 'order code, customer, phone, address, item…', deliveries: 'order code, customer, city…', coupons: 'coupon code, note, discount…', customers: 'name, email, phone, status…', dashboard: 'recent orders and dashboard data…' };
+    return 'Search ' + (labels[tab] || 'this page') ;
+  }
+
+  function applyAdminSearch() {
+    var root = el('adminMain');
+    if (!root) return;
+    var q = (adminSearchTerm || '').trim().toLowerCase();
+    var selector = 'tbody tr, .board-card, .coupon, .alert-row';
+    var items = Array.prototype.slice.call(root.querySelectorAll(selector));
+    var visible = 0;
+    items.forEach(function (item) {
+      var match = !q || (item.textContent || '').toLowerCase().indexOf(q) !== -1;
+      item.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    var status = el('adminSearchStatus');
+    if (status) status.textContent = q ? (visible + ' matching item' + (visible === 1 ? '' : 's')) : 'Search this section to find records quickly';
+    var input = el('adminDataSearch');
+    if (input && input.value !== adminSearchTerm) input.value = adminSearchTerm;
+  }
 
   function renderShell() {
     el('adminRoot').innerHTML =
@@ -608,14 +632,53 @@
       customers: panelCustomers, delivery: panelDelivery, settings: panelSettings,
       integrations: panelIntegrations
     };
-    el('adminMain').innerHTML = (map[tab] || panelDashboard)();
+    el('adminMain').innerHTML =
+      '<div class="admin-searchbar" role="search">' +
+        '<span class="admin-search-icon">' + icon('search') + '</span>' +
+        '<input id="adminDataSearch" type="search" value="' + esc(adminSearchTerm) + '" placeholder="' + esc(searchPlaceholder()) + '" aria-label="Search records on this admin page" autocomplete="off">' +
+        '<kbd>/</kbd>' +
+        '<button type="button" class="admin-search-clear" id="clearAdminSearch" aria-label="Clear search"' + (adminSearchTerm ? '' : ' hidden') + '>Clear</button>' +
+      '</div>' +
+      '<p class="admin-search-status" id="adminSearchStatus" aria-live="polite">Search this section to find records quickly</p>' +
+      (map[tab] || panelDashboard)();
     renderNav();
+    applyAdminSearch();
   }
+
+  /* ---------- live admin data search ---------- */
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'adminDataSearch') {
+      adminSearchTerm = e.target.value || '';
+      var clear = el('clearAdminSearch');
+      if (clear) clear.hidden = !adminSearchTerm;
+      applyAdminSearch();
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !/INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '')) {
+      var search = el('adminDataSearch');
+      if (search) { e.preventDefault(); search.focus(); search.select(); }
+    }
+    if (e.key === 'Escape' && e.target && e.target.id === 'adminDataSearch') {
+      adminSearchTerm = ''; e.target.value = '';
+      var clear = el('clearAdminSearch'); if (clear) clear.hidden = true;
+      applyAdminSearch();
+    }
+  });
 
   /* ---------- events ---------- */
   document.addEventListener('click', function (e) {
     if (!el('adminRoot') || !el('adminRoot').contains(e.target)) return;
     var t = e.target.closest('button, a'); if (!t) return;
+
+    if (t.id === 'clearAdminSearch') {
+      adminSearchTerm = '';
+      var searchInput = el('adminDataSearch');
+      if (searchInput) { searchInput.value = ''; searchInput.focus(); }
+      t.hidden = true;
+      applyAdminSearch();
+      return;
+    }
 
     if (t.hasAttribute('data-tab')) { tab = t.getAttribute('data-tab'); editingProduct = null; editingCoupon = null; renderPanel(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
 
