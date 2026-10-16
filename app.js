@@ -765,7 +765,6 @@
       t.nav.replace(/<a href=/g, '<a class="drawer-link" href=') +
       '<a class="drawer-link" href="' + toHref('/wishlist') + '">Wishlist</a>' +
       '<a class="drawer-link" href="' + toHref('/cart') + '">Cart</a>' +
-      '<a class="drawer-link" href="' + toHref('/checkout') + '">Test checkout</a>' +
       (u ? '<a class="drawer-link" href="' + toHref('/account') + '">My account</a>'
          : '<a class="drawer-link" href="' + toHref('/login') + '">Sign in</a><a class="drawer-link" href="' + toHref('/signup') + '">Create account</a>');
 

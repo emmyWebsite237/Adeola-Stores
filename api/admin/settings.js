@@ -4,6 +4,7 @@
    Every call needs   Authorization: Bearer <token from /api/admin/login>   */
 import { FIELDS, getSettings, getSettingsDetailed, saveSettings, maskSecret, requireAdmin } from '../../lib/settings.js';
 import { sendBrevo } from '../../lib/brevo.js';
+import { resolvePayment, publicPaymentStatus } from '../../lib/payment-config.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -16,7 +17,13 @@ export default async function handler(req, res) {
       if (FIELDS[k].secret) secrets[k] = { set: !!d.values[k], preview: maskSecret(d.values[k]) };
       else values[k] = d.values[k];
     });
-    return res.status(200).json({ success: true, dbReady: !!process.env.DATABASE_URL, values: values, secrets: secrets, source: d.source });
+    /* The live payment verdict for the admin console: which mode is actually in
+       force, whether checkout can start, and — when it cannot — why. No keys. */
+    return res.status(200).json({
+      success: true, dbReady: !!process.env.DATABASE_URL,
+      values: values, secrets: secrets, source: d.source,
+      payment: publicPaymentStatus(resolvePayment(d.values))
+    });
   }
 
   if (req.method === 'POST') {

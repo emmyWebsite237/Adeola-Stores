@@ -187,9 +187,16 @@
     S.toast(p.name + ' added to cart', 'cart');
     S.refreshBadges();
   });
+  /* ---- Buy Now: express route straight into the REAL secure checkout ----
+     It adds the item, then hands off to /checkout, which is the page that
+     starts the server-backed payment (Paystack test/live, or the sandbox
+     provider when the store is in demo mode). No more detour through a
+     fake demo order. */
   document.getElementById('buyBtn').addEventListener('click', function () {
     S.addToCart(p.id, Number(qty.value) || 1);
-    S.go('/cart');
+    S.refreshBadges();
+    S.toast('Taking you to secure checkout…', 'lock');
+    S.go('/checkout');
   });
 
   /* wishlist */

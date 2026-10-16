@@ -113,7 +113,7 @@
   var adminSearchTerm = '';
 
   function searchPlaceholder() {
-    var labels = { products: 'products by name, category, size…', inventory: 'products, stock status…', orders: 'order code, customer, phone, address, item…', deliveries: 'order code, customer, city…', coupons: 'coupon code, note, discount…', customers: 'name, email, phone, status…', dashboard: 'recent orders and dashboard data…' };
+    var labels = { products: 'products by name, category, size…', inventory: 'products, stock status…', orders: 'order code, customer, phone, address, item…', transactions: 'payment reference, customer, email, status…', deliveries: 'order code, customer, city…', coupons: 'coupon code, note, discount…', customers: 'name, email, phone, status…', dashboard: 'recent orders and dashboard data…' };
     return 'Search ' + (labels[tab] || 'this page') ;
   }
 
@@ -171,6 +171,7 @@
       ['products', 'package', 'Products', ''],
       ['inventory', 'layers', 'Inventory', low],
       ['orders', 'clipboard', 'Orders', pending],
+      ['transactions', 'creditCard', 'Transactions', ''],
       ['deliveries', 'truck', 'Live deliveries', ''],
       ['coupons', 'tag', 'Coupons', ''],
       ['customers', 'users', 'Customers', ''],
@@ -628,7 +629,7 @@
   function renderPanel() {
     var map = {
       dashboard: panelDashboard, products: panelProducts, inventory: panelInventory,
-      orders: panelOrders, deliveries: panelDeliveries, coupons: panelCoupons,
+      orders: panelOrders, transactions: panelTransactions, deliveries: panelDeliveries, coupons: panelCoupons,
       customers: panelCustomers, delivery: panelDelivery, settings: panelSettings,
       integrations: panelIntegrations
     };
@@ -1000,6 +1001,110 @@
     el('orderModal').addEventListener('click', function (e) { if (e.target.id === 'orderModal') shut(); });
   }
 
+  /* ---------- transactions: test / live payment console ----------
+     Lists every payment the store has taken, in any mode, side by side — so
+     you can PROVE test payments work before flipping the store to live.
+     Read-only by design: money state is only ever changed by the provider. */
+  var txFilter = { status: '', mode: '', q: '' };
+  var txData = null;
+
+  function txPill(m) {
+    var cls = m === 'live' ? 'live' : m === 'demo' ? 'demo' : 'test';
+    var label = m === 'live' ? 'Live' : m === 'demo' ? 'Sandbox' : 'Test';
+    return '<span class="tx-mode-pill ' + cls + '">' + label + '</span>';
+  }
+  function txStatusPill(s) {
+    var cls = s === 'paid' ? 'paid' : s === 'failed' ? 'failed' : 'pending';
+    return '<span class="tx-status-pill ' + cls + '">' + esc(s) + '</span>';
+  }
+  function txFmt(v) {
+    if (!v) return '\u2014';
+    try { return new Date(v).toLocaleString('en-NG', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+    catch (e) { return '\u2014'; }
+  }
+
+  function panelTransactions() {
+    setTimeout(loadTransactions, 0);
+    return head('Transactions', 'Every payment the store has taken \u2014 test, live and sandbox side by side. Prove payments work here before you switch the store to live.', '') +
+      '<div id="txBody"><div class="muted" style="padding:20px">Loading\u2026</div></div>';
+  }
+
+  function loadTransactions() {
+    var body = el('txBody');
+    if (!body) return;
+    if (!serverMode()) { body.innerHTML = intgNotice('The server (<code>/api</code>) cannot be reached, so transactions are unavailable. Open the deployed site to use this page.'); return; }
+    if (!hasToken()) { renderGate(true); return; }
+    var qs = [];
+    if (txFilter.status) qs.push('status=' + encodeURIComponent(txFilter.status));
+    if (txFilter.mode) qs.push('mode=' + encodeURIComponent(txFilter.mode));
+    if (txFilter.q) qs.push('q=' + encodeURIComponent(txFilter.q));
+    fetch('/api/admin/orders?limit=100' + (qs.length ? '&' + qs.join('&') : ''), { headers: authHeaders() })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+      .then(function (res) {
+        if (res.status === 401) { intgExpired(); return; }
+        if (!res.j || !res.j.success) { body.innerHTML = intgNotice(esc((res.j && res.j.error) || 'Could not load transactions')); return; }
+        txData = res.j;
+        drawTransactions();
+      })
+      .catch(function () { body.innerHTML = intgNotice('Could not reach the server.'); });
+  }
+
+  function drawTransactions() {
+    var body = el('txBody');
+    if (!body || !txData) return;
+    var pay = txData.payment || {};
+    var t = txData.totals || {};
+    var banner;
+    if (!pay.usable) {
+      banner = '<div class="tx-config-banner bad"><b>Online payment is not available right now.</b><ul>' +
+        (pay.problems || []).map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul></div>';
+    } else if (pay.mode === 'live') {
+      banner = '<div class="tx-config-banner ok"><b>Payments are LIVE.</b> Real cards are being charged and every paid order below moved real money.</div>';
+    } else if (pay.mode === 'demo') {
+      banner = '<div class="tx-config-banner warn"><b>Sandbox mode.</b> The whole checkout journey works but no money can move. Switch the mode to <b>test</b> to run real test payments, then to <b>live</b> when you are satisfied.</div>';
+    } else {
+      banner = '<div class="tx-config-banner ok"><b>Test mode \u2014 connected and working.</b> Payments run against the provider\u2019s test environment, so no real money moves. Complete a test purchase, confirm it lands below as <b>Paid</b>, then switch the mode to <b>live</b>.</div>';
+    }
+
+    var filters = '<div class="tx-modeswitch" style="margin-bottom:16px">' +
+      [['', 'All modes'], ['test', 'Test'], ['live', 'Live'], ['demo', 'Sandbox']].map(function (m) {
+        return '<button type="button" data-txmode="' + m[0] + '"' + (txFilter.mode === m[0] ? ' class="on"' : '') + '>' + m[1] + '</button>';
+      }).join('') +
+      [['', 'All'], ['paid', 'Paid'], ['pending', 'Pending'], ['failed', 'Failed']].map(function (m) {
+        return '<button type="button" data-txstatus="' + m[0] + '"' + (txFilter.status === m[0] ? ' class="on"' : '') + '>' + m[1] + '</button>';
+      }).join('') + '</div>';
+
+    var rows = (txData.orders || []).map(function (o) {
+      return '<tr><td><b class="mono">' + esc(o.reference) + '</b><br><small class="muted">' + txFmt(o.createdAt) + '</small></td>' +
+        '<td>' + esc(o.customerName) + '<br><small class="muted">' + esc(o.email) + '</small></td>' +
+        '<td>' + esc(o.city) + '<br><small class="muted">' + esc(o.phone) + '</small></td>' +
+        '<td>' + txPill(o.paymentMode) + '</td>' +
+        '<td>' + txStatusPill(o.status) + '</td>' +
+        '<td><b>' + money(o.total) + '</b><br><small class="muted">' + o.itemCount + ' item' + (o.itemCount === 1 ? '' : 's') + '</small></td></tr>';
+    }).join('');
+
+    body.innerHTML = banner + filters +
+      '<div class="kpis">' +
+        '<div class="kpi"><span class="kpi-ico" style="background:var(--green-soft);color:var(--green)">' + icon('wallet') + '</span><b>' + money((Number(t.paid_kobo) || 0) / 100) + '</b><small>Paid value (all modes)</small></div>' +
+        '<div class="kpi"><span class="kpi-ico" style="background:var(--green-soft);color:var(--green)">' + icon('checkCircle') + '</span><b>' + (t.orders_paid || 0) + '</b><small>Paid orders</small></div>' +
+        '<div class="kpi"><span class="kpi-ico" style="background:var(--amber-soft);color:var(--amber-dark)">' + icon('clock') + '</span><b>' + (t.orders_pending || 0) + '</b><small>Pending</small></div>' +
+        '<div class="kpi"><span class="kpi-ico" style="background:var(--coral-soft);color:var(--coral)">' + icon('alert') + '</span><b>' + (t.orders_failed || 0) + '</b><small>Failed / abandoned</small></div>' +
+      '</div>' +
+      '<h3 style="font-size:1rem;margin:26px 0 14px">Payments' + (pay.modeLabel ? ' \u00b7 ' + esc(pay.modeLabel) + ' mode' : '') + '</h3>' +
+      '<div class="table-wrap"><div class="table-scroll"><table class="data"><thead><tr>' +
+        '<th>Reference</th><th>Customer</th><th>Delivery</th><th>Mode</th><th>Status</th><th>Total</th>' +
+      '</tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="muted">No transactions yet. Complete a purchase to see it here.</td></tr>') + '</tbody></table></div></div>';
+
+    var b = el('txBody');
+    if (!b) return;
+    b.querySelectorAll('[data-txmode]').forEach(function (btn) {
+      btn.addEventListener('click', function () { txFilter.mode = btn.getAttribute('data-txmode'); loadTransactions(); });
+    });
+    b.querySelectorAll('[data-txstatus]').forEach(function (btn) {
+      btn.addEventListener('click', function () { txFilter.status = btn.getAttribute('data-txstatus'); loadTransactions(); });
+    });
+  }
+
   /* ---------- integrations: every key in ONE tab, saved on the server ---------- */
   var INTG = [
     { id: 'email', title: 'Email \u2014 Brevo', note: 'Order confirmations, verification and password-reset emails. In Brevo: SMTP & API \u2192 API Keys, and verify your sender under Senders.', fields: [
@@ -1013,7 +1118,8 @@
     { id: 'ai', title: 'AI basket review \u2014 OpenAI (optional)', note: 'Checkout works without it.', fields: [
       ['openai_api_key', 'OpenAI API key', 'secret', 'sk-\u2026'],
       ['openai_model', 'Model', 'text', 'gpt-4o-mini'] ] },
-    { id: 'pay', title: 'Payments \u2014 Paystack', note: 'Saved for the real Paystack checkout step. The demo checkout does not use these yet.', fields: [
+    { id: 'pay', title: 'Payments \u2014 Paystack', note: 'These keys now power the real checkout. Set the mode to test while you verify payments, then change it to live when you are ready \u2014 nothing else needs to change. The mode and the key must agree, or checkout is stopped on purpose.', fields: [
+      ['payment_mode', 'Payment mode', 'select', '', [['test', 'Test \u2014 no real money is taken (use while verifying)'], ['live', 'Live \u2014 real cards are charged'], ['demo', 'Sandbox \u2014 offline preview only, no provider']]],
       ['paystack_public_key', 'Public key', 'text', 'pk_live_\u2026'],
       ['paystack_secret_key', 'Secret key', 'secret', 'sk_live_\u2026'] ] },
     { id: 'site', title: 'Website', note: 'Used for links inside emails.', fields: [
@@ -1065,6 +1171,28 @@
     return '<span class="intg-src">' + (s === 'admin' ? 'saved here' : s === 'env' ? 'from a server variable' : 'not set') + '</span>';
   }
 
+  /* The payment verdict, shown right under the key fields: which mode is
+     actually in force, whether checkout can start, and — when it cannot — why.
+     No key value is ever shown. */
+  function payStatusHTML() {
+    var p = intg && intg.payment;
+    if (!p) return '';
+    var cls = !p.usable ? 'bad' : p.mode === 'live' ? 'ok' : 'warn';
+    var head = !p.usable ? 'Online payment is NOT usable yet'
+      : p.mode === 'live' ? 'LIVE — real cards will be charged'
+      : p.mode === 'demo' ? 'Sandbox — no money can move'
+      : 'Test mode — connected and safe';
+    var lines = [];
+    if (p.mode) {
+      lines.push('Mode in force: <b>' + esc(p.modeLabel || p.mode) + '</b>' +
+        (p.keyMode ? ' (the saved key is a ' + esc(p.keyMode) + ' key)' : ' (no Paystack key saved)'));
+    }
+    (p.problems || []).forEach(function (x) { lines.push('\u26a0 ' + esc(x)); });
+    (p.warnings || []).forEach(function (x) { lines.push(esc(x)); });
+    return '<div class="tx-config-banner ' + cls + '" style="margin-top:14px"><b>' + head + '</b><ul>' +
+      lines.map(function (l) { return '<li>' + l + '</li>'; }).join('') + '</ul></div>';
+  }
+
   function drawIntegrations() {
     var body = el('intgBody');
     if (!body || !intg) return;
@@ -1075,7 +1203,12 @@
     var cards = INTG.map(function (g) {
       var fields = g.fields.map(function (f) {
         var key = f[0], input;
-        if (f[2] === 'secret') {
+        if (f[2] === 'select') {
+          var cur = String((intg.values && intg.values[key]) || '').toLowerCase();
+          input = '<select id="intg_' + key + '">' + (f[4] || []).map(function (o) {
+            return '<option value="' + o[0] + '"' + (cur === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+          }).join('') + '</select>';
+        } else if (f[2] === 'secret') {
           var st = (intg.secrets && intg.secrets[key]) || {};
           input = '<input id="intg_' + key + '" type="password" autocomplete="new-password" placeholder="' +
             (st.set ? 'Saved (' + esc(st.preview) + ') \u2014 leave blank to keep' : esc(f[3])) + '">' +
@@ -1090,7 +1223,8 @@
         '<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="intg_test_to" type="email" placeholder="you@example.com" style="flex:1;min-width:200px">' +
         '<button class="btn btn-outline" type="button" id="testEmail">Send test</button></div>' +
         '<div class="upload-note" id="testResult"></div></div>';
-      return '<div class="setting-card" style="margin-bottom:16px"><h3>' + g.title + '</h3><p>' + g.note + '</p><div class="form-grid">' + fields + '</div>' + test + '</div>';
+      var payStatus = g.id !== 'pay' ? '' : payStatusHTML();
+      return '<div class="setting-card" style="margin-bottom:16px"><h3>' + g.title + '</h3><p>' + g.note + '</p><div class="form-grid">' + fields + '</div>' + test + payStatus + '</div>';
     }).join('');
 
     body.innerHTML = warn + cards +

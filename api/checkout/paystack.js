@@ -1,58 +1,46 @@
-import crypto from 'node:crypto';
+/* ============================================================
+   Adeola Stores — /api/checkout/paystack
+   ----------------------------------------------------------------------------
+   The real, server-backed payment route. It powers the SAME purchase journey
+   for test mode and live mode — the only difference is which Paystack key is
+   configured (see lib/payment-config.js, the single test/live switch).
+
+     POST /api/checkout/paystack
+       { items, name, phone, address, city, notes, termsAccepted }
+       -> { success, authorizationUrl, reference, mode }
+
+     GET  /api/checkout/paystack?reference=…
+       -> { success, status:'paid'|'failed'|'pending', order, mode }
+
+   What the server does, in order:
+     1. requires a signed-in, email-verified account
+     2. requires the customer to have accepted the terms (recorded on the order)
+     3. re-prices every line from lib/store-catalog.js — never from the browser
+     4. calculates delivery itself — never from the browser
+     5. refuses to start if PAYMENT_MODE and the secret key disagree
+     6. stores a `pending` order BEFORE talking to Paystack
+     7. only marks the order paid when Paystack confirms the amount, the
+        currency AND the reference all match the stored order
+   ============================================================ */
 import { db, getSettings } from '../../lib/settings.js';
 import { verifySessionToken } from '../../lib/users.js';
-import { STORE_CATALOG } from '../../lib/store-catalog.js';
+import { resolvePayment } from '../../lib/payment-config.js';
+import {
+  normalizeItems, deliveryFeeNgn, newReference, createOrder, findOrderForUser,
+  markPaid, markFailed, safeText, jsonBody, publicOrder, siteOrigin
+} from '../../lib/order.js';
 
-const CURRENCY = 'NGN';
-const MAX_ITEMS = 40;
-const MAX_QTY = 99;
-
-function jsonBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
-  if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch (_) {} }
-  return {};
+function authUser(req) {
+  const header = String((req.headers || {}).authorization || '');
+  return header.indexOf('Bearer ') === 0 ? header.slice(7) : '';
 }
 async function authenticatedUser(req) {
-  const header = String((req.headers || {}).authorization || '');
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  const session = await verifySessionToken(token);
+  const session = await verifySessionToken(authUser(req));
   if (!session || !session.uid) return null;
   const r = await db.query('SELECT id, name, email, phone FROM users WHERE id = $1 AND verified = TRUE', [session.uid]);
   return r.rows[0] || null;
 }
-async function ensureOrdersTable() {
-  await db.query(`CREATE TABLE IF NOT EXISTS store_orders (
-    id BIGSERIAL PRIMARY KEY,
-    reference TEXT NOT NULL UNIQUE,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    email TEXT NOT NULL,
-    customer_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    address TEXT NOT NULL,
-    city TEXT NOT NULL,
-    notes TEXT NOT NULL DEFAULT '',
-    items JSONB NOT NULL,
-    subtotal_kobo BIGINT NOT NULL,
-    delivery_kobo BIGINT NOT NULL,
-    total_kobo BIGINT NOT NULL,
-    currency TEXT NOT NULL DEFAULT 'NGN',
-    status TEXT NOT NULL DEFAULT 'pending',
-    paystack_status TEXT,
-    paid_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )`);
-  await db.query('CREATE INDEX IF NOT EXISTS store_orders_user_created_idx ON store_orders(user_id, created_at DESC)');
-}
-function safeText(value, max) { return String(value == null ? '' : value).trim().slice(0, max); }
-function siteOrigin(req, settings) {
-  const configured = String(settings.site_url || '').trim().replace(/\/+$/, '');
-  if (configured && /^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(configured)) return configured;
-  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '');
-  if (!host || /[^a-z0-9.:-]/i.test(host)) return '';
-  const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
-  return (proto === 'http' ? 'http' : 'https') + '://' + host;
-}
+
 async function paystackRequest(path, secret, body) {
   const response = await fetch('https://api.paystack.co' + path, {
     method: body ? 'POST' : 'GET',
@@ -68,118 +56,164 @@ async function paystackRequest(path, secret, body) {
   }
   return data.data;
 }
-function normalizeItems(input) {
-  if (!Array.isArray(input) || !input.length || input.length > MAX_ITEMS) throw new Error('Your cart is empty or contains too many different items.');
-  const out = [];
-  let subtotal = 0;
-  for (const item of input) {
-    const id = safeText(item && item.id, 120);
-    const qty = Number(item && item.qty);
-    const p = STORE_CATALOG.get(id);
-    if (!p) throw new Error('A product in your cart is not available for secure checkout. Please remove it or contact the store.');
-    if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) throw new Error('One of your item quantities is invalid.');
-    const line = p.price * qty;
-    subtotal += line;
-    out.push({ id, name: p.name, qty, unitPriceNgn: p.price, lineTotalNgn: line });
-  }
-  if (!Number.isSafeInteger(subtotal) || subtotal <= 0 || subtotal > 100000000) throw new Error('The order total is invalid.');
-  return { items: out, subtotal };
-}
+
+/* ------------------------------------------------------------------ POST */
 async function initialize(req, res) {
   const user = await authenticatedUser(req);
-  if (!user) return res.status(401).json({ success: false, code: 'unauthenticated', error: 'Please sign in with a verified account before checkout.' });
+  if (!user) {
+    return res.status(401).json({ success: false, code: 'unauthenticated', error: 'Please sign in with a verified account before checkout.' });
+  }
+
   const body = jsonBody(req);
   const address = safeText(body.address, 500);
   const city = safeText(body.city, 100);
   const phone = safeText(body.phone || user.phone, 40);
   const customerName = safeText(body.name || user.name, 160);
   const notes = safeText(body.notes, 1000);
-  if (!address || !city || !phone || !customerName) return res.status(400).json({ success: false, error: 'Enter your name, phone number, delivery address and city.' });
+  const termsAccepted = body.termsAccepted === true;
+
+  if (!address || !city || !phone || !customerName) {
+    return res.status(400).json({ success: false, error: 'Enter your name, phone number, delivery address and city.' });
+  }
+  if (!termsAccepted) {
+    return res.status(400).json({
+      success: false, code: 'terms_required',
+      error: 'Please accept the Terms & Conditions, Returns Policy and Privacy Policy to continue.'
+    });
+  }
 
   let normalized;
   try { normalized = normalizeItems(body.items); }
   catch (e) { return res.status(400).json({ success: false, error: e.message }); }
 
   const settings = await getSettings(true);
-  const secret = String(settings.paystack_secret_key || process.env.PAYSTACK_SECRET_KEY || '').trim();
-  if (!secret) return res.status(503).json({ success: false, code: 'payment_not_configured', error: 'Online payment is not configured yet. Please contact the store.' });
+  const pay = resolvePayment(settings);
+  if (!pay.usable) {
+    return res.status(503).json({
+      success: false, code: 'payment_not_configured',
+      paymentMode: pay.mode,
+      error: pay.problems[0] || 'Online payment is not configured yet. Please contact the store.'
+    });
+  }
+  if (pay.mode === 'demo') {
+    /* Sandbox is handled by /api/checkout/sandbox — this route never fakes a
+       payment, so it must not be used while PAYMENT_MODE=demo. */
+    return res.status(409).json({
+      success: false, code: 'use_sandbox',
+      error: 'Payments are in sandbox mode. Use the sandbox checkout to preview this order.'
+    });
+  }
 
-  // Delivery is calculated on the server and never accepted from the browser.
-  const deliveryNgn = Number.isInteger(Number(process.env.DELIVERY_FEE_NGN)) && Number(process.env.DELIVERY_FEE_NGN) >= 0
-    ? Number(process.env.DELIVERY_FEE_NGN) : (normalized.subtotal >= 50000 ? 0 : 1500);
+  const deliveryNgn = deliveryFeeNgn(normalized.subtotal);
   const totalNgn = normalized.subtotal + deliveryNgn;
-  const reference = 'LDM-' + Date.now().toString(36).toUpperCase() + '-' + crypto.randomBytes(6).toString('hex').toUpperCase();
+  const reference = newReference();
   const origin = siteOrigin(req, settings);
-  if (!origin) return res.status(500).json({ success: false, error: 'The site URL is not configured. Set SITE_URL in Vercel and try again.' });
+  if (!origin) {
+    return res.status(500).json({ success: false, error: 'The site URL is not configured. Set SITE_URL in your hosting environment and try again.' });
+  }
   const callbackUrl = origin + '/checkout?reference=' + encodeURIComponent(reference);
 
-  await ensureOrdersTable();
-  await db.query(
-    `INSERT INTO store_orders (reference,user_id,email,customer_name,phone,address,city,notes,items,subtotal_kobo,delivery_kobo,total_kobo,currency,status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,'pending')`,
-    [reference,user.id,user.email,customerName,phone,address,city,notes,JSON.stringify(normalized.items),
-      normalized.subtotal * 100,deliveryNgn * 100,totalNgn * 100,CURRENCY]
-  );
+  /* The order exists as `pending` before Paystack is ever called, so a payment
+     can always be traced back to a real order. */
+  await createOrder({
+    reference: reference, userId: user.id, email: user.email, customerName: customerName,
+    phone: phone, address: address, city: city, notes: notes, items: normalized.items,
+    subtotalNgn: normalized.subtotal, deliveryNgn: deliveryNgn, totalNgn: totalNgn,
+    paymentMode: pay.mode, paymentProvider: 'paystack', termsAccepted: termsAccepted
+  });
 
   try {
-    const tx = await paystackRequest('/transaction/initialize', secret, {
+    const tx = await paystackRequest('/transaction/initialize', pay.secretKey, {
       email: user.email,
       amount: totalNgn * 100,
-      currency: CURRENCY,
-      reference,
+      currency: 'NGN',
+      reference: reference,
       callback_url: callbackUrl,
-      metadata: { order_reference: reference, customer_name: customerName, custom_fields: [
-        { display_name: 'Order reference', variable_name: 'order_reference', value: reference }
-      ] }
+      metadata: {
+        order_reference: reference,
+        customer_name: customerName,
+        payment_mode: pay.mode,
+        custom_fields: [
+          { display_name: 'Order reference', variable_name: 'order_reference', value: reference },
+          { display_name: 'Mode', variable_name: 'payment_mode', value: pay.mode }
+        ]
+      }
     });
-    return res.status(200).json({ success: true, authorizationUrl: tx.authorization_url, reference });
+    return res.status(200).json({ success: true, authorizationUrl: tx.authorization_url, reference: reference, mode: pay.mode });
   } catch (e) {
-    await db.query("UPDATE store_orders SET status='failed', paystack_status='initialization_failed', updated_at=NOW() WHERE reference=$1", [reference]);
+    await markFailed(reference, 'initialization_failed');
     console.error('Paystack initialization failed:', e.message);
-    return res.status(502).json({ success: false, error: 'Paystack could not start the payment. No payment has been confirmed; please try again.' });
+    return res.status(502).json({
+      success: false, paymentMode: pay.mode,
+      error: 'Paystack could not start the payment. No payment has been confirmed; please try again.'
+    });
   }
 }
+
+/* ------------------------------------------------------------------- GET */
 async function verify(req, res) {
   const user = await authenticatedUser(req);
   if (!user) return res.status(401).json({ success: false, code: 'unauthenticated', error: 'Please sign in to verify your order.' });
+
   const reference = safeText((req.query || {}).reference, 160);
   if (!reference) return res.status(400).json({ success: false, error: 'Missing payment reference.' });
-  const settings = await getSettings(true);
-  const secret = String(settings.paystack_secret_key || process.env.PAYSTACK_SECRET_KEY || '').trim();
-  if (!secret) return res.status(503).json({ success: false, error: 'Payment verification is not configured.' });
-  await ensureOrdersTable();
-  const orderResult = await db.query('SELECT * FROM store_orders WHERE reference=$1 AND user_id=$2', [reference,user.id]);
-  const order = orderResult.rows[0];
+
+  const order = await findOrderForUser(reference, user.id);
   if (!order) return res.status(404).json({ success: false, error: 'This order was not found for your account.' });
-  if (order.status === 'paid') return res.status(200).json({ success: true, status: 'paid', reference, amount: Number(order.total_kobo) / 100 });
+
+  const settings = await getSettings(true);
+  const pay = resolvePayment(settings);
+
+  /* Already settled — answer from our own record, never re-charge or re-check. */
+  if (order.status === 'paid') {
+    return res.status(200).json({ success: true, status: 'paid', reference: reference, mode: order.payment_mode, amount: Number(order.total_kobo) / 100, order: publicOrder(order) });
+  }
+  if (order.payment_mode === 'demo') {
+    return res.status(200).json({ success: false, status: 'pending', reference: reference, mode: 'demo', error: 'This is a sandbox order. Open the sandbox payment page to complete or decline it.', order: publicOrder(order) });
+  }
+  if (!pay.usable || pay.mode === 'demo') {
+    return res.status(503).json({ success: false, status: 'pending', reference: reference, mode: pay.mode, error: 'Payment verification is not configured right now. Please contact the store.', order: publicOrder(order) });
+  }
+
   try {
-    const tx = await paystackRequest('/transaction/verify/' + encodeURIComponent(reference), secret);
+    const tx = await paystackRequest('/transaction/verify/' + encodeURIComponent(reference), pay.secretKey);
     const amountMatches = Number(tx.amount) === Number(order.total_kobo);
     const currencyMatches = String(tx.currency || '').toUpperCase() === String(order.currency).toUpperCase();
-    if (tx.status === 'success' && amountMatches && currencyMatches && String(tx.reference) === reference) {
-      await db.query("UPDATE store_orders SET status='paid', paystack_status=$2, paid_at=COALESCE(paid_at,NOW()), updated_at=NOW() WHERE reference=$1", [reference, safeText(tx.status,40)]);
-      return res.status(200).json({ success: true, status: 'paid', reference, amount: Number(order.total_kobo) / 100 });
+    const referenceMatches = String(tx.reference) === reference;
+
+    if (tx.status === 'success' && amountMatches && currencyMatches && referenceMatches) {
+      await markPaid(reference, tx.status);
+      const fresh = await findOrderForUser(reference, user.id);
+      return res.status(200).json({ success: true, status: 'paid', reference: reference, mode: pay.mode, amount: Number(fresh.total_kobo) / 100, order: publicOrder(fresh) });
     }
     if (tx.status === 'failed' || tx.status === 'abandoned') {
-      await db.query("UPDATE store_orders SET status='failed', paystack_status=$2, updated_at=NOW() WHERE reference=$1 AND status <> 'paid'", [reference,safeText(tx.status,40)]);
-      return res.status(200).json({ success: false, status: 'failed', reference, error: 'Payment was not successful. Your order has not been marked as paid.' });
+      await markFailed(reference, tx.status);
+      const fresh = await findOrderForUser(reference, user.id);
+      return res.status(200).json({
+        success: false, status: 'failed', reference: reference, mode: pay.mode,
+        error: tx.status === 'abandoned'
+          ? 'You closed the payment page before paying. Your order has not been marked as paid.'
+          : 'Payment was not successful. Your order has not been marked as paid.',
+        order: publicOrder(fresh)
+      });
     }
-    return res.status(200).json({ success: false, status: 'pending', reference, error: 'Payment is not yet confirmed. Please wait a moment and refresh this page.' });
+    return res.status(200).json({ success: false, status: 'pending', reference: reference, mode: pay.mode, error: 'Payment is not yet confirmed. Please wait a moment and refresh this page.', order: publicOrder(order) });
   } catch (e) {
     console.error('Paystack verification failed:', e.message);
-    return res.status(502).json({ success: false, status: 'pending', error: 'We could not verify the payment just yet. Do not pay again immediately; refresh this page shortly.' });
+    return res.status(502).json({ success: false, status: 'pending', reference: reference, mode: pay.mode, error: 'We could not verify the payment just yet. Do not pay again immediately; refresh this page shortly.', order: publicOrder(order) });
   }
 }
+
 export default async function handler(req, res) {
-  res.setHeader('Cache-Control','no-store');
-  if (!process.env.DATABASE_URL) return res.status(503).json({ success:false, error:'The order database is not connected.' });
+  res.setHeader('Cache-Control', 'no-store');
+  if (!process.env.DATABASE_URL) return res.status(503).json({ success: false, error: 'The order database is not connected.' });
   try {
-    if (req.method === 'POST') return await initialize(req,res);
-    if (req.method === 'GET') return await verify(req,res);
-    res.setHeader('Allow','GET, POST');
-    return res.status(405).json({ success:false, error:'Method not allowed' });
+    if (req.method === 'POST') return await initialize(req, res);
+    if (req.method === 'GET') return await verify(req, res);
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (e) {
     console.error('Checkout API failed:', e && e.message ? e.message : e);
-    return res.status(500).json({ success:false, error:'We could not process checkout. Please try again.' });
+    return res.status(500).json({ success: false, error: 'We could not process checkout. Please try again.' });
   }
 }

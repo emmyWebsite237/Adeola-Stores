@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
 <link rel="stylesheet" href="styles.css?v=11">
+<link rel="stylesheet" href="checkout.css?v=1">
 <script ></script>
 </head>
 <body data-page="cart">
@@ -38,12 +39,20 @@
 <script src="components.js?v=11"></script>
 <script src="api-client.js?v=11"></script>
 <script src="app.js?v=11"></script>
+<script src="checkout-flow.js?v=1"></script>
 <script src="brevi.js?v=11"></script>
 <script>
 (function () {
   var S = window.Ladydee;
+  var C = window.LadydeeCheckout;   /* the shared payment engine */
   S.mount('products');
   document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
+
+  /* Online payment state. `termsAccepted` must be ticked before an online
+     payment can start; `payProblem` is set when the server says checkout is
+     not available (missing key, or PAYMENT_MODE disagreeing with the key). */
+  var termsAccepted = false;
+  var payProblem = '';
 
   var TAX = 0.075;
   var step = 1;                       /* 1 cart · 2 delivery · 3 payment · 4 done */
@@ -67,6 +76,27 @@
     form.address = def.address; form.city = def.city; form.phone = def.phone || form.phone;
     zoneId = def.zone || zoneId;
   }
+
+  /* If online payment sent the shopper away to sign in, pick up where they
+     left off instead of making them retype the delivery details. */
+  try {
+    var pending = sessionStorage.getItem('ladydee_pending_checkout');
+    if (pending) {
+      var pd = JSON.parse(pending) || {};
+      ['name', 'phone', 'address', 'city', 'notes'].forEach(function (k) { if (pd[k]) form[k] = pd[k]; });
+      if (pd.zone) zoneId = pd.zone;
+      sessionStorage.removeItem('ladydee_pending_checkout');
+    }
+  } catch (e) {}
+
+  /* Which payment mode is the store in? (test / live / sandbox preview) */
+  function secureNote() {
+    var mode = (C && C.state && C.state.loaded) ? C.state.mode : 'test';
+    if (mode === 'live') return 'Secure payment — you pay on the provider\u2019s page.';
+    if (mode === 'demo') return 'Sandbox preview — no money moves.';
+    return 'Test mode — no real money is taken.';
+  }
+  function isOnlineMethod(m) { return m !== 'Pay on delivery'; }
 
   function totals() {
     var sub = S.cartSubtotal();
@@ -144,7 +174,7 @@
       var waText = 'Hello, I would like to order:\n' + lines.map(function (l) { return '- ' + l.qty + ' x ' + l.product.name + ' (' + S.money(l.line) + ')'; }).join('\n') + '\nSubtotal: ' + S.money(t.sub);
       html += '<a class="wa-btn" style="width:100%;justify-content:center" target="_blank" rel="noopener" href="' + S.esc(S.whatsappLink(waText)) + '">' + S.icon('whatsapp') + 'Order on WhatsApp instead</a>';
     }
-    html += '<div class="secure-note">' + S.icon('lock') + 'Demo checkout — no real payment is taken</div>';
+    html += '<div class="secure-note">' + S.icon('lock') + secureNote() + '</div>';
     html += '</div></div>';
     return html;
   }
@@ -233,14 +263,36 @@
         '<span class="po-right">' + m[3] + '</span></label>';
     }).join('');
 
+    var online = isOnlineMethod(payMethod);
+    var payNote;
+    if (online) {
+      var mode = (C && C.state && C.state.loaded) ? C.state.mode : 'test';
+      var modeLine = mode === 'live'
+        ? 'You will pay securely on the provider\u2019s page. Card details are never entered on this website.'
+        : mode === 'demo'
+          ? 'Sandbox preview: this walks through the real checkout journey with a simulated payment — no money moves.'
+          : 'Test mode: this runs the real checkout journey against the payment provider\u2019s test environment. No real money is taken.';
+      payNote = (payProblem
+          ? '<div class="pays-mode pays-mode--test" style="margin:0 0 16px">' + S.icon('alert') + '<span><b>Online payment is not available right now.</b><small>' + S.esc(payProblem) + ' You can still place the order with Pay on delivery.</small></span></div>'
+          : '') +
+        '<div class="pays-mode ' + (mode === 'demo' ? 'pays-mode--demo' : 'pays-mode--test') + '" style="margin:0 0 14px">' + S.icon('lock') +
+          '<span><b>' + (mode === 'live' ? 'Secure payment' : mode === 'demo' ? 'Sandbox payment' : 'Test payment') + '</b><small>' + modeLine + '</small></span></div>' +
+        C.termsHTML(termsAccepted) +
+        '<div class="deliv-note" style="margin-top:16px">' + S.icon('info') +
+          '<span>The final amount is recalculated on the server from current product prices and delivery rules, so it can differ slightly from the estimate above. You approve the exact amount on the payment page before paying.</span></div>';
+    } else {
+      payNote = '<div class="deliv-note" style="margin-top:20px">' + S.icon('truck') +
+        '<span><b>Nothing is paid now.</b> You pay the rider in cash or by transfer when your order arrives. ' +
+        'Delivery is confirmed by phone before dispatch.</span></div>';
+    }
+
     document.getElementById('cartView').innerHTML =
       '<div class="cart-layout">' +
         '<div class="panel"><div class="panel-head"><b>Payment method</b>' +
           '<button class="btn btn-ghost btn-sm" id="backToDelivery" type="button">' + S.icon('chevronLeft') + ' Back to delivery</button></div>' +
           '<div class="panel-body">' +
             '<div class="pay-options">' + opts + '</div>' +
-            '<div class="deliv-note" style="margin-top:20px">' + S.icon('info') +
-              '<span>This is a demonstration store. No card is charged and no payment details are collected.</span></div>' +
+            '<div style="margin-top:20px">' + payNote + '</div>' +
             '<div style="margin-top:20px;padding:16px;background:var(--cream);border:1px solid var(--line);border-radius:var(--radius)">' +
               '<b style="font-size:.9rem">Delivering to</b>' +
               '<p class="muted" style="font-size:.88rem;margin-top:6px;line-height:1.6">' + S.esc(form.name || '—') + '<br>' +
@@ -248,7 +300,8 @@
               '<p style="font-size:.86rem;margin-top:8px"><b style="color:var(--green)">' + S.esc(S.zone(zoneId).name) + '</b> · ' + S.esc(S.zone(zoneId).eta) + '</p>' +
             '</div>' +
           '</div></div>' +
-        summaryHTML(t, { compact: true, hidePromo: true, cta: '<button class="btn btn-primary btn-lg btn-block" id="placeOrder" type="button">' + S.icon('lock') + ' Place order — ' + S.money(t.total) + '</button>' }) +
+        summaryHTML(t, { compact: true, hidePromo: true, cta: '<button class="btn btn-primary btn-lg btn-block" id="placeOrder" type="button">' + S.icon('lock') +
+          (online ? ' Pay ' + S.money(t.total) + ' securely' : ' Place order — ' + S.money(t.total)) + '</button>' }) +
       '</div>';
   }
 
@@ -328,7 +381,13 @@
       step = 3; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return;
     }
     if (e.target.closest('#backToDelivery')) { step = 2; render(); return; }
-    if (e.target.closest('#placeOrder')) { placeOrder(); return; }
+    if (e.target.closest('#placeOrder')) {
+      /* Online methods go to the real server-backed payment.
+         Pay on delivery keeps its own local confirmation flow. */
+      if (isOnlineMethod(payMethod) && !payProblem) startOnlinePayment();
+      else placeOrder();
+      return;
+    }
     if (e.target.closest('#promoBtn')) {
       var v = document.getElementById('promoInput').value.trim();
       var res = S.applyCoupon(v);
@@ -346,8 +405,50 @@
   document.getElementById('cartView').addEventListener('change', function (e) {
     if (e.target.name === 'zone') { zoneId = e.target.value; render(); return; }
     if (e.target.name === 'pay') { payMethod = e.target.value; render(); return; }
+    if (e.target.id === 'termsAccept') { termsAccepted = e.target.checked; return; }
     if (e.target.hasAttribute('data-qty')) { S.setQty(e.target.getAttribute('data-qty'), e.target.value); render(); return; }
   });
+
+  /* ---- hand the order to the payment provider ---------------------------
+     The cart gets the shopper to the last step; the SERVER owns the order and
+     the amount. We send only product ids and quantities — never a price — and
+     the provider's page shows the exact server-calculated total.
+     If the shopper is not signed in yet we remember the form and return them
+     straight back to the payment step after signing in. */
+  function stashAndSignIn() {
+    try {
+      sessionStorage.setItem('ladydee_pending_checkout', JSON.stringify({
+        name: form.name, phone: form.phone, address: form.address, city: form.city, notes: form.notes, zone: zoneId, step: 3
+      }));
+    } catch (e) {}
+    var base = (S.toHref ? S.toHref('/login') : '/login');
+    location.href = base + (base.indexOf('?') > -1 ? '&' : '?') + 'redirect=' + encodeURIComponent('/cart');
+  }
+
+  function startOnlinePayment() {
+    if (!termsAccepted) { S.toast('Please accept the terms to continue', 'alert'); return; }
+    if (!form.name || !form.phone || !form.address) { S.toast('Please fill in name, phone and address', 'alert'); step = 2; render(); return; }
+    if (!S.authToken()) { stashAndSignIn(); return; }
+
+    var btn = document.getElementById('placeOrder');
+    if (btn) { btn.disabled = true; btn.innerHTML = S.icon('lock') + ' Taking you to secure payment…'; }
+
+    C.startPayment({
+      items: S.getCart().map(function (i) { return { id: i.id, qty: Number(i.qty) }; }),
+      name: form.name, phone: form.phone, address: form.address, city: form.city, notes: form.notes,
+      termsAccepted: true
+    }).then(function (r) {
+      if (r.unauthenticated) { stashAndSignIn(); return; }
+      if (!r.ok) {
+        payProblem = r.error || '';
+        S.toast(r.error || 'We could not start payment. Please try again.', 'alert');
+        render();
+        return;
+      }
+      /* Off to the provider (Paystack, or the sandbox page in demo mode). */
+      location.assign(r.authorizationUrl);
+    });
+  }
 
   function placeOrder() {
     var t = totals();
@@ -382,7 +483,9 @@
     }
   }
 
-  render();
+  /* Load the payment mode before the first paint so the payment step shows
+     the right banner straight away (test / live / sandbox preview). */
+  (C && C.load ? C.load() : Promise.resolve()).then(function () { render(); });
 })();
 </script>
 </body>

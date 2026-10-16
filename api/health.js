@@ -1,11 +1,14 @@
 /* ============================================================
-   Ladydee Minimart Store — /api/health
+   Adeola Stores — /api/health
    GET /api/health
-   Reports whether the backend exists and which integrations are ready.
-   Never returns a secret: only true/false flags and the public values the
-   browser needs (Cloudinary cloud name + unsigned preset).
+   Reports whether the backend exists, which integrations are ready, and — the
+   part the storefront cares about — WHAT PAYMENT MODE THE STORE IS IN.
+
+   Never returns a secret: only true/false flags, the mode NAME, and the public
+   values the browser needs (Cloudinary cloud name + unsigned preset).
    ============================================================ */
 import { getSettings, adminConfigured } from '../lib/settings.js';
+import { resolvePayment, publicPaymentStatus } from '../lib/payment-config.js';
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -26,6 +29,10 @@ export default async function handler(req, res) {
       openai: !!s.openai_api_key,
       cloudinary: !!(s.cloudinary_cloud_name && s.cloudinary_upload_preset)
     },
+    /* Payments: { mode:'test'|'live'|'demo', usable, modeLabel, problems, … }.
+       The storefront uses `mode` to show the right banner and pick the right
+       checkout route; no key is ever included. */
+    payment: publicPaymentStatus(resolvePayment(s)),
     publicConfig: { cloudinary: { cloudName: s.cloudinary_cloud_name, uploadPreset: s.cloudinary_upload_preset } }
   });
 }

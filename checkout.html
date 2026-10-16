@@ -3,15 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Secure checkout — Ladydee Minimart Store</title>
-<meta name="description" content="Securely complete your Ladydee Minimart Store order using Paystack.">
+<title>Secure checkout — Adeola Stores</title>
+<meta name="description" content="Confirm your delivery details and pay securely for your Adeola Stores order.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/styles.css?v=12">
-<style>
-.checkout-wrap{max-width:1080px;margin:36px auto 70px;padding:0 20px}.checkout-heading{margin-bottom:24px}.checkout-heading h1{margin:8px 0;font-size:clamp(1.8rem,4vw,2.5rem)}.checkout-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(290px,.75fr);gap:24px;align-items:start}.checkout-panel{background:var(--surface,#fff);border:1px solid var(--line,#e6e8e5);border-radius:18px;padding:24px;box-shadow:0 8px 28px rgba(22,40,28,.05)}.checkout-panel h2{font-size:1.15rem;margin:0 0 18px}.checkout-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}.checkout-fields .field{margin:0}.checkout-fields .full{grid-column:1/-1}.checkout-fields input,.checkout-fields textarea{width:100%;box-sizing:border-box}.checkout-summary-line{display:flex;gap:12px;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--line,#e6e8e5);font-size:.92rem}.checkout-summary-line:last-child{border-bottom:0}.checkout-total{font-size:1.08rem;font-weight:800}.checkout-item-name{font-weight:700}.checkout-item-sub{display:block;color:var(--muted,#68756b);font-size:.8rem;margin-top:3px}.checkout-notice{padding:14px 16px;border-radius:12px;margin:16px 0;background:#f5f7f4;color:#344238}.checkout-notice.error{background:#fff1ef;color:#9e2f24}.checkout-notice.success{background:#edf9f0;color:#176534}.checkout-button{width:100%;margin-top:18px;justify-content:center}.checkout-secure{font-size:.8rem;color:var(--muted,#68756b);text-align:center;margin:12px 0 0}.checkout-loading{padding:32px 10px;text-align:center}.checkout-spinner{width:28px;height:28px;border:3px solid #dce5dc;border-top-color:var(--green,#287442);border-radius:50%;animation:checkoutspin .8s linear infinite;margin:0 auto 12px}@keyframes checkoutspin{to{transform:rotate(360deg)}}@media(max-width:760px){.checkout-layout{grid-template-columns:1fr}.checkout-summary{order:-1}.checkout-panel{padding:19px}.checkout-wrap{margin-top:24px}}@media(max-width:460px){.checkout-fields{grid-template-columns:1fr}.checkout-fields .full{grid-column:auto}}
-</style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
+<link rel="stylesheet" href="/styles.css?v=13">
+<link rel="stylesheet" href="/checkout.css?v=1">
 </head>
 <body data-page="checkout">
 <div id="site-header"></div>
@@ -19,25 +18,33 @@
   <div class="checkout-heading">
     <span class="eyebrow">Secure checkout</span>
     <h1>Complete your order</h1>
-    <p class="sub">Confirm where to deliver your groceries, then pay securely through Paystack.</p>
+    <p class="sub">Confirm where to deliver your groceries, accept the terms, then pay securely.</p>
   </div>
+  <div id="modeBanner"></div>
   <div id="checkoutMessage" class="checkout-notice" hidden></div>
   <div id="checkoutContent">
     <div class="checkout-loading"><div class="checkout-spinner"></div><p>Checking your account and basket…</p></div>
   </div>
 </main>
 <div id="site-footer"></div>
-<script src="/components.js?v=12"></script>
-<script src="/api-client.js?v=12"></script>
-<script src="/app.js?v=12"></script>
+<script src="/components.js?v=13"></script>
+<script src="/api-client.js?v=13"></script>
+<script src="/app.js?v=13"></script>
+<script src="/checkout-flow.js?v=1"></script>
 <script>
 (function(){
   'use strict';
   var S=window.Ladydee;
   S.mount('checkout');
+  var C=window.LadydeeCheckout;
   var message=document.getElementById('checkoutMessage');
   var content=document.getElementById('checkoutContent');
-  var ref=new URLSearchParams(location.search).get('reference')||'';
+  var params=new URLSearchParams(location.search);
+  var ref=params.get('reference')||'';
+  var sandboxOutcome=params.get('outcome')||'';
+  var isSandboxReturn=params.get('sandbox')==='1';
+  var termsAccepted=false;
+
   function esc(v){return S.esc(String(v==null?'':v));}
   function money(v){return S.money(v);}
   function showMessage(text,type){
@@ -45,16 +52,10 @@
   }
   function hideMessage(){message.hidden=true;message.textContent='';}
   function loginUrl(){
-    var path='/checkout'+(ref?'?reference='+encodeURIComponent(ref):'');
+    var path='/checkout'+(ref?'?reference='+encodeURIComponent(ref)+(isSandboxReturn?'&sandbox=1&outcome='+encodeURIComponent(sandboxOutcome):''):'');
     location.replace('/login?redirect='+encodeURIComponent(path));
   }
-  function request(url,method,body){
-    var headers={'Accept':'application/json','Content-Type':'application/json'};
-    var token=S.authToken();
-    if(token)headers.Authorization='Bearer '+token;
-    return fetch(url,{method:method||'GET',headers:headers,body:body?JSON.stringify(body):undefined,cache:'no-store'})
-      .then(function(r){return r.json().catch(function(){return{};}).then(function(d){return {ok:r.ok,status:r.status,data:d};});});
-  }
+
   function summaryHTML(){
     var lines=S.cartLines();
     if(!lines.length)return '<div class="checkout-panel checkout-summary"><h2>Your basket</h2><p>Your cart is empty.</p><a class="btn btn-primary" href="/products">Browse products</a></div>';
@@ -65,77 +66,108 @@
     html+='<div class="checkout-summary-line"><span>Subtotal</span><b>'+money(S.cartSubtotal())+'</b></div>';
     html+='<div class="checkout-summary-line"><span>Delivery</span><span>Calculated securely on the server</span></div>';
     html+='<div class="checkout-summary-line checkout-total"><span>Total</span><span>Confirmed before payment</span></div>';
-    html+='<p class="checkout-secure"><span aria-hidden="true">🔒</span> Your card details are entered on Paystack, not on this website.</p></div>';
+    html+='<p class="checkout-secure"><span aria-hidden="true">🔒</span> Your card details are entered on the payment provider\'s page, never on this website.</p></div>';
     return html;
   }
+
   function formHTML(user){
     var u=user||{};
     return '<div class="checkout-panel"><h2>Delivery information</h2>'+
       '<form id="deliveryForm" class="checkout-fields" novalidate>'+
       '<div class="field"><label for="buyerName">Full name</label><input id="buyerName" name="name" autocomplete="name" required maxlength="160" value="'+esc(u.name||'')+'"></div>'+
       '<div class="field"><label for="buyerPhone">Phone number</label><input id="buyerPhone" name="phone" autocomplete="tel" required maxlength="40" value="'+esc(u.phone||'')+'"></div>'+
-      '<div class="field full"><label for="buyerAddress">Delivery address</label><textarea id="buyerAddress" name="address" autocomplete="street-address" rows="3" required maxlength="500" placeholder="House number, street, area">'+esc(u.address||'')+'</textarea></div>'+
+      '<div class="field full"><label for="buyerEmail">Email (receipt is sent here)</label><input id="buyerEmail" name="email" type="email" autocomplete="email" value="'+esc(u.email||'')+'" readonly></div>'+
+      '<div class="field full"><label for="buyerAddress">Delivery address</label><textarea id="buyerAddress" name="address" autocomplete="street-address" rows="3" required maxlength="500" placeholder="House number, street, area"></textarea></div>'+
       '<div class="field full"><label for="buyerCity">City / area</label><input id="buyerCity" name="city" autocomplete="address-level2" required maxlength="100" value="'+esc(u.city||'Lagos')+'"></div>'+
       '<div class="field full"><label for="buyerNotes">Delivery notes <span style="font-weight:400">(optional)</span></label><textarea id="buyerNotes" name="notes" rows="2" maxlength="1000" placeholder="Landmark or instructions"></textarea></div>'+
-      '<div class="full"><button class="btn btn-primary btn-lg checkout-button" id="payButton" type="submit">Continue to secure payment</button><p class="checkout-secure">You will be redirected to Paystack to complete payment.</p></div>'+
+      '<div class="full">'+C.termsHTML(false)+'</div>'+
+      '<div class="full"><button class="btn btn-primary btn-lg checkout-button" id="payButton" type="submit">Continue to secure payment</button><p class="checkout-secure">You will be taken to the payment provider to complete payment.</p></div>'+
       '</form></div>';
   }
+
   function bindForm(){
     var form=document.getElementById('deliveryForm');if(!form)return;
+    var terms=document.getElementById('termsAccept');
+    if(terms)terms.addEventListener('change',function(){termsAccepted=terms.checked;});
     form.addEventListener('submit',function(e){
       e.preventDefault();hideMessage();
       if(!form.reportValidity())return;
+      if(!termsAccepted){
+        showMessage('Please accept the Terms & Conditions, Returns Policy and Privacy Policy to continue.','error');
+        if(terms){terms.focus();}
+        return;
+      }
       var cart=S.getCart().map(function(i){return {id:i.id,qty:Number(i.qty)};});
       if(!cart.length){showMessage('Your basket is empty. Add a product before checking out.','error');return;}
       var btn=document.getElementById('payButton');btn.disabled=true;btn.textContent='Preparing secure payment…';
-      request('/api/checkout/paystack','POST',{
+      C.startPayment({
         items:cart,
         name:document.getElementById('buyerName').value,
         phone:document.getElementById('buyerPhone').value,
         address:document.getElementById('buyerAddress').value,
         city:document.getElementById('buyerCity').value,
-        notes:document.getElementById('buyerNotes').value
+        notes:document.getElementById('buyerNotes').value,
+        termsAccepted:true
       }).then(function(r){
-        if(r.status===401){loginUrl();return;}
-        if(!r.ok||!r.data.success||!r.data.authorizationUrl){
-          showMessage((r.data&&r.data.error)||'We could not start payment. Please try again.','error');
+        if(r.unauthenticated){loginUrl();return;}
+        if(!r.ok){
+          showMessage(r.error||'We could not start payment. Please try again.','error');
           btn.disabled=false;btn.textContent='Continue to secure payment';return;
         }
-        location.assign(r.data.authorizationUrl);
-      }).catch(function(){
-        showMessage('A network error prevented checkout. Please check your connection and try again.','error');
-        btn.disabled=false;btn.textContent='Continue to secure payment';
+        location.assign(r.authorizationUrl);
       });
     });
   }
+
   function renderCheckout(user){
     var lines=S.cartLines();
     if(!lines.length){content.innerHTML='<div class="checkout-panel"><h2>Your basket is empty</h2><p>Add some products before checking out.</p><a class="btn btn-primary" href="/products">Start shopping</a></div>';return;}
     content.innerHTML='<div class="checkout-layout">'+formHTML(user)+summaryHTML()+'</div>';
     bindForm();
   }
+
   function renderPaymentResult(){
-    content.innerHTML='<div class="checkout-panel checkout-loading"><div class="checkout-spinner"></div><h2>Verifying your payment</h2><p>Please keep this page open while we confirm the transaction with Paystack.</p></div>';
-    request('/api/checkout/paystack?reference='+encodeURIComponent(ref),'GET').then(function(r){
-      if(r.status===401){loginUrl();return;}
-      if(r.data&&r.data.status==='paid'&&r.data.success){
-        S.clearCart();
-        content.innerHTML='<div class="checkout-panel" style="text-align:center;padding:34px 24px"><div style="font-size:2.6rem" aria-hidden="true">✓</div><h2>Payment verified</h2><p>Your payment has been verified by Paystack and your order is marked as paid.</p><p><b>Order reference:</b> '+esc(ref)+'</p><p><b>Amount paid:</b> '+money(r.data.amount)+'</p><a class="btn btn-primary" href="/account">View your account</a> <a class="btn btn-outline" href="/products">Continue shopping</a></div>';
+    content.innerHTML='<div class="checkout-panel checkout-loading"><div class="checkout-spinner"></div><h2>Verifying your payment</h2><p>Please keep this page open while we confirm the transaction.</p></div>';
+    C.verifyPayment(ref,isSandboxReturn?sandboxOutcome:undefined).then(function(r){
+      if(r.unauthenticated){loginUrl();return;}
+      if(r.ok&&r.status==='paid'){
+        S.clearCart();S.refreshBadges();
+        content.innerHTML='<div class="checkout-done">'+
+          '<div class="checkout-done-head"><div class="checkout-tick" aria-hidden="true">✓</div>'+
+          '<h2>Payment verified</h2><p>Thank you — your order is paid and confirmed. A copy of this receipt is on your account.</p></div>'+
+          C.receiptHTML(r.order,{footNote:'Keep this reference for any delivery question.'})+
+          '<div class="checkout-done-actions">'+
+            '<button class="btn btn-primary" id="printReceipt" type="button">🖨 Print receipt</button>'+
+            '<a class="btn btn-outline" href="/account">View your account</a>'+
+            '<a class="btn btn-ghost" href="/products">Continue shopping</a>'+
+          '</div></div>';
+        var pr=document.getElementById('printReceipt');if(pr)pr.addEventListener('click',C.printReceipt);
       }else{
-        content.innerHTML='<div class="checkout-panel"><h2>'+(r.data&&r.data.status==='failed'?'Payment not completed':'Payment still pending')+'</h2><p>'+esc((r.data&&r.data.error)||'We have not confirmed payment yet. Your order will not be marked as paid until verification succeeds.')+'</p><p><b>Order reference:</b> '+esc(ref)+'</p><button class="btn btn-primary" id="retryVerify" type="button">Check payment again</button> <a class="btn btn-outline" href="/account">My account</a></div>';
-        var retry=document.getElementById('retryVerify');if(retry)retry.addEventListener('click',renderPaymentResult);
+        var title=r.status==='failed'?'Payment not completed':'Payment still pending';
+        content.innerHTML='<div class="checkout-panel checkout-result">'+
+          '<div class="checkout-result-ico '+(r.status==='failed'?'bad':'wait')+'" aria-hidden="true">'+(r.status==='failed'?'×':'⏳')+'</div>'+
+          '<h2>'+title+'</h2><p>'+esc(r.error||'We have not confirmed payment yet. Your order will not be marked as paid until verification succeeds.')+'</p>'+
+          (r.order?'<p class="mono"><b>Order reference:</b> '+esc(r.reference)+'</p>':'<p class="mono"><b>Order reference:</b> '+esc(ref)+'</p>')+
+          '<div class="checkout-done-actions"><button class="btn btn-primary" id="retryVerify" type="button">Check payment again</button>'+
+          '<a class="btn btn-outline" href="/account">My account</a><a class="btn btn-ghost" href="/products">Continue shopping</a></div></div>';
+        var rv=document.getElementById('retryVerify');if(rv)rv.addEventListener('click',renderPaymentResult);
       }
-    }).catch(function(){
-      content.innerHTML='<div class="checkout-panel"><h2>We could not verify yet</h2><p>Do not make another payment immediately. Try checking the status again in a moment.</p><button class="btn btn-primary" id="retryVerify" type="button">Check payment again</button></div>';
-      var retry=document.getElementById('retryVerify');if(retry)retry.addEventListener('click',renderPaymentResult);
     });
   }
+
   function boot(){
+    document.getElementById('modeBanner').innerHTML=C.modeBannerHTML();
     if(!S.authToken()){loginUrl();return;}
-    request('/api/auth/me','GET').then(function(r){
+    C.load().then(function(){
+      document.getElementById('modeBanner').innerHTML=C.modeBannerHTML();
+      return C.request('/api/auth/me','GET');
+    }).then(function(r){
       if(r.status===401||!r.data||!r.data.success){loginUrl();return;}
       if(ref)renderPaymentResult();else renderCheckout(r.data.user);
-    }).catch(function(){showMessage('We could not confirm your sign-in. Please refresh or sign in again.','error');content.innerHTML='<div class="checkout-panel"><a class="btn btn-primary" href="/login?redirect=%2Fcheckout">Sign in again</a></div>';});
+    }).catch(function(){
+      showMessage('We could not confirm your sign-in. Please refresh or sign in again.','error');
+      content.innerHTML='<div class="checkout-panel"><a class="btn btn-primary" href="/login?redirect=%2Fcheckout">Sign in again</a></div>';
+    });
   }
   boot();
 })();
