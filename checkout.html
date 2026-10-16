@@ -3,244 +3,141 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test checkout (Paystack) &mdash; Ladydee Minimart Store</title>
-<meta name="description" content="Walk through the Ladydee payment and payout flow in Paystack test mode. No real money moves.">
+<title>Secure checkout — Ladydee Minimart Store</title>
+<meta name="description" content="Securely complete your Ladydee Minimart Store order using Paystack.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>🛒</text></svg>">
-<link rel="stylesheet" href="styles.css?v=11">
+<link rel="stylesheet" href="/styles.css?v=12">
+<style>
+.checkout-wrap{max-width:1080px;margin:36px auto 70px;padding:0 20px}.checkout-heading{margin-bottom:24px}.checkout-heading h1{margin:8px 0;font-size:clamp(1.8rem,4vw,2.5rem)}.checkout-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(290px,.75fr);gap:24px;align-items:start}.checkout-panel{background:var(--surface,#fff);border:1px solid var(--line,#e6e8e5);border-radius:18px;padding:24px;box-shadow:0 8px 28px rgba(22,40,28,.05)}.checkout-panel h2{font-size:1.15rem;margin:0 0 18px}.checkout-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}.checkout-fields .field{margin:0}.checkout-fields .full{grid-column:1/-1}.checkout-fields input,.checkout-fields textarea{width:100%;box-sizing:border-box}.checkout-summary-line{display:flex;gap:12px;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--line,#e6e8e5);font-size:.92rem}.checkout-summary-line:last-child{border-bottom:0}.checkout-total{font-size:1.08rem;font-weight:800}.checkout-item-name{font-weight:700}.checkout-item-sub{display:block;color:var(--muted,#68756b);font-size:.8rem;margin-top:3px}.checkout-notice{padding:14px 16px;border-radius:12px;margin:16px 0;background:#f5f7f4;color:#344238}.checkout-notice.error{background:#fff1ef;color:#9e2f24}.checkout-notice.success{background:#edf9f0;color:#176534}.checkout-button{width:100%;margin-top:18px;justify-content:center}.checkout-secure{font-size:.8rem;color:var(--muted,#68756b);text-align:center;margin:12px 0 0}.checkout-loading{padding:32px 10px;text-align:center}.checkout-spinner{width:28px;height:28px;border:3px solid #dce5dc;border-top-color:var(--green,#287442);border-radius:50%;animation:checkoutspin .8s linear infinite;margin:0 auto 12px}@keyframes checkoutspin{to{transform:rotate(360deg)}}@media(max-width:760px){.checkout-layout{grid-template-columns:1fr}.checkout-summary{order:-1}.checkout-panel{padding:19px}.checkout-wrap{margin-top:24px}}@media(max-width:460px){.checkout-fields{grid-template-columns:1fr}.checkout-fields .full{grid-column:auto}}
+</style>
 </head>
 <body data-page="checkout">
-
 <div id="site-header"></div>
-
-<section class="page-head">
-  <div class="wrap">
-    <nav class="breadcrumb" aria-label="Breadcrumb">
-      <a href="/">Home</a><span data-i="chevronRight"></span><span>Test checkout</span>
-    </nav>
-    <h1>Paystack test checkout</h1>
-    <p class="sub">A safe walkthrough of the payment and payout flow &mdash; test keys, test cards, no real money.</p>
+<main class="checkout-wrap">
+  <div class="checkout-heading">
+    <span class="eyebrow">Secure checkout</span>
+    <h1>Complete your order</h1>
+    <p class="sub">Confirm where to deliver your groceries, then pay securely through Paystack.</p>
   </div>
-</section>
-
-<main class="section">
-  <div class="wrap">
-    <div class="test-banner">
-      <span data-i="alert"></span>
-      <span>TEST MODE &mdash; no real money moves
-        <small>This page simulates a Paystack charge and a seller payout. Use test keys and test cards only.</small>
-      </span>
-    </div>
-
-    <div class="pay-steps" id="paySteps"></div>
-    <div id="payBody"></div>
+  <div id="checkoutMessage" class="checkout-notice" hidden></div>
+  <div id="checkoutContent">
+    <div class="checkout-loading"><div class="checkout-spinner"></div><p>Checking your account and basket…</p></div>
   </div>
 </main>
-
 <div id="site-footer"></div>
-
-<script src="components.js?v=11"></script>
-<script src="api-client.js?v=11"></script>
-<script src="app.js?v=11"></script>
-<script src="brevi.js?v=11"></script>
+<script src="/components.js?v=12"></script>
+<script src="/api-client.js?v=12"></script>
+<script src="/app.js?v=12"></script>
 <script>
-(function () {
-  var S = window.Ladydee;
+(function(){
+  'use strict';
+  var S=window.Ladydee;
   S.mount('checkout');
-  document.querySelectorAll('[data-i]').forEach(function (e) { e.innerHTML = S.icon(e.getAttribute('data-i')); });
-
-  var K = S.K.paystack;
-  var saved = S.read(K, {}) || {};
-
-  var state = {
-    step: 1,                       /* 1 keys · 2 card · 3 result · 4 payout */
-    publicKey: saved.publicKey || '',
-    card: saved.card || '4084 0840 8408 4081',
-    expiry: saved.expiry || '12/29',
-    cvv: saved.cvv || '408',
-    pin: saved.pin || '0000',
-    otp: saved.otp || '123456',
-    amount: saved.amount || 18813,
-    outcome: null,                 /* 'success' | 'failed' */
-    reference: null,
-    payout: null
-  };
-
-  var TEST_CARDS = [
-    ['4084 0840 8408 4081', 'Success (Visa)'],
-    ['5060 6666 6666 6666 666', 'Success (Verve)'],
-    ['5060 6666 6666 6666 667', 'Declined (Verve)']
-  ];
-
-  function save() {
-    S.write(K, {
-      publicKey: state.publicKey, card: state.card, expiry: state.expiry,
-      cvv: state.cvv, pin: state.pin, otp: state.otp, amount: state.amount
+  var message=document.getElementById('checkoutMessage');
+  var content=document.getElementById('checkoutContent');
+  var ref=new URLSearchParams(location.search).get('reference')||'';
+  function esc(v){return S.esc(String(v==null?'':v));}
+  function money(v){return S.money(v);}
+  function showMessage(text,type){
+    message.hidden=false;message.className='checkout-notice'+(type?' '+type:'');message.textContent=text;
+  }
+  function hideMessage(){message.hidden=true;message.textContent='';}
+  function loginUrl(){
+    var path='/checkout'+(ref?'?reference='+encodeURIComponent(ref):'');
+    location.replace('/login?redirect='+encodeURIComponent(path));
+  }
+  function request(url,method,body){
+    var headers={'Accept':'application/json','Content-Type':'application/json'};
+    var token=S.authToken();
+    if(token)headers.Authorization='Bearer '+token;
+    return fetch(url,{method:method||'GET',headers:headers,body:body?JSON.stringify(body):undefined,cache:'no-store'})
+      .then(function(r){return r.json().catch(function(){return{};}).then(function(d){return {ok:r.ok,status:r.status,data:d};});});
+  }
+  function summaryHTML(){
+    var lines=S.cartLines();
+    if(!lines.length)return '<div class="checkout-panel checkout-summary"><h2>Your basket</h2><p>Your cart is empty.</p><a class="btn btn-primary" href="/products">Browse products</a></div>';
+    var html='<div class="checkout-panel checkout-summary"><h2>Order summary</h2>';
+    lines.forEach(function(l){
+      html+='<div class="checkout-summary-line"><div><span class="checkout-item-name">'+esc(l.product.name)+'</span><span class="checkout-item-sub">Qty '+l.qty+' × '+money(l.product.price)+'</span></div><b>'+money(l.line)+'</b></div>';
+    });
+    html+='<div class="checkout-summary-line"><span>Subtotal</span><b>'+money(S.cartSubtotal())+'</b></div>';
+    html+='<div class="checkout-summary-line"><span>Delivery</span><span>Calculated securely on the server</span></div>';
+    html+='<div class="checkout-summary-line checkout-total"><span>Total</span><span>Confirmed before payment</span></div>';
+    html+='<p class="checkout-secure"><span aria-hidden="true">🔒</span> Your card details are entered on Paystack, not on this website.</p></div>';
+    return html;
+  }
+  function formHTML(user){
+    var u=user||{};
+    return '<div class="checkout-panel"><h2>Delivery information</h2>'+
+      '<form id="deliveryForm" class="checkout-fields" novalidate>'+
+      '<div class="field"><label for="buyerName">Full name</label><input id="buyerName" name="name" autocomplete="name" required maxlength="160" value="'+esc(u.name||'')+'"></div>'+
+      '<div class="field"><label for="buyerPhone">Phone number</label><input id="buyerPhone" name="phone" autocomplete="tel" required maxlength="40" value="'+esc(u.phone||'')+'"></div>'+
+      '<div class="field full"><label for="buyerAddress">Delivery address</label><textarea id="buyerAddress" name="address" autocomplete="street-address" rows="3" required maxlength="500" placeholder="House number, street, area">'+esc(u.address||'')+'</textarea></div>'+
+      '<div class="field full"><label for="buyerCity">City / area</label><input id="buyerCity" name="city" autocomplete="address-level2" required maxlength="100" value="'+esc(u.city||'Lagos')+'"></div>'+
+      '<div class="field full"><label for="buyerNotes">Delivery notes <span style="font-weight:400">(optional)</span></label><textarea id="buyerNotes" name="notes" rows="2" maxlength="1000" placeholder="Landmark or instructions"></textarea></div>'+
+      '<div class="full"><button class="btn btn-primary btn-lg checkout-button" id="payButton" type="submit">Continue to secure payment</button><p class="checkout-secure">You will be redirected to Paystack to complete payment.</p></div>'+
+      '</form></div>';
+  }
+  function bindForm(){
+    var form=document.getElementById('deliveryForm');if(!form)return;
+    form.addEventListener('submit',function(e){
+      e.preventDefault();hideMessage();
+      if(!form.reportValidity())return;
+      var cart=S.getCart().map(function(i){return {id:i.id,qty:Number(i.qty)};});
+      if(!cart.length){showMessage('Your basket is empty. Add a product before checking out.','error');return;}
+      var btn=document.getElementById('payButton');btn.disabled=true;btn.textContent='Preparing secure payment…';
+      request('/api/checkout/paystack','POST',{
+        items:cart,
+        name:document.getElementById('buyerName').value,
+        phone:document.getElementById('buyerPhone').value,
+        address:document.getElementById('buyerAddress').value,
+        city:document.getElementById('buyerCity').value,
+        notes:document.getElementById('buyerNotes').value
+      }).then(function(r){
+        if(r.status===401){loginUrl();return;}
+        if(!r.ok||!r.data.success||!r.data.authorizationUrl){
+          showMessage((r.data&&r.data.error)||'We could not start payment. Please try again.','error');
+          btn.disabled=false;btn.textContent='Continue to secure payment';return;
+        }
+        location.assign(r.data.authorizationUrl);
+      }).catch(function(){
+        showMessage('A network error prevented checkout. Please check your connection and try again.','error');
+        btn.disabled=false;btn.textContent='Continue to secure payment';
+      });
     });
   }
-
-  function ref() {
-    return 'LDM-TEST-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+  function renderCheckout(user){
+    var lines=S.cartLines();
+    if(!lines.length){content.innerHTML='<div class="checkout-panel"><h2>Your basket is empty</h2><p>Add some products before checking out.</p><a class="btn btn-primary" href="/products">Start shopping</a></div>';return;}
+    content.innerHTML='<div class="checkout-layout">'+formHTML(user)+summaryHTML()+'</div>';
+    bindForm();
   }
-
-  function stepsHTML() {
-    var labels = ['Keys', 'Card', 'Result', 'Payout'];
-    return labels.map(function (l, i) {
-      var n = i + 1;
-      var cls = state.step === n ? ' on' : state.step > n ? ' done' : '';
-      return '<span class="pay-step' + cls + '"><span class="pay-step-n">' + (state.step > n ? '✓' : n) + '</span>' + l + '</span>';
-    }).join('');
-  }
-
-  function stepKeys() {
-    var live = state.publicKey.indexOf('pk_test_') === 0;
-    return '<div class="pay-card"><h3>1. Paystack test keys</h3>' +
-      '<p>Paste your <b>test public key</b> (starts with <span class="mono">pk_test_</span>). It is safe in the browser. The secret key is never used here &mdash; it belongs on a server.</p>' +
-      '<div class="form-grid">' +
-        '<div class="field full"><label for="pk">Test public key</label>' +
-          '<input id="pk" value="' + S.esc(state.publicKey) + '" placeholder="pk_test_xxxxxxxxxxxxxxxx">' +
-          '<span class="hint">' + (live ? 'Looks like a valid test key.' : 'Any value works for the demo &mdash; nothing is charged.') + '</span></div>' +
-        '<div class="field"><label for="amt">Amount to charge (₦)</label>' +
-          '<input id="amt" type="number" min="100" value="' + state.amount + '"></div>' +
-      '</div>' +
-      '<div style="margin-top:16px"><button class="btn btn-primary" type="button" id="toCard">Continue to card ' + S.icon('arrowRight') + '</button></div>' +
-    '</div>';
-  }
-
-  function stepCard() {
-    var chips = TEST_CARDS.map(function (c) {
-      return '<button class="testcard-chip" type="button" data-card="' + c[0] + '">' + S.icon('creditCard') + c[0] + ' &middot; ' + c[1] + '</button>';
-    }).join('');
-    return '<div class="pay-card"><h3>2. Test card details</h3>' +
-      '<p>Click a test card to fill the form, or type your own. These are Paystack\'s published test cards &mdash; they never charge real money.</p>' +
-      '<div>' + chips + '</div>' +
-      '<div class="form-grid" style="margin-top:14px">' +
-        '<div class="field full"><label for="card">Card number</label><input id="card" value="' + S.esc(state.card) + '" inputmode="numeric"></div>' +
-        '<div class="field"><label for="exp">Expiry</label><input id="exp" value="' + S.esc(state.expiry) + '" placeholder="MM/YY"></div>' +
-        '<div class="field"><label for="cvv">CVV</label><input id="cvv" value="' + S.esc(state.cvv) + '" inputmode="numeric"></div>' +
-        '<div class="field"><label for="pin">PIN</label><input id="pin" value="' + S.esc(state.pin) + '" inputmode="numeric"></div>' +
-        '<div class="field"><label for="otp">OTP</label><input id="otp" value="' + S.esc(state.otp) + '" inputmode="numeric"></div>' +
-      '</div>' +
-      '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">' +
-        '<button class="btn btn-primary" type="button" id="payNow">' + S.icon('lock') + ' Pay ' + S.money(state.amount) + '</button>' +
-        '<button class="btn btn-outline" type="button" id="payFail">Simulate a failed payment</button>' +
-        '<button class="btn btn-ghost" type="button" id="backKeys">Back</button>' +
-      '</div>' +
-    '</div>';
-  }
-
-  function stepResult() {
-    var ok = state.outcome === 'success';
-    return '<div class="pay-card"><div class="pay-result ' + (ok ? 'ok' : 'bad') + '">' +
-      '<span class="pr-ico">' + S.icon(ok ? 'checkCircle' : 'alert') + '</span>' +
-      '<h3>' + (ok ? 'Payment successful' : 'Payment declined') + '</h3>' +
-      '<p>' + (ok ? 'The test charge went through. No real money moved.' : 'The test card was declined. Try the success card instead.') + '</p>' +
-      (ok ? '<div id="aiReview"></div>' : '') +
-      '<div class="receipt">' +
-        '<div class="receipt-row"><span>Reference</span><b class="mono">' + S.esc(state.reference) + '</b></div>' +
-        '<div class="receipt-row"><span>Card</span><b class="mono">' + S.esc(state.card) + '</b></div>' +
-        '<div class="receipt-row"><span>Mode</span><b>Test</b></div>' +
-        '<div class="receipt-row"><span>Status</span><b>' + (ok ? 'success' : 'declined') + '</b></div>' +
-        '<div class="receipt-row total"><span>Amount</span><b>' + S.money(state.amount) + '</b></div>' +
-      '</div>' +
-      '<div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">' +
-        (ok ? '<button class="btn btn-primary" type="button" id="toPayout">Continue to payout ' + S.icon('arrowRight') + '</button>' : '') +
-        '<button class="btn btn-outline" type="button" id="retry">Try again</button>' +
-      '</div>' +
-    '</div></div>';
-  }
-
-  function stepPayout() {
-    var done = !!state.payout;
-    var fee = Math.round(state.amount * 0.015);
-    var net = state.amount - fee;
-    return '<div class="pay-card"><h3>4. Demo payout to the seller</h3>' +
-      '<p>In production this is a Paystack <b>Transfer</b> from your balance to the store\'s settlement account. Here it is simulated so you can walk the whole flow.</p>' +
-      '<div class="receipt">' +
-        '<div class="receipt-row"><span>Gross charge</span><b>' + S.money(state.amount) + '</b></div>' +
-        '<div class="receipt-row"><span>Paystack fee (1.5% test)</span><b>&minus;' + S.money(fee) + '</b></div>' +
-        '<div class="receipt-row total"><span>Net payout</span><b>' + S.money(net) + '</b></div>' +
-      '</div>' +
-      (done
-        ? '<div class="pay-result ok" style="padding:20px 0 0"><span class="pr-ico">' + S.icon('checkCircle') + '</span>' +
-            '<h3>Payout queued</h3><p>Transfer <b class="mono">' + S.esc(state.payout) + '</b> created in test mode.</p></div>'
-        : '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">' +
-            '<button class="btn btn-primary" type="button" id="doPayout">' + S.icon('send') + ' Send demo payout</button>' +
-            '<button class="btn btn-ghost" type="button" id="restart">Start over</button></div>') +
-      (done ? '<div style="margin-top:18px;text-align:center"><button class="btn btn-outline" type="button" id="restart">Start over</button></div>' : '') +
-    '</div>';
-  }
-
-  /* The server reviews the basket before the payout step. With no backend
-     or no OPENAI_API_KEY this simply does not appear - the flow is
-     unaffected. It never blocks or fails the payment. */
-  function runAiReview() {
-    var box = document.getElementById('aiReview');
-    if (!box || !window.LadydeeAPI) return;
-    var lines = S.cartLines();
-    var items = lines.map(function (l) { return { name: l.name, qty: l.qty, price: l.price }; });
-    if (!items.length) return;
-    window.LadydeeAPI.aiPayout({
-      cartItems: items,
-      totalAmount: state.amount,
-      userEmail: (S.currentUser() && S.currentUser().email) || 'Guest'
-    }).then(function (r) {
-      if (r.used !== 'server' || !r.ok || !r.data || !r.data.aiAnalysis || r.data.aiConfigured === false) return;
-      box.innerHTML = '<div class="ai-review">' + S.icon('sparkles') +
-        '<span><b>Basket review</b>' + S.esc(r.data.aiAnalysis) + '</span></div>';
+  function renderPaymentResult(){
+    content.innerHTML='<div class="checkout-panel checkout-loading"><div class="checkout-spinner"></div><h2>Verifying your payment</h2><p>Please keep this page open while we confirm the transaction with Paystack.</p></div>';
+    request('/api/checkout/paystack?reference='+encodeURIComponent(ref),'GET').then(function(r){
+      if(r.status===401){loginUrl();return;}
+      if(r.data&&r.data.status==='paid'&&r.data.success){
+        S.clearCart();
+        content.innerHTML='<div class="checkout-panel" style="text-align:center;padding:34px 24px"><div style="font-size:2.6rem" aria-hidden="true">✓</div><h2>Payment verified</h2><p>Your payment has been verified by Paystack and your order is marked as paid.</p><p><b>Order reference:</b> '+esc(ref)+'</p><p><b>Amount paid:</b> '+money(r.data.amount)+'</p><a class="btn btn-primary" href="/account">View your account</a> <a class="btn btn-outline" href="/products">Continue shopping</a></div>';
+      }else{
+        content.innerHTML='<div class="checkout-panel"><h2>'+(r.data&&r.data.status==='failed'?'Payment not completed':'Payment still pending')+'</h2><p>'+esc((r.data&&r.data.error)||'We have not confirmed payment yet. Your order will not be marked as paid until verification succeeds.')+'</p><p><b>Order reference:</b> '+esc(ref)+'</p><button class="btn btn-primary" id="retryVerify" type="button">Check payment again</button> <a class="btn btn-outline" href="/account">My account</a></div>';
+        var retry=document.getElementById('retryVerify');if(retry)retry.addEventListener('click',renderPaymentResult);
+      }
+    }).catch(function(){
+      content.innerHTML='<div class="checkout-panel"><h2>We could not verify yet</h2><p>Do not make another payment immediately. Try checking the status again in a moment.</p><button class="btn btn-primary" id="retryVerify" type="button">Check payment again</button></div>';
+      var retry=document.getElementById('retryVerify');if(retry)retry.addEventListener('click',renderPaymentResult);
     });
   }
-
-  function render() {
-    document.getElementById('paySteps').innerHTML = stepsHTML();
-    var body = document.getElementById('payBody');
-    if (state.step === 1) body.innerHTML = stepKeys();
-    else if (state.step === 2) body.innerHTML = stepCard();
-    else if (state.step === 3) { body.innerHTML = stepResult(); runAiReview(); }
-    else body.innerHTML = stepPayout();
+  function boot(){
+    if(!S.authToken()){loginUrl();return;}
+    request('/api/auth/me','GET').then(function(r){
+      if(r.status===401||!r.data||!r.data.success){loginUrl();return;}
+      if(ref)renderPaymentResult();else renderCheckout(r.data.user);
+    }).catch(function(){showMessage('We could not confirm your sign-in. Please refresh or sign in again.','error');content.innerHTML='<div class="checkout-panel"><a class="btn btn-primary" href="/login?redirect=%2Fcheckout">Sign in again</a></div>';});
   }
-
-  document.addEventListener('click', function (e) {
-    var t = e.target.closest('button'); if (!t) return;
-
-    if (t.id === 'toCard') {
-      state.publicKey = document.getElementById('pk').value.trim();
-      state.amount = Number(document.getElementById('amt').value) || 18813;
-      save(); state.step = 2; render(); return;
-    }
-    if (t.id === 'backKeys') { state.step = 1; render(); return; }
-    if (t.hasAttribute('data-card')) {
-      state.card = t.getAttribute('data-card');
-      document.getElementById('card').value = state.card;
-      return;
-    }
-    if (t.id === 'payNow' || t.id === 'payFail') {
-      state.card = document.getElementById('card').value.trim();
-      state.expiry = document.getElementById('exp').value.trim();
-      state.cvv = document.getElementById('cvv').value.trim();
-      state.pin = document.getElementById('pin').value.trim();
-      state.otp = document.getElementById('otp').value.trim();
-      state.reference = ref();
-      /* the declined test card ends in 667 */
-      var declined = t.id === 'payFail' || /667$/.test(state.card.replace(/\s/g, ''));
-      state.outcome = declined ? 'failed' : 'success';
-      save(); state.step = 3; render(); return;
-    }
-    if (t.id === 'retry') { state.step = 2; render(); return; }
-    if (t.id === 'toPayout') { state.step = 4; render(); return; }
-    if (t.id === 'doPayout') {
-      state.payout = 'TRF-TEST-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-      S.toast('Demo payout created', 'send'); render(); return;
-    }
-    if (t.id === 'restart') {
-      state.step = 1; state.outcome = null; state.reference = null; state.payout = null;
-      render(); return;
-    }
-  });
-
-  render();
+  boot();
 })();
 </script>
 </body>
