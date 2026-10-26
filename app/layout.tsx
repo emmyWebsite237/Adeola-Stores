@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import TopAnnouncement from '@/components/layout/TopAnnouncement';
 import Header from '@/components/layout/Header';
@@ -23,7 +24,9 @@ export default function RootLayout({
         <div>
           <TopAnnouncement />
           <Header />
-          <CategoryPillBar />
+          <Suspense fallback={<div className="h-11 bg-[#fafbf9] border-b border-brand-line-2" />}>
+            <CategoryPillBar />
+          </Suspense>
           <main className="pb-16 lg:pb-0">{children}</main>
         </div>
         <Footer />

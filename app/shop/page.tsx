@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { SlidersHorizontal, ArrowUpDown, X } from 'lucide-react';
+import { SlidersHorizontal, ArrowUpDown, X, Loader2 } from 'lucide-react';
 import { PRODUCTS, CATEGORIES } from '@/data/products';
 import ProductCard from '@/components/product/ProductCard';
 
-export default function ShopPage() {
+function ShopContent() {
   const searchParams = useSearchParams();
   const catParam = searchParams.get('cat');
   const queryParam = searchParams.get('q') || '';
@@ -56,7 +56,11 @@ export default function ShopPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-brand-line-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-brand-ink">
-            {queryParam ? `Search results for “${queryParam}”` : selectedCat !== 'all' ? CATEGORIES.find(c => c.id === selectedCat)?.name || 'Supermarket Aisle' : 'All Groceries'}
+            {queryParam
+              ? `Search results for “${queryParam}”`
+              : selectedCat !== 'all'
+              ? CATEGORIES.find((c) => c.id === selectedCat)?.name || 'Supermarket Aisle'
+              : 'All Groceries'}
           </h1>
           <p className="text-xs sm:text-sm text-brand-muted mt-1">
             Showing {filteredProducts.length} verified sealed foodstuffs
@@ -195,16 +199,30 @@ export default function ShopPage() {
                 <p className="text-xs font-bold text-brand-muted uppercase">Categories</p>
                 <div className="space-y-1">
                   <button
-                    onClick={() => { setSelectedCat('all'); setDrawerOpen(false); }}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold ${selectedCat === 'all' ? 'bg-brand-green-soft text-brand-green font-bold' : 'text-brand-ink'}`}
+                    onClick={() => {
+                      setSelectedCat('all');
+                      setDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold ${
+                      selectedCat === 'all'
+                        ? 'bg-brand-green-soft text-brand-green font-bold'
+                        : 'text-brand-ink'
+                    }`}
                   >
                     All Aisles
                   </button>
                   {CATEGORIES.map((cat) => (
                     <button
                       key={cat.id}
-                      onClick={() => { setSelectedCat(cat.id); setDrawerOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold ${selectedCat === cat.id ? 'bg-brand-green-soft text-brand-green font-bold' : 'text-brand-ink'}`}
+                      onClick={() => {
+                        setSelectedCat(cat.id);
+                        setDrawerOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold ${
+                        selectedCat === cat.id
+                          ? 'bg-brand-green-soft text-brand-green font-bold'
+                          : 'text-brand-ink'
+                      }`}
                     >
                       {cat.name}
                     </button>
@@ -223,5 +241,20 @@ export default function ShopPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 flex flex-col items-center justify-center min-h-[50vh] text-brand-muted">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-green mb-3" />
+          <p className="text-xs font-bold">Loading grocery aisles...</p>
+        </div>
+      }
+    >
+      <ShopContent />
+    </Suspense>
   );
 }
