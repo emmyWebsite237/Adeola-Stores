@@ -9,8 +9,10 @@ This guide walks you through setting up every piece of your reconstructed modern
 2. [Database Setup: Supabase (PostgreSQL)](#2-database-setup-supabase-postgresql)
 3. [Image Hosting & CDN: Cloudinary](#3-image-hosting--cdn-cloudinary)
 4. [Nigerian Payment Gateway: Paystack](#4-nigerian-payment-gateway-paystack)
-5. [Deploy to Production on Vercel](#5-deploy-to-production-on-vercel)
-6. [Store Features & Navigation Map](#6-store-features--navigation-map)
+5. [Email Newsletter: Brevo](#5-email-newsletter-brevo)
+6. [Suggestions & Delivery Support: FormSubmit](#6-suggestions--delivery-support-formsubmit)
+7. [Deploy to Production on Vercel](#7-deploy-to-production-on-vercel)
+8. [Store Features & Navigation Map](#8-store-features--navigation-map)
 
 ---
 
@@ -156,8 +158,39 @@ Paystack allows your customers to pay using:
 - **Can you accept payments without CAC registration?** Yes! Paystack's **Starter Business** allows you to collect up to **₦8,000,000** without CAC incorporation certificates.
 - **Can you withdraw/receive payouts?** Yes! Paystack settles directly to your personal Nigerian commercial bank account (Access, GTCO, Zenith, Kuda, etc.) as long as your BVN, NIN, and bank account name match your profile.
 
-### Step 1: Obtain Paystack API Keys
-1. Log in to [https://dashboard.paystack.com](https://dashboard.paystack.com).
+---
+
+## 5. Email Newsletter: Brevo
+
+Brevo (formerly Sendinblue) provides reliable email delivery, newsletter signups, and automated customer marketing.
+
+### Step 1: Create a Free Brevo Account
+1. Visit [https://brevo.com](https://brevo.com) and create a free account.
+2. In your top-right profile dropdown, select **SMTP & API**.
+3. Under the **API Keys** tab, click **Generate a new API key**.
+4. Name the key `adeola-newsletter` and copy the generated key (starts with `xkeysib-...`).
+
+### Step 2: Add Key to `.env.local` & Vercel
+```env
+BREVO_API_KEY=xkeysib-your_brevo_api_key_here
+```
+When visitors submit the weekly market price newsletter form on the home page, their email is automatically synced to your Brevo contact list with the attribute `STORE: Ladydee Minimart Adeola Stores`.
+
+---
+
+## 6. Suggestions & Delivery Support: FormSubmit
+
+Your site now includes a dedicated customer suggestions and delivery report desk at `/contact`.
+
+### How It Works:
+- **Zero API keys needed!** Submissions post directly via FormSubmit (`https://formsubmit.co`).
+- Submissions are automatically delivered to your inbox (`support@ladydeestores.com`).
+- To change the recipient email address, simply update `action="https://formsubmit.co/your-email@gmail.com"` in `app/contact/page.tsx`.
+- First submission: FormSubmit will send a one-time confirmation email to that address to activate the mailbox. Once confirmed, all future suggestions, product requests, and delivery follow-ups flow directly to your inbox for free!
+
+---
+
+## 7. Deploy to Production on Vercel
 2. Go to **Settings** -> **API Keys & Webhooks**.
 3. You will see:
    - **Test Public Key** (`pk_test_...`)

@@ -82,6 +82,16 @@ export default function Header() {
                 <Tag className="w-3.5 h-3.5 text-brand-coral" />
                 <span>Household Bundles</span>
               </Link>
+              <Link
+                href="/contact"
+                className={`px-3.5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                  pathname === '/contact'
+                    ? 'bg-brand-green-soft text-brand-green font-bold'
+                    : 'text-brand-muted hover:text-brand-green hover:bg-brand-green-soft'
+                }`}
+              >
+                Suggestions
+              </Link>
             </nav>
 
             {/* Right: Actions (Wishlist, Cart, User) */}
@@ -197,19 +207,20 @@ export default function Header() {
                   </span>
                 </Link>
                 <Link
+                  href="/contact"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-3 rounded-xl font-bold text-sm text-brand-ink hover:bg-brand-green-soft hover:text-brand-green transition-colors"
+                >
+                  Suggestions &amp; Contact Desk
+                </Link>
+                <Link
                   href="/account"
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-4 py-3 rounded-xl font-bold text-sm text-brand-ink hover:bg-brand-green-soft hover:text-brand-green transition-colors"
                 >
                   My Orders &amp; Tracking
                 </Link>
-                <Link
-                  href="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-3 rounded-xl font-semibold text-xs text-brand-muted hover:bg-brand-green-soft hover:text-brand-green transition-colors"
-                >
-                  Staff Portal
-                </Link>
+                {/* Staff Portal link removed – admin is a separate portal */}
               </div>
             </div>
 

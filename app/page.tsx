@@ -5,6 +5,7 @@ import { RECIPES } from '@/data/recipes';
 import { BUNDLE_PACKS } from '@/data/bundles';
 import ProductCard from '@/components/product/ProductCard';
 import RecipeCard from '@/components/recipe/RecipeCard';
+import BrevoNewsletter from '@/components/ui/BrevoNewsletter';
 import { formatNaira } from '@/lib/utils';
 
 export default function HomePage() {
@@ -259,6 +260,11 @@ export default function HomePage() {
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
+      </section>
+
+      {/* 6. BREVO NEWSLETTER */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6">
+        <BrevoNewsletter />
       </section>
     </div>
   );

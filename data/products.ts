@@ -47,6 +47,117 @@ export const CATEGORIES: Category[] = [
 
 export const PRODUCTS: Product[] = [
   {
+    "id": "kings-pure-vegetable-oil",
+    "name": "Kings Pure Vegetable Oil Canister",
+    "category": "pantry-grains",
+    "price": 7800,
+    "size": "2 Litres",
+    "image": "/images/product-placeholder.svg",
+    "rating": 4.9,
+    "reviewCount": 42,
+    "stock": 35,
+    "short": "Cooking Oil",
+    "description": "Naturally cholesterol-free, triple-refined pure vegetable oil for frying, cooking stews, and authentic smoky jollof rice.",
+    "features": [
+      "Brand: Devon King's",
+      "Size: 2L Tamper-Proof Canister",
+      "Fortified with Vitamin A"
+    ],
+    "specs": {
+      "Brand": "Devon King's",
+      "Size": "2 Litres",
+      "Quality": "100% Pure Refined Vegetable Oil"
+    }
+  },
+  {
+    "id": "knorr-chicken-seasoning-cubes",
+    "name": "Knorr Chicken Seasoning Cubes",
+    "category": "condiments-canned",
+    "price": 1400,
+    "size": "Pack of 50 Cubes",
+    "image": "/images/product-placeholder.svg",
+    "rating": 4.9,
+    "reviewCount": 88,
+    "stock": 60,
+    "short": "Stock Cubes",
+    "description": "Rich chicken bouillon cubes made with natural herbs and spices to give deep umami flavor to Nigerian soups and party jollof.",
+    "features": [
+      "Brand: Knorr",
+      "Pack: 50 individually wrapped cubes",
+      "Ideal for: Jollof rice, fried rice, chicken pepper soup"
+    ],
+    "specs": {
+      "Brand": "Knorr Unilever",
+      "Size": "50 Cubes",
+      "Quality": "Factory Sealed Pack"
+    }
+  },
+  {
+    "id": "ducros-curry-powder-and-thyme-pack",
+    "name": "Ducros Curry Powder & Thyme Duo Pack",
+    "category": "condiments-canned",
+    "price": 1200,
+    "size": "Duo Sachet 50g",
+    "image": "/images/product-placeholder.svg",
+    "rating": 4.8,
+    "reviewCount": 35,
+    "stock": 40,
+    "short": "Herbs & Spices",
+    "description": "Premium aromatic Indian curry powder and crushed dried thyme leaves for fragrant seasoned chicken broth and golden jollof rice.",
+    "features": [
+      "Brand: Ducros / Tiger Spices",
+      "Includes: Curry powder (25g) + Thyme (25g)"
+    ],
+    "specs": {
+      "Brand": "Ducros",
+      "Size": "50g Combo",
+      "Quality": "Sealed Moisture-Proof Pack"
+    }
+  },
+  {
+    "id": "aromatic-bay-leaves-pouch",
+    "name": "Aromatic Dried Bay Leaves Pouch",
+    "category": "condiments-canned",
+    "price": 800,
+    "size": "30g Pouch",
+    "image": "/images/product-placeholder.svg",
+    "rating": 4.7,
+    "reviewCount": 19,
+    "stock": 45,
+    "short": "Bay Leaves",
+    "description": "Whole sun-dried bay leaves that release sweet herbal warmth and signature party jollof fragrance during steaming.",
+    "features": [
+      "Whole unbroken aromatic leaves",
+      "Crucial for Lagos party jollof steam aroma"
+    ],
+    "specs": {
+      "Size": "30g Pouch",
+      "Quality": "Sun-dried whole leaves"
+    }
+  },
+  {
+    "id": "dangote-refined-iodized-salt",
+    "name": "Dangote Refined Table Salt",
+    "category": "condiments-canned",
+    "price": 600,
+    "size": "1kg Pack",
+    "image": "/images/product-placeholder.svg",
+    "rating": 4.9,
+    "reviewCount": 54,
+    "stock": 80,
+    "short": "Iodized Salt",
+    "description": "Fine free-flowing iodized refined table salt for everyday kitchen seasoning.",
+    "features": [
+      "Brand: Dangote Salt",
+      "Iodized for healthy nutrition"
+    ],
+    "specs": {
+      "Brand": "Dangote",
+      "Size": "1kg",
+      "Quality": "Extra Fine Table Salt"
+    }
+  },
+  {
     "id": "custard-3-in-1-refill",
     "name": "Custard 3 in 1 Refill",
     "category": "breakfast-cereals",
@@ -1760,6 +1871,75 @@ export const PRODUCTS: Product[] = [
       "Brand": "St. Louis",
       "Size": "Each",
       "Quality": "Sealed Original Pack"
+    }
+  },
+  {
+    "id": "exeter-corned-beef-can",
+    "name": "Exeter Corned Beef Original Can",
+    "category": "condiments-canned",
+    "price": 3800,
+    "size": "340g",
+    "image": "/images/product-placeholder.svg",
+    "rating": 4.9,
+    "reviewCount": 38,
+    "stock": 25,
+    "short": "Corned Beef",
+    "description": "Premium cooked beef in rich jelly. Perfect for Nigerian stew, breakfast eggs, or classic jollof spaghetti stir-fry.",
+    "features": [
+      "Brand: Exeter",
+      "Size: 340g Can with Key Opener",
+      "100% Halal Certified"
+    ],
+    "specs": {
+      "Brand": "Exeter",
+      "Size": "340g",
+      "Quality": "Factory Sealed"
+    }
+  },
+  {
+    "id": "green-giant-sweet-corn-tin",
+    "name": "Green Giant Sweet Corn in Brine",
+    "category": "condiments-canned",
+    "price": 1850,
+    "size": "340g",
+    "image": "/images/product-placeholder.svg",
+    "rating": 4.8,
+    "reviewCount": 45,
+    "stock": 30,
+    "short": "Sweet Corn",
+    "description": "Crisp, golden sweet corn kernels vacuum packed for maximum freshness. Essential for authentic Nigerian party fried rice and fresh salads.",
+    "features": [
+      "Brand: Green Giant",
+      "Size: 340g Tin",
+      "Naturally Sweet, No Added Sugar"
+    ],
+    "specs": {
+      "Brand": "Green Giant",
+      "Size": "340g",
+      "Quality": "Vacuum Packed Tin"
+    }
+  },
+  {
+    "id": "spaghetti-golden-penny-carton",
+    "name": "Golden Penny Spaghetti Pasta",
+    "category": "pantry-grains",
+    "price": 1250,
+    "size": "500g",
+    "image": "/images/product-placeholder.svg",
+    "rating": 4.9,
+    "reviewCount": 112,
+    "stock": 70,
+    "short": "Spaghetti Pasta",
+    "description": "Finest durum wheat semolina long pasta strands that stay firm and non-sticky when boiled. Ideal for Jollof Spaghetti and quick dinners.",
+    "features": [
+      "Brand: Golden Penny",
+      "Size: 500g Pack",
+      "Fortified with Vitamin A"
+    ],
+    "specs": {
+      "Brand": "Flour Mills of Nigeria",
+      "Size": "500g",
+      "Quality": "100% Durum Wheat"
     }
   }
 ];

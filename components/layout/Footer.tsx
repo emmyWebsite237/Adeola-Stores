@@ -83,9 +83,9 @@ export default function Footer() {
             <ul className="space-y-2.5 text-xs text-gray-400">
               <li><Link href="/cook" className="hover:text-white transition-colors">Cook Tonight (Recipe-to-Cart)</Link></li>
               <li><Link href="/bundles" className="hover:text-white transition-colors">Household Bundles &amp; Packs</Link></li>
+              <li><Link href="/contact" className="hover:text-white transition-colors">Suggestions &amp; Contact Desk</Link></li>
               <li><Link href="/account" className="hover:text-white transition-colors">Track Your Order</Link></li>
               <li><Link href="/cart" className="hover:text-white transition-colors">Free Lagos Delivery Meter</Link></li>
-              <li><Link href="/admin" className="hover:text-white transition-colors">Staff &amp; Admin Portal</Link></li>
             </ul>
           </div>
 

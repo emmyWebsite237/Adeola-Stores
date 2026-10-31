@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Package,
@@ -14,167 +14,278 @@ import {
   Database,
   ExternalLink,
   Search,
-  AlertCircle
+  AlertCircle,
+  ChefHat,
+  Edit3,
+  Trash2,
+  Plus,
+  X,
+  Save,
+  Loader2,
+  ShoppingBasket
 } from 'lucide-react';
 import { formatNaira } from '@/lib/utils';
-import { supabase, isSupabaseConfigured } from '@/lib/db/supabase';
+import {
+  supabase,
+  isSupabaseConfigured,
+  fetchLiveOrders,
+  fetchLiveRecipes,
+  upsertLiveRecipe,
+  deleteLiveRecipe,
+  updateOrderStatus,
+  StoreOrderRecord,
+  StoreRecipeRecord
+} from '@/lib/db/supabase';
 import { PAYSTACK_PUBLIC_KEY } from '@/lib/paystack';
 import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import DataMissing from '@/components/ui/DataMissing';
 
-interface OrderItem {
+// ─── Active Tab Type ────────────────────────────────────────────────────────
+type AdminTab = 'orders' | 'recipes' | 'tools';
+
+// ─── Recipe Form State ──────────────────────────────────────────────────────
+interface RecipeFormState {
   id: string;
+  slug: string;
   name: string;
-  qty: number;
-  price: number;
+  headline: string;
+  image: string;
+  prep_time: string;
+  cook_time: string;
+  servings: number;
+  difficulty: string;
+  category: string;
+  description: string;
+  instructions: string[];
+  ingredients: Array<{
+    productId: string;
+    name: string;
+    amount: string;
+    required: boolean;
+  }>;
 }
 
-interface OrderRecord {
-  id: string;
-  reference: string;
-  customer_name: string;
-  customer_email: string;
-  customer_phone: string;
-  delivery_address: string;
-  delivery_zone: string;
-  items: OrderItem[];
-  subtotal: number;
-  delivery_fee: number;
-  total: number;
-  payment_status: string;
-  fulfillment_status: string;
-  created_at: string;
-}
-
-// Sample fallback orders if Supabase is still in local setup
-const MOCK_ORDERS: OrderRecord[] = [
-  {
-    id: 'ord-101',
-    reference: 'ADEOLA-782914',
-    customer_name: 'Chioma Adebayo',
-    customer_email: 'chioma.adebayo@gmail.com',
-    customer_phone: '08023456789',
-    delivery_address: '14 Admiralty Way, Lekki Phase 1',
-    delivery_zone: 'Lekki / Victoria Island',
-    items: [
-      { id: 'staple-1', name: 'Royal Stallion Rice 50kg', qty: 1, price: 78500 },
-      { id: 'staple-2', name: 'Kings Vegetable Oil 5L', qty: 1, price: 14200 },
-      { id: 'rec-jollof', name: 'Party Jollof Rice Pack', qty: 1, price: 34500 },
-    ],
-    subtotal: 127200,
-    delivery_fee: 0,
-    total: 127200,
-    payment_status: 'paid',
-    fulfillment_status: 'out_for_delivery',
-    created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-  },
-  {
-    id: 'ord-102',
-    reference: 'ADEOLA-591024',
-    customer_name: 'Emeka Okafor',
-    customer_email: 'emeka.okafor@yahoo.com',
-    customer_phone: '08139876543',
-    delivery_address: '22 Allen Avenue, Ikeja',
-    delivery_zone: 'Ikeja / Maryland / Opebi',
-    items: [
-      { id: 'bundle-family', name: 'The Adeola Family Monthly Cart', qty: 1, price: 110000 },
-    ],
-    subtotal: 110000,
-    delivery_fee: 0,
-    total: 110000,
-    payment_status: 'paid',
-    fulfillment_status: 'packing',
-    created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-  },
-  {
-    id: 'ord-103',
-    reference: 'ADEOLA-349811',
-    customer_name: 'Folake Adeleke',
-    customer_email: 'folake.a@outlook.com',
-    customer_phone: '07055443322',
-    delivery_address: 'Block 4, Surulere Housing Estate',
-    delivery_zone: 'Lagos Mainland (General)',
-    items: [
-      { id: 'staple-3', name: 'Golden Penny Semovita 10kg', qty: 2, price: 13500 },
-      { id: 'staple-4', name: 'Titus Sardines (Pack of 5)', qty: 1, price: 5600 },
-    ],
-    subtotal: 32600,
-    delivery_fee: 2500,
-    total: 35100,
-    payment_status: 'paid',
-    fulfillment_status: 'delivered',
-    created_at: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-  },
-];
+const EMPTY_RECIPE: RecipeFormState = {
+  id: '',
+  slug: '',
+  name: '',
+  headline: '',
+  image: '',
+  prep_time: '',
+  cook_time: '',
+  servings: 4,
+  difficulty: 'Medium',
+  category: '',
+  description: '',
+  instructions: [''],
+  ingredients: [{ productId: '', name: '', amount: '', required: true }],
+};
 
 export default function AdminDashboardPage() {
-  const [orders, setOrders] = useState<OrderRecord[]>([]);
-  const [filter, setFilter] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  // ─── State ──────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<AdminTab>('orders');
+
+  // Orders
+  const [orders, setOrders] = useState<StoreOrderRecord[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [orderFilter, setOrderFilter] = useState<string>('all');
+  const [orderSearch, setOrderSearch] = useState('');
+
+  // Recipes
+  const [recipes, setRecipes] = useState<StoreRecipeRecord[]>([]);
+  const [recipesLoading, setRecipesLoading] = useState(true);
+  const [editingRecipe, setEditingRecipe] = useState<RecipeFormState | null>(null);
+  const [recipeSaving, setRecipeSaving] = useState(false);
+  const [recipeDeleting, setRecipeDeleting] = useState<string | null>(null);
+  const [recipeFeedback, setRecipeFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Cloudinary Uploader
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Load orders from Supabase or fallback
-  const fetchOrders = async () => {
-    setLoading(true);
+  // ─── Data Fetching (Supabase Only – Zero Mocks) ────────────────────────
+  const loadOrders = useCallback(async () => {
+    setOrdersLoading(true);
     try {
-      if (supabase && isSupabaseConfigured) {
-        const { data, error } = await supabase
-          .from('store_orders')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error || !data || data.length === 0) {
-          setOrders(MOCK_ORDERS);
-        } else {
-          setOrders(data as OrderRecord[]);
-        }
-      } else {
-        // Fallback to local storage or mock
-        const stored = localStorage.getItem('adeola_local_orders');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          setOrders([...parsed, ...MOCK_ORDERS]);
-        } else {
-          setOrders(MOCK_ORDERS);
-        }
+      if (!supabase || !isSupabaseConfigured) {
+        console.warn('[Admin]: Supabase not configured — orders will be empty.');
+        setOrders([]);
+        return;
       }
+      const data = await fetchLiveOrders();
+      setOrders(data);
     } catch (e) {
-      setOrders(MOCK_ORDERS);
+      console.error('[Admin]: Failed to load orders', e);
+      setOrders([]);
     } finally {
-      setLoading(false);
+      setOrdersLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchOrders();
   }, []);
 
+  const loadRecipes = useCallback(async () => {
+    setRecipesLoading(true);
+    try {
+      if (!supabase || !isSupabaseConfigured) {
+        console.warn('[Admin]: Supabase not configured — recipes will be empty.');
+        setRecipes([]);
+        return;
+      }
+      const data = await fetchLiveRecipes();
+      setRecipes(data);
+    } catch (e) {
+      console.error('[Admin]: Failed to load recipes', e);
+      setRecipes([]);
+    } finally {
+      setRecipesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOrders();
+    loadRecipes();
+  }, [loadOrders, loadRecipes]);
+
+  // ─── Order Actions ─────────────────────────────────────────────────────
   const handleUpdateStatus = async (reference: string, newStatus: string) => {
+    // Optimistic update
     setOrders((prev) =>
       prev.map((ord) =>
         ord.reference === reference ? { ...ord, fulfillment_status: newStatus } : ord
       )
     );
+    await updateOrderStatus(reference, newStatus);
+  };
 
-    if (supabase && isSupabaseConfigured) {
-      await supabase
-        .from('store_orders')
-        .update({ fulfillment_status: newStatus })
-        .eq('reference', reference);
+  // ─── Recipe CRUD ───────────────────────────────────────────────────────
+  const handleEditRecipe = (recipe: StoreRecipeRecord) => {
+    setEditingRecipe({
+      id: recipe.id,
+      slug: recipe.slug,
+      name: recipe.name,
+      headline: recipe.headline || '',
+      image: recipe.image || '',
+      prep_time: recipe.prep_time || '',
+      cook_time: recipe.cook_time || '',
+      servings: recipe.servings || 4,
+      difficulty: recipe.difficulty || 'Medium',
+      category: recipe.category || '',
+      description: recipe.description || '',
+      instructions: recipe.instructions || [''],
+      ingredients: recipe.ingredients || [{ productId: '', name: '', amount: '', required: true }],
+    });
+    setRecipeFeedback(null);
+  };
+
+  const handleNewRecipe = () => {
+    setEditingRecipe({
+      ...EMPTY_RECIPE,
+      id: `recipe-${Date.now()}`,
+      slug: `recipe-${Date.now()}`,
+    });
+    setRecipeFeedback(null);
+  };
+
+  const handleSaveRecipe = async () => {
+    if (!editingRecipe) return;
+    if (!editingRecipe.name.trim()) {
+      setRecipeFeedback({ type: 'error', message: 'Recipe name is required.' });
+      return;
+    }
+
+    setRecipeSaving(true);
+    setRecipeFeedback(null);
+    try {
+      await upsertLiveRecipe({
+        id: editingRecipe.id,
+        slug: editingRecipe.slug || editingRecipe.name.toLowerCase().replace(/\s+/g, '-'),
+        name: editingRecipe.name,
+        headline: editingRecipe.headline,
+        image: editingRecipe.image,
+        prep_time: editingRecipe.prep_time,
+        cook_time: editingRecipe.cook_time,
+        servings: editingRecipe.servings,
+        difficulty: editingRecipe.difficulty,
+        category: editingRecipe.category,
+        description: editingRecipe.description,
+        instructions: editingRecipe.instructions.filter((s) => s.trim()),
+        ingredients: editingRecipe.ingredients.filter((i) => i.name.trim()),
+      });
+      setRecipeFeedback({ type: 'success', message: `"${editingRecipe.name}" saved to Supabase!` });
+      setEditingRecipe(null);
+      await loadRecipes();
+    } catch (err: any) {
+      setRecipeFeedback({ type: 'error', message: err.message || 'Failed to save recipe.' });
+    } finally {
+      setRecipeSaving(false);
     }
   };
 
-  // Image upload handler
+  const handleDeleteRecipe = async (recipeId: string, recipeName: string) => {
+    if (!confirm(`Permanently delete "${recipeName}"? This cannot be undone.`)) return;
+    setRecipeDeleting(recipeId);
+    try {
+      await deleteLiveRecipe(recipeId);
+      setRecipeFeedback({ type: 'success', message: `"${recipeName}" deleted.` });
+      await loadRecipes();
+    } catch (err: any) {
+      setRecipeFeedback({ type: 'error', message: err.message || 'Failed to delete recipe.' });
+    } finally {
+      setRecipeDeleting(null);
+    }
+  };
+
+  // ─── Recipe Form Helpers ───────────────────────────────────────────────
+  const updateInstruction = (idx: number, value: string) => {
+    if (!editingRecipe) return;
+    const updated = [...editingRecipe.instructions];
+    updated[idx] = value;
+    setEditingRecipe({ ...editingRecipe, instructions: updated });
+  };
+
+  const addInstruction = () => {
+    if (!editingRecipe) return;
+    setEditingRecipe({ ...editingRecipe, instructions: [...editingRecipe.instructions, ''] });
+  };
+
+  const removeInstruction = (idx: number) => {
+    if (!editingRecipe) return;
+    setEditingRecipe({
+      ...editingRecipe,
+      instructions: editingRecipe.instructions.filter((_, i) => i !== idx),
+    });
+  };
+
+  const updateIngredient = (idx: number, field: string, value: any) => {
+    if (!editingRecipe) return;
+    const updated = [...editingRecipe.ingredients];
+    (updated[idx] as any)[field] = value;
+    setEditingRecipe({ ...editingRecipe, ingredients: updated });
+  };
+
+  const addIngredient = () => {
+    if (!editingRecipe) return;
+    setEditingRecipe({
+      ...editingRecipe,
+      ingredients: [...editingRecipe.ingredients, { productId: '', name: '', amount: '', required: true }],
+    });
+  };
+
+  const removeIngredient = (idx: number) => {
+    if (!editingRecipe) return;
+    setEditingRecipe({
+      ...editingRecipe,
+      ingredients: editingRecipe.ingredients.filter((_, i) => i !== idx),
+    });
+  };
+
+  // ─── Image Upload ──────────────────────────────────────────────────────
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploadingImage(true);
     setUploadError(null);
     setUploadedImageUrl(null);
-
     try {
       const res = await uploadImageToCloudinary(file);
       setUploadedImageUrl(res.secure_url || res.url);
@@ -185,7 +296,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Stats calculation
+  // ─── Computed Stats ────────────────────────────────────────────────────
   const totalRevenue = orders.reduce((sum, ord) => sum + (Number(ord.total) || 0), 0);
   const pendingFulfillment = orders.filter((o) => o.fulfillment_status !== 'delivered').length;
   const isPaystackLive = !PAYSTACK_PUBLIC_KEY.includes('placeholder') && PAYSTACK_PUBLIC_KEY.startsWith('pk_live');
@@ -193,32 +304,38 @@ export default function AdminDashboardPage() {
   // Filtered orders
   const filteredOrders = orders.filter((o) => {
     const matchesFilter =
-      filter === 'all' ||
-      (filter === 'paid' && o.payment_status === 'paid') ||
-      (filter === 'pending' && o.fulfillment_status === 'packing') ||
-      (filter === 'delivery' && o.fulfillment_status === 'out_for_delivery') ||
-      (filter === 'delivered' && o.fulfillment_status === 'delivered');
+      orderFilter === 'all' ||
+      (orderFilter === 'paid' && o.payment_status === 'paid') ||
+      (orderFilter === 'pending' && o.fulfillment_status === 'packing') ||
+      (orderFilter === 'delivery' && o.fulfillment_status === 'out_for_delivery') ||
+      (orderFilter === 'delivered' && o.fulfillment_status === 'delivered');
 
     const matchesSearch =
-      searchTerm === '' ||
-      o.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.customer_phone.includes(searchTerm);
+      orderSearch === '' ||
+      o.reference.toLowerCase().includes(orderSearch.toLowerCase()) ||
+      o.customer_name.toLowerCase().includes(orderSearch.toLowerCase()) ||
+      o.customer_phone.includes(orderSearch);
 
     return matchesFilter && matchesSearch;
   });
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═════════════════════════════════════════════════════════════════════════
   return (
-    <div className="bg-slate-50 min-h-screen pb-16">
-      {/* Top Banner */}
+    <div className="min-h-screen pb-16">
+      {/* ─── Top Banner ──────────────────────────────────────────────────── */}
       <div className="bg-store-forest text-white py-6 px-4 sm:px-8 border-b border-emerald-800">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                <ShoppingBasket className="w-4 h-4 text-white" />
+              </div>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-700/80 text-[11px] font-bold uppercase tracking-wider text-emerald-100">
                 Merchant Operations Hub
               </span>
-              <span className="text-xs text-emerald-200">Adeola Stores HQ</span>
+              <span className="text-xs text-emerald-200">Ladydee Stores HQ</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">
               Store Control Center
@@ -227,7 +344,7 @@ export default function AdminDashboardPage() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchOrders}
+              onClick={() => { loadOrders(); loadRecipes(); }}
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold transition"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -238,16 +355,15 @@ export default function AdminDashboardPage() {
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-store-gold hover:bg-amber-400 text-slate-900 rounded-xl text-xs font-bold transition shadow-sm"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              View Customer Storefront
+              View Storefront
             </Link>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 mt-6">
-        {/* System Integrations Status Bar */}
+        {/* ─── System Status Cards ───────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {/* Supabase Status */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSupabaseConfigured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
               <Database className="w-5 h-5" />
@@ -255,15 +371,14 @@ export default function AdminDashboardPage() {
             <div>
               <div className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Database</div>
               <div className="text-sm font-bold text-slate-900">
-                {isSupabaseConfigured ? 'Supabase PostgreSQL' : 'Local Storage Mode'}
+                {isSupabaseConfigured ? 'Supabase PostgreSQL' : 'Not Configured'}
               </div>
               <div className="text-[11px] text-slate-500">
-                {isSupabaseConfigured ? 'Cloud sync connected' : 'Add keys to .env to sync'}
+                {isSupabaseConfigured ? 'Cloud sync connected' : 'Add keys to .env to enable'}
               </div>
             </div>
           </div>
 
-          {/* Paystack Gateway */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isPaystackLive ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>
               <CreditCard className="w-5 h-5" />
@@ -279,7 +394,6 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Cloudinary CDN */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
               <Upload className="w-5 h-5" />
@@ -287,12 +401,12 @@ export default function AdminDashboardPage() {
             <div>
               <div className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Image Hosting</div>
               <div className="text-sm font-bold text-slate-900">Cloudinary CDN</div>
-              <div className="text-[11px] text-slate-500">Auto-compression & WebP ready</div>
+              <div className="text-[11px] text-slate-500">Auto-compression &amp; WebP ready</div>
             </div>
           </div>
         </div>
 
-        {/* KPI Metrics */}
+        {/* ─── KPI Metrics ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-semibold mb-1">Total Sales Volume</div>
@@ -301,19 +415,16 @@ export default function AdminDashboardPage() {
               <TrendingUp className="w-3 h-3" /> All recorded orders
             </div>
           </div>
-
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-semibold mb-1">Total Orders</div>
             <div className="text-2xl font-extrabold text-slate-900">{orders.length}</div>
             <div className="text-[11px] text-slate-500 mt-1">Processed in store</div>
           </div>
-
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-semibold mb-1">Pending Dispatch</div>
             <div className="text-2xl font-extrabold text-amber-600">{pendingFulfillment}</div>
             <div className="text-[11px] text-amber-700 mt-1">Requires rider dispatch</div>
           </div>
-
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-semibold mb-1">Average Order Value</div>
             <div className="text-2xl font-extrabold text-store-forest">
@@ -323,153 +434,502 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Orders Table (2 Cols) */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">Recent Customer Orders</h2>
-                  <p className="text-xs text-slate-500">Live order fulfillment & rider tracking</p>
-                </div>
+        {/* ─── Tab Navigation ────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 mb-6 border-b border-slate-200 pb-4">
+          {([
+            { id: 'orders' as AdminTab, label: 'Orders & Fulfillment', icon: Package },
+            { id: 'recipes' as AdminTab, label: 'Cook Tonight (Recipes)', icon: ChefHat },
+            { id: 'tools' as AdminTab, label: 'Tools & Links', icon: Upload },
+          ]).map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                activeTab === id
+                  ? 'bg-store-forest text-white shadow-sm'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          ))}
+        </div>
 
-                {/* Filter Pills */}
-                <div className="flex flex-wrap gap-1.5 text-xs">
-                  {[
-                    { id: 'all', label: 'All' },
-                    { id: 'paid', label: 'Paid' },
-                    { id: 'pending', label: 'Packing' },
-                    { id: 'delivery', label: 'En Route' },
-                    { id: 'delivered', label: 'Delivered' },
-                  ].map((btn) => (
-                    <button
-                      key={btn.id}
-                      onClick={() => setFilter(btn.id)}
-                      className={`px-3 py-1.5 rounded-xl font-semibold transition ${
-                        filter === btn.id
-                          ? 'bg-store-forest text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {btn.label}
-                    </button>
-                  ))}
-                </div>
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB 1: ORDERS & FULFILLMENT (Supabase-only, zero mock data)
+        ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'orders' && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Recent Customer Orders</h2>
+                <p className="text-xs text-slate-500">Live order fulfillment &amp; rider tracking (Supabase)</p>
               </div>
-
-              {/* Search Bar */}
-              <div className="relative mb-4">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search by order ref, customer name, or phone number..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
-                />
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'paid', label: 'Paid' },
+                  { id: 'pending', label: 'Packing' },
+                  { id: 'delivery', label: 'En Route' },
+                  { id: 'delivered', label: 'Delivered' },
+                ].map((btn) => (
+                  <button
+                    key={btn.id}
+                    onClick={() => setOrderFilter(btn.id)}
+                    className={`px-3 py-1.5 rounded-xl font-semibold transition ${
+                      orderFilter === btn.id
+                        ? 'bg-store-forest text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Order Cards */}
-              {loading ? (
-                <div className="py-12 text-center text-xs text-slate-500">Loading orders...</div>
-              ) : filteredOrders.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-500">No orders found.</div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredOrders.map((ord) => (
-                    <div
-                      key={ord.reference}
-                      className="border border-slate-200 rounded-xl p-4 hover:border-emerald-300 transition bg-slate-50/50"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3 mb-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-sm text-slate-900 font-mono">
-                              #{ord.reference}
-                            </span>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                                ord.payment_status === 'paid'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}
-                            >
-                              {ord.payment_status}
-                            </span>
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            {new Date(ord.created_at).toLocaleString('en-NG')} • {ord.delivery_zone}
-                          </div>
-                        </div>
+            {/* Search */}
+            <div className="relative mb-4">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search by order ref, customer name, or phone…"
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+              />
+            </div>
 
-                        <div className="text-right">
-                          <div className="font-extrabold text-base text-slate-900">
-                            {formatNaira(ord.total)}
-                          </div>
-                          <div className="text-[11px] text-slate-500">{ord.items.length} items</div>
-                        </div>
-                      </div>
-
-                      {/* Customer Info */}
-                      <div className="text-xs text-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                        <div>
-                          <strong>Customer:</strong> {ord.customer_name} ({ord.customer_phone})
-                        </div>
-                        <div>
-                          <strong>Address:</strong> {ord.delivery_address}
-                        </div>
-                      </div>
-
-                      {/* Items Preview */}
-                      <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 mb-3 text-xs text-slate-600 space-y-1">
-                        {ord.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between">
-                            <span>
-                              {item.qty}x {item.name}
-                            </span>
-                            <span className="font-medium text-slate-800">
-                              {formatNaira(item.price * item.qty)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Status Action Stepper */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <div className="text-xs text-slate-500 flex items-center gap-1.5">
-                          <Truck className="w-3.5 h-3.5 text-store-forest" />
-                          <span>Status:</span>
-                          <span className="font-bold text-slate-800 capitalize">
-                            {ord.fulfillment_status.replace(/_/g, ' ')}
+            {/* Orders List */}
+            {ordersLoading ? (
+              <div className="py-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-store-forest" />
+                Loading orders from Supabase…
+              </div>
+            ) : !isSupabaseConfigured ? (
+              <DataMissing
+                title="Supabase Not Configured"
+                message="Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env to see live orders."
+              />
+            ) : filteredOrders.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-500">
+                No orders found. When customers check out, their orders will appear here in real-time.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredOrders.map((ord) => (
+                  <div
+                    key={ord.reference}
+                    className="border border-slate-200 rounded-xl p-4 hover:border-emerald-300 transition bg-slate-50/50"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-slate-900 font-mono">
+                            #{ord.reference}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                              ord.payment_status === 'paid'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {ord.payment_status}
                           </span>
                         </div>
-
-                        <div className="flex items-center gap-1.5">
-                          {ord.fulfillment_status !== 'packing' && (
-                            <button
-                              onClick={() => handleUpdateStatus(ord.reference, 'packing')}
-                              className="px-2.5 py-1 text-[11px] rounded-lg border border-slate-200 hover:bg-slate-100 font-semibold"
-                            >
-                              Set Packing
-                            </button>
-                          )}
-                          {ord.fulfillment_status !== 'out_for_delivery' && (
-                            <button
-                              onClick={() => handleUpdateStatus(ord.reference, 'out_for_delivery')}
-                              className="px-2.5 py-1 text-[11px] rounded-lg bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 font-semibold"
-                            >
-                              Dispatch Rider
-                            </button>
-                          )}
-                          {ord.fulfillment_status !== 'delivered' && (
-                            <button
-                              onClick={() => handleUpdateStatus(ord.reference, 'delivered')}
-                              className="px-2.5 py-1 text-[11px] rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-semibold shadow-xs"
-                            >
-                              Delivered
-                            </button>
-                          )}
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {new Date(ord.created_at).toLocaleString('en-NG')} • {ord.delivery_zone}
                         </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-extrabold text-base text-slate-900">
+                          {formatNaira(ord.total)}
+                        </div>
+                        <div className="text-[11px] text-slate-500">{ord.items.length} items</div>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                      <div><strong>Customer:</strong> {ord.customer_name} ({ord.customer_phone})</div>
+                      <div><strong>Address:</strong> {ord.delivery_address}</div>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 mb-3 text-xs text-slate-600 space-y-1">
+                      {ord.items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between">
+                          <span>{item.qty}x {item.name}</span>
+                          <span className="font-medium text-slate-800">{formatNaira(item.price * item.qty)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 text-store-forest" />
+                        <span>Status:</span>
+                        <span className="font-bold text-slate-800 capitalize">
+                          {ord.fulfillment_status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {ord.fulfillment_status !== 'packing' && (
+                          <button
+                            onClick={() => handleUpdateStatus(ord.reference, 'packing')}
+                            className="px-2.5 py-1 text-[11px] rounded-lg border border-slate-200 hover:bg-slate-100 font-semibold"
+                          >
+                            Set Packing
+                          </button>
+                        )}
+                        {ord.fulfillment_status !== 'out_for_delivery' && (
+                          <button
+                            onClick={() => handleUpdateStatus(ord.reference, 'out_for_delivery')}
+                            className="px-2.5 py-1 text-[11px] rounded-lg bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 font-semibold"
+                          >
+                            Dispatch Rider
+                          </button>
+                        )}
+                        {ord.fulfillment_status !== 'delivered' && (
+                          <button
+                            onClick={() => handleUpdateStatus(ord.reference, 'delivered')}
+                            className="px-2.5 py-1 text-[11px] rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-semibold shadow-xs"
+                          >
+                            Delivered
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB 2: COOK TONIGHT RECIPE CRUD
+        ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'recipes' && (
+          <div className="space-y-6">
+            {recipeFeedback && (
+              <div
+                className={`p-4 rounded-2xl flex items-center gap-2 text-xs font-semibold ${
+                  recipeFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}
+              >
+                {recipeFeedback.type === 'success' ? (
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                )}
+                <span>{recipeFeedback.message}</span>
+              </div>
+            )}
+
+            {/* Recipe Editor Modal */}
+            {editingRecipe && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-slate-900">
+                    {editingRecipe.id.startsWith('recipe-') ? 'New Recipe' : `Edit: ${editingRecipe.name}`}
+                  </h3>
+                  <button
+                    onClick={() => setEditingRecipe(null)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Recipe Name</label>
+                    <input
+                      type="text"
+                      value={editingRecipe.name}
+                      onChange={(e) => setEditingRecipe({ ...editingRecipe, name: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                      placeholder="e.g. Smoky Lagos Party Jollof Rice"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Category</label>
+                    <input
+                      type="text"
+                      value={editingRecipe.category}
+                      onChange={(e) => setEditingRecipe({ ...editingRecipe, category: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                      placeholder="e.g. Rice & Grains"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Headline</label>
+                    <input
+                      type="text"
+                      value={editingRecipe.headline}
+                      onChange={(e) => setEditingRecipe({ ...editingRecipe, headline: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                      placeholder="Short catchy subtitle"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Image URL</label>
+                    <input
+                      type="text"
+                      value={editingRecipe.image}
+                      onChange={(e) => setEditingRecipe({ ...editingRecipe, image: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                      placeholder="Paste Cloudinary URL here"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Prep Time</label>
+                    <input
+                      type="text"
+                      value={editingRecipe.prep_time}
+                      onChange={(e) => setEditingRecipe({ ...editingRecipe, prep_time: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                      placeholder="e.g. 20 mins"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Cook Time</label>
+                    <input
+                      type="text"
+                      value={editingRecipe.cook_time}
+                      onChange={(e) => setEditingRecipe({ ...editingRecipe, cook_time: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                      placeholder="e.g. 45 mins"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Servings</label>
+                    <input
+                      type="number"
+                      value={editingRecipe.servings}
+                      onChange={(e) => setEditingRecipe({ ...editingRecipe, servings: parseInt(e.target.value) || 1 })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Difficulty</label>
+                    <select
+                      value={editingRecipe.difficulty}
+                      onChange={(e) => setEditingRecipe({ ...editingRecipe, difficulty: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                    >
+                      <option value="Easy">Easy</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Hard">Hard</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Description</label>
+                  <textarea
+                    value={editingRecipe.description}
+                    onChange={(e) => setEditingRecipe({ ...editingRecipe, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest resize-y"
+                    placeholder="Detailed description of this recipe…"
+                  />
+                </div>
+
+                {/* Instructions Editor */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase">Cooking Steps</label>
+                    <button
+                      type="button"
+                      onClick={addInstruction}
+                      className="text-[11px] font-bold text-store-forest hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Add Step
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {editingRecipe.instructions.map((step, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 mt-2.5 w-5 shrink-0">{idx + 1}.</span>
+                        <input
+                          type="text"
+                          value={step}
+                          onChange={(e) => updateInstruction(idx, e.target.value)}
+                          className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                          placeholder={`Step ${idx + 1}…`}
+                        />
+                        {editingRecipe.instructions.length > 1 && (
+                          <button
+                            onClick={() => removeInstruction(idx)}
+                            className="p-1.5 text-red-400 hover:text-red-600 shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Ingredients Editor */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase">Ingredients</label>
+                    <button
+                      type="button"
+                      onClick={addIngredient}
+                      className="text-[11px] font-bold text-store-forest hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Add Ingredient
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {editingRecipe.ingredients.map((ing, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                        <input
+                          type="text"
+                          value={ing.name}
+                          onChange={(e) => updateIngredient(idx, 'name', e.target.value)}
+                          className="col-span-4 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                          placeholder="Ingredient name"
+                        />
+                        <input
+                          type="text"
+                          value={ing.amount}
+                          onChange={(e) => updateIngredient(idx, 'amount', e.target.value)}
+                          className="col-span-3 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                          placeholder="Amount"
+                        />
+                        <input
+                          type="text"
+                          value={ing.productId}
+                          onChange={(e) => updateIngredient(idx, 'productId', e.target.value)}
+                          className="col-span-3 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
+                          placeholder="Product ID"
+                        />
+                        <label className="col-span-1 flex items-center gap-1 text-[10px] text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={ing.required}
+                            onChange={(e) => updateIngredient(idx, 'required', e.target.checked)}
+                            className="rounded text-store-forest"
+                          />
+                          Req
+                        </label>
+                        <button
+                          onClick={() => removeIngredient(idx)}
+                          className="col-span-1 p-1.5 text-red-400 hover:text-red-600"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Save / Cancel */}
+                <div className="flex items-center gap-3 pt-2 border-t border-slate-200">
+                  <button
+                    onClick={handleSaveRecipe}
+                    disabled={recipeSaving}
+                    className="px-5 py-2.5 rounded-xl bg-store-forest text-white text-xs font-bold flex items-center gap-2 hover:bg-emerald-800 transition disabled:opacity-50"
+                  >
+                    {recipeSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {recipeSaving ? 'Saving…' : 'Save Recipe to Supabase'}
+                  </button>
+                  <button
+                    onClick={() => setEditingRecipe(null)}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Recipe List */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Cook Tonight Recipes</h2>
+                  <p className="text-xs text-slate-500">Manage the recipe-to-cart experience for customers</p>
+                </div>
+                <button
+                  onClick={handleNewRecipe}
+                  className="px-4 py-2 rounded-xl bg-store-forest text-white text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-800 transition"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New Recipe
+                </button>
+              </div>
+
+              {recipesLoading ? (
+                <div className="py-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-store-forest" />
+                  Loading recipes from Supabase…
+                </div>
+              ) : !isSupabaseConfigured ? (
+                <DataMissing
+                  title="Supabase Not Configured"
+                  message="Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env to manage recipes. The client storefront will still display the static recipes from data/recipes.ts."
+                />
+              ) : recipes.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-500">
+                  No recipes in Supabase yet. Click &ldquo;New Recipe&rdquo; to create one, or seed data from the SQL editor.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recipes.map((recipe) => (
+                    <div
+                      key={recipe.id}
+                      className="border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-emerald-300 transition bg-slate-50/50"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {recipe.image && (
+                          <img
+                            src={recipe.image}
+                            alt={recipe.name}
+                            className="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-sm text-slate-900 truncate">{recipe.name}</h4>
+                          <p className="text-[11px] text-slate-500 truncate">{recipe.headline}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                            <span>{recipe.category}</span>
+                            <span>•</span>
+                            <span>{recipe.difficulty}</span>
+                            <span>•</span>
+                            <span>Serves {recipe.servings}</span>
+                            <span>•</span>
+                            <span>{recipe.ingredients?.length || 0} ingredients</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleEditRecipe(recipe)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 transition"
+                        >
+                          <Edit3 className="w-3 h-3" /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRecipe(recipe.id, recipe.name)}
+                          disabled={recipeDeleting === recipe.id}
+                          className="px-3 py-1.5 rounded-lg border border-red-200 text-[11px] font-semibold text-red-600 hover:bg-red-50 flex items-center gap-1 transition disabled:opacity-50"
+                        >
+                          {recipeDeleting === recipe.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3 h-3" />
+                          )}
+                          Delete
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -477,9 +937,13 @@ export default function AdminDashboardPage() {
               )}
             </div>
           </div>
+        )}
 
-          {/* Sidebar Tools: Cloudinary Image Uploader & Quick Settings (1 Col) */}
-          <div className="space-y-6">
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB 3: TOOLS & LINKS (Cloudinary uploader + external links)
+        ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'tools' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Cloudinary Quick Uploader */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center gap-2 mb-2">
@@ -493,7 +957,7 @@ export default function AdminDashboardPage() {
               <label className="block w-full border-2 border-dashed border-slate-200 hover:border-store-forest rounded-xl p-4 text-center cursor-pointer transition bg-slate-50/50">
                 <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
                 <span className="text-xs font-semibold text-store-forest">
-                  {uploadingImage ? 'Uploading to Cloudinary...' : 'Click to choose image'}
+                  {uploadingImage ? 'Uploading to Cloudinary…' : 'Click to choose image'}
                 </span>
                 <span className="block text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP up to 5MB</span>
                 <input
@@ -512,7 +976,7 @@ export default function AdminDashboardPage() {
                     <span className="font-bold">Cloudinary notice:</span>
                     <p className="mt-0.5">{uploadError}</p>
                     <p className="text-[10px] text-slate-500 mt-1">
-                      See <code>SETUP_GUIDE.md</code> to configure your unsigned upload preset in 2 minutes.
+                      See <code>SETUP_GUIDE.md</code> to configure your unsigned upload preset.
                     </p>
                   </div>
                 </div>
@@ -547,7 +1011,7 @@ export default function AdminDashboardPage() {
 
             {/* Quick Links & Setup Guide */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-              <h3 className="text-sm font-bold text-slate-900">Developer & Store Links</h3>
+              <h3 className="text-sm font-bold text-slate-900">Developer &amp; Store Links</h3>
               <div className="space-y-2 text-xs">
                 <a
                   href="https://dashboard.paystack.com"
@@ -558,7 +1022,6 @@ export default function AdminDashboardPage() {
                   <span className="font-semibold">Paystack Dashboard</span>
                   <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </a>
-
                 <a
                   href="https://supabase.com/dashboard"
                   target="_blank"
@@ -568,7 +1031,6 @@ export default function AdminDashboardPage() {
                   <span className="font-semibold">Supabase Cloud Database</span>
                   <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </a>
-
                 <a
                   href="https://cloudinary.com/console"
                   target="_blank"
@@ -581,7 +1043,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
