@@ -84,8 +84,8 @@ export async function POST(req: Request) {
           },
           body: JSON.stringify({
             sender: {
-              name: 'Adeola Stores (Ladydee Minimart)',
-              email: 'support@ladydeestores.com',
+              name: 'Ladydee Minimart Stores',
+              email: 'emmysammy237@gmail.com',
             },
             to: [
               {

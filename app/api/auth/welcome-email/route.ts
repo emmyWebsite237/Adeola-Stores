@@ -110,7 +110,7 @@ export async function POST(req: Request) {
     <div class="footer">
       <strong>Ladydee Minimart Stores</strong><br />
       Lagos, Nigeria &bull; Fresh &bull; Authentic &bull; Delivered with Care ❤️<br />
-      Need help? Reach out at support@ladydeestores.com
+      Need help? Reach out at emmysammy237@gmail.com
     </div>
   </div>
 </body>
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         sender: {
           name: 'Ladydee Minimart Stores',
-          email: 'support@ladydeestores.com',
+          email: 'emmysammy237@gmail.com',
         },
         to: [{ email: cleanEmail, name: displayName }],
         subject: `Welcome to the Ladydee Minimart Family! 🛒🥘 ${displayName}`,
