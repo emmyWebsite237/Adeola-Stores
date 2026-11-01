@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShieldCheck, Lock, CreditCard, Banknote, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Lock, CreditCard, Banknote, CheckCircle2, User, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/lib/store/useCartStore';
 import { DELIVERY_ZONES } from '@/data/products';
 import { formatNaira } from '@/lib/utils';
 import { openPaystackModal } from '@/lib/paystack';
+import { supabase, isSupabaseConfigured, getUserProfile, upsertUserProfile } from '@/lib/db/supabase';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -23,10 +24,13 @@ export default function CheckoutPage() {
     getTotalCount,
   } = useCartStore();
 
-  const [name, setName] = useState('Emmy Ade');
-  const [email, setEmail] = useState('emmy@example.com');
-  const [phone, setPhone] = useState('08012345678');
-  const [address, setAddress] = useState('12 Admiralty Way, Lekki Phase 1');
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [city, setCity] = useState('Lagos');
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'delivery'>('paystack');
@@ -43,9 +47,68 @@ export default function CheckoutPage() {
 
   const selectedZone = DELIVERY_ZONES.find((z) => z.id === zoneId) || DELIVERY_ZONES[0];
 
+  // ─── Fetch Auth & Profile Metadata from Supabase ─────────────────────────
+  useEffect(() => {
+    async function loadUserSession() {
+      if (!supabase) {
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+
+        if (user) {
+          setEmail(user.email || '');
+          const profile = await getUserProfile(user.id);
+          if (profile) {
+            if (profile.full_name) setName(profile.full_name);
+            if (profile.phone) setPhone(profile.phone);
+            if (profile.default_address) setAddress(profile.default_address);
+            if (profile.default_zone) {
+              const matched = DELIVERY_ZONES.find(
+                (z) => z.name.toLowerCase() === profile.default_zone?.toLowerCase()
+              );
+              if (matched) setZoneId(matched.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Checkout auth initialization notice:', err);
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+
+    loadUserSession();
+
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+        if (currentUser) {
+          setEmail(currentUser.email || '');
+          const profile = await getUserProfile(currentUser.id);
+          if (profile) {
+            if (profile.full_name) setName(profile.full_name);
+            if (profile.phone) setPhone(profile.phone);
+            if (profile.default_address) setAddress(profile.default_address);
+          }
+        }
+      });
+      return () => subscription.unsubscribe();
+    }
+  }, [setZoneId]);
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+
+    if (!user) {
+      setErrorMessage('You must be logged in to complete your checkout and payment.');
+      return;
+    }
 
     if (!name || !email || !phone || !address) {
       setErrorMessage('Please fill in all delivery details.');
@@ -63,6 +126,22 @@ export default function CheckoutPage() {
     }
 
     setBusy(true);
+
+    // Save details to Supabase User Profile so it is remembered for future orders
+    if (user && supabase) {
+      try {
+        await upsertUserProfile({
+          id: user.id,
+          full_name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          default_address: address.trim(),
+          default_zone: selectedZone.name,
+        });
+      } catch (profileSaveErr) {
+        console.warn('[Checkout]: Could not save profile for later:', profileSaveErr);
+      }
+    }
 
     const orderRef = 'LDM-' + Math.random().toString(36).substring(2, 9).toUpperCase();
 
@@ -82,6 +161,7 @@ export default function CheckoutPage() {
           setBusy(false);
           const orderPayload = {
             reference: resp.reference || orderRef,
+            user_id: user.id,
             name,
             firstName: name.split(' ')[0],
             lastName: name.split(' ').slice(1).join(' '),
@@ -138,26 +218,42 @@ export default function CheckoutPage() {
       });
     } else {
       // Pay on Delivery
-      setTimeout(() => {
+      setTimeout(async () => {
         setBusy(false);
-        sessionStorage.setItem(
-          'latest_order',
-          JSON.stringify({
-            reference: orderRef,
-            name,
-            email,
-            phone,
-            address,
-            city,
-            zone: selectedZone.name,
-            items,
-            total,
-            subtotal,
-            deliveryFee,
-            date: new Date().toISOString(),
-            method: 'Pay on Delivery (Pending)',
-          })
-        );
+        const podPayload = {
+          reference: orderRef,
+          user_id: user.id,
+          name,
+          email,
+          phone,
+          address,
+          city,
+          zone: selectedZone.name,
+          items,
+          total,
+          subtotal,
+          deliveryFee,
+          date: new Date().toISOString(),
+          method: 'Pay on Delivery (Pending)',
+          payment_status: 'pending',
+          fulfillment_status: 'packing',
+        };
+
+        sessionStorage.setItem('latest_order', JSON.stringify(podPayload));
+
+        try {
+          await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reference: orderRef,
+              orderData: podPayload,
+            }),
+          });
+        } catch (e) {
+          console.warn('API order logging notice:', e);
+        }
+
         clearCart();
         router.push('/checkout/confirmation');
       }, 1000);
@@ -176,11 +272,67 @@ export default function CheckoutPage() {
       <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left: Form Fields */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Customer Details */}
+          {/* Guest Barrier: Must be logged in to enter details and pay */}
+          {!authLoading && !user && (
+            <div className="bg-amber-50/90 border border-amber-200 rounded-3xl p-6 shadow-soft space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 shadow-sm">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    Account Required to Fill Details &amp; Pay
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    You cannot enter delivery details or pay for products without an account. Please sign in or create an account so your delivery information is safely saved for later, and your order can be tracked.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <Link
+                  href="/login?redirect=/checkout"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand-green hover:bg-emerald-800 text-white font-extrabold text-xs shadow-md shadow-brand-green/20 text-center transition-colors"
+                >
+                  Sign In to Continue
+                </Link>
+                <Link
+                  href="/signup?redirect=/checkout"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-white border border-brand-line hover:border-brand-green text-brand-ink font-bold text-xs text-center transition-colors"
+                >
+                  Create New Account
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Authenticated Customer Banner */}
+          {!authLoading && user && (
+            <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between text-xs text-emerald-900">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-brand-green shrink-0" />
+                <span>
+                  Logged in as <strong>{user.email}</strong>. Details below are saved to your profile for later.
+                </span>
+              </div>
+              <Link href="/account" className="font-bold text-brand-green hover:underline shrink-0 ml-2">
+                Edit Profile
+              </Link>
+            </div>
+          )}
+
+          {/* Customer Details Form */}
           <div className="bg-white rounded-3xl border border-brand-line p-6 shadow-soft space-y-4">
-            <h3 className="text-xs font-extrabold text-brand-ink uppercase tracking-wider">
-              1. Recipient &amp; Delivery Details
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-extrabold text-brand-ink uppercase tracking-wider">
+                1. Recipient &amp; Delivery Details
+              </h3>
+              {!user && (
+                <span className="text-[10px] font-bold uppercase text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Locked
+                </span>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -188,9 +340,15 @@ export default function CheckoutPage() {
                 <input
                   type="text"
                   required
+                  disabled={!user}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold text-brand-ink outline-none focus:border-brand-green"
+                  placeholder={!user ? 'Please sign in first' : 'e.g. Adeola Johnson'}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold outline-none transition-all ${
+                    !user
+                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-brand-ink focus:border-brand-green'
+                  }`}
                 />
               </div>
 
@@ -199,9 +357,15 @@ export default function CheckoutPage() {
                 <input
                   type="tel"
                   required
+                  disabled={!user}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold text-brand-ink outline-none focus:border-brand-green"
+                  placeholder={!user ? 'Please sign in first' : '080 1234 5678'}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold outline-none transition-all ${
+                    !user
+                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-brand-ink focus:border-brand-green'
+                  }`}
                 />
               </div>
 
@@ -210,9 +374,15 @@ export default function CheckoutPage() {
                 <input
                   type="email"
                   required
+                  disabled={!user}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold text-brand-ink outline-none focus:border-brand-green"
+                  placeholder={!user ? 'Please sign in first' : 'you@example.com'}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold outline-none transition-all ${
+                    !user
+                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-brand-ink focus:border-brand-green'
+                  }`}
                 />
               </div>
 
@@ -221,10 +391,15 @@ export default function CheckoutPage() {
                 <input
                   type="text"
                   required
+                  disabled={!user}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. House 4, Palmview Estate, Lekki"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold text-brand-ink outline-none focus:border-brand-green"
+                  placeholder={!user ? 'Please sign in first' : 'e.g. House 4, Palmview Estate, Lekki'}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold outline-none transition-all ${
+                    !user
+                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-brand-ink focus:border-brand-green'
+                  }`}
                 />
               </div>
 
@@ -233,18 +408,28 @@ export default function CheckoutPage() {
                 <input
                   type="text"
                   required
+                  disabled={!user}
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold text-brand-ink outline-none focus:border-brand-green"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold outline-none transition-all ${
+                    !user
+                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-brand-ink focus:border-brand-green'
+                  }`}
                 />
               </div>
 
               <div>
                 <label className="text-xs font-bold text-brand-ink block mb-1">Delivery Zone</label>
                 <select
+                  disabled={!user}
                   value={zoneId}
                   onChange={(e) => setZoneId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold text-brand-ink outline-none focus:border-brand-green bg-white cursor-pointer"
+                  className={`w-full px-3.5 py-2.5 rounded-xl border border-brand-line text-xs font-semibold outline-none transition-all ${
+                    !user
+                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-brand-ink focus:border-brand-green cursor-pointer'
+                  }`}
                 >
                   {DELIVERY_ZONES.map((z) => (
                     <option key={z.id} value={z.id}>
@@ -258,10 +443,15 @@ export default function CheckoutPage() {
                 <label className="text-xs font-bold text-brand-ink block mb-1">Delivery Instructions / Landmarks (Optional)</label>
                 <textarea
                   rows={2}
+                  disabled={!user}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Call before coming, gate color is blue"
-                  className="w-full px-3.5 py-2 rounded-xl border border-brand-line text-xs font-semibold text-brand-ink outline-none focus:border-brand-green"
+                  placeholder={!user ? 'Sign in to add special delivery instructions' : 'e.g. Call before coming, gate color is blue'}
+                  className={`w-full px-3.5 py-2 rounded-xl border border-brand-line text-xs font-semibold outline-none transition-all ${
+                    !user
+                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-brand-ink focus:border-brand-green'
+                  }`}
                 />
               </div>
             </div>
@@ -275,16 +465,19 @@ export default function CheckoutPage() {
 
             <div className="space-y-2.5">
               <label
-                className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
-                  paymentMethod === 'paystack'
-                    ? 'border-brand-green bg-brand-green-soft text-brand-green-dark shadow-sm'
-                    : 'border-brand-line bg-white hover:border-gray-300'
+                className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                  !user
+                    ? 'opacity-60 cursor-not-allowed border-brand-line bg-slate-50'
+                    : paymentMethod === 'paystack'
+                    ? 'border-brand-green bg-brand-green-soft text-brand-green-dark shadow-sm cursor-pointer'
+                    : 'border-brand-line bg-white hover:border-gray-300 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <input
                     type="radio"
                     name="payMethod"
+                    disabled={!user}
                     checked={paymentMethod === 'paystack'}
                     onChange={() => setPaymentMethod('paystack')}
                     className="accent-brand-green"
@@ -298,16 +491,19 @@ export default function CheckoutPage() {
               </label>
 
               <label
-                className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
-                  paymentMethod === 'delivery'
-                    ? 'border-brand-green bg-brand-green-soft text-brand-green-dark shadow-sm'
-                    : 'border-brand-line bg-white hover:border-gray-300'
+                className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                  !user
+                    ? 'opacity-60 cursor-not-allowed border-brand-line bg-slate-50'
+                    : paymentMethod === 'delivery'
+                    ? 'border-brand-green bg-brand-green-soft text-brand-green-dark shadow-sm cursor-pointer'
+                    : 'border-brand-line bg-white hover:border-gray-300 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <input
                     type="radio"
                     name="payMethod"
+                    disabled={!user}
                     checked={paymentMethod === 'delivery'}
                     onChange={() => setPaymentMethod('delivery')}
                     className="accent-brand-green"
@@ -401,14 +597,32 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full py-3.5 rounded-full bg-brand-green hover:bg-brand-green-dark text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-brand-green/20 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Lock className="w-4 h-4" />
-              <span>{busy ? 'Processing Payment…' : `Pay ${formatNaira(total)}`}</span>
-            </button>
+            {!user ? (
+              <div className="space-y-2 pt-2">
+                <Link
+                  href="/login?redirect=/checkout"
+                  className="w-full py-3.5 rounded-full bg-slate-900 hover:bg-black text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all text-center"
+                >
+                  <Lock className="w-4 h-4" />
+                  <span>Sign In to Fill Details &amp; Pay</span>
+                </Link>
+                <p className="text-[11px] text-center text-slate-500">
+                  New customer?{' '}
+                  <Link href="/signup?redirect=/checkout" className="text-brand-green font-bold hover:underline">
+                    Create account here
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={busy}
+                className="w-full py-3.5 rounded-full bg-brand-green hover:bg-brand-green-dark text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-brand-green/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Lock className="w-4 h-4" />
+                <span>{busy ? 'Processing Payment…' : `Pay ${formatNaira(total)}`}</span>
+              </button>
+            )}
           </div>
         </div>
       </form>

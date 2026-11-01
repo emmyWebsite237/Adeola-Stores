@@ -20,19 +20,18 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    if (!supabase || !isSupabaseConfigured) {
-      setErrorMsg('Supabase is not configured yet. Please check your environment variables.');
-      return;
-    }
-
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/account`,
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
       });
 
-      if (error) {
-        setErrorMsg(error.message);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.error || 'Failed to send reset email. Please try again.');
         return;
       }
 
