@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShoppingBasket, Heart, ShoppingBag, Menu, X, ChefHat, Tag } from 'lucide-react';
+import { ShoppingBasket, Heart, ShoppingBag, Menu, X, ChefHat, Tag, User as UserIcon, LogIn } from 'lucide-react';
 import { useCartStore } from '@/lib/store/useCartStore';
+import { supabase, isSupabaseConfigured, getUserProfile, UserProfile } from '@/lib/db/supabase';
 import MobileSearchRow from './MobileSearchRow';
 
 export default function Header() {
@@ -12,6 +13,41 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const totalCount = useCartStore((s) => s.getTotalCount());
   const wishlistCount = useCartStore((s) => s.wishlist.length);
+
+  // Dynamic Supabase Auth State (Pure initial state, zero hardcoded "Emmy")
+  const [sessionUser, setSessionUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    if (!supabase || !isSupabaseConfigured) return;
+
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user ?? null;
+      setSessionUser(user);
+      if (user) {
+        getUserProfile(user.id).then((prof) => setUserProfile(prof));
+      }
+    });
+
+    // Listen to real-time auth changes (login, logout, token refresh)
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const user = session?.user ?? null;
+        setSessionUser(user);
+        if (user) {
+          const prof = await getUserProfile(user.id);
+          setUserProfile(prof);
+        } else {
+          setUserProfile(null);
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <>
@@ -122,15 +158,38 @@ export default function Header() {
                 )}
               </Link>
 
-              <Link
-                href="/account"
-                className="flex items-center gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full bg-brand-green-soft text-brand-green hover:bg-[#d8ebe0] transition-colors"
-              >
-                <div className="w-7 h-7 sm:w-7 sm:h-7 rounded-full bg-brand-green text-white text-xs font-bold flex items-center justify-center">
-                  E
-                </div>
-                <span className="hidden sm:inline font-bold text-xs">Emmy</span>
-              </Link>
+              {/* User Account / Sign In Indicator */}
+              {sessionUser ? (
+                <Link
+                  href="/account"
+                  className="flex items-center gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full bg-brand-green-soft text-brand-green hover:bg-[#d8ebe0] transition-colors"
+                  aria-label="Account Settings"
+                >
+                  {userProfile?.avatar_url ? (
+                    <img
+                      src={userProfile.avatar_url}
+                      alt="Avatar"
+                      className="w-7 h-7 rounded-full object-cover border border-brand-green"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 sm:w-7 sm:h-7 rounded-full bg-brand-green text-white text-xs font-bold flex items-center justify-center">
+                      {(userProfile?.full_name || sessionUser.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="hidden sm:inline font-bold text-xs max-w-[80px] truncate">
+                    {userProfile?.full_name ? userProfile.full_name.split(' ')[0] : 'My Account'}
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex items-center gap-1.5 p-1.5 sm:px-3.5 sm:py-2 rounded-full border border-brand-line text-brand-ink hover:border-brand-green hover:text-brand-green hover:bg-brand-green-soft/40 transition-all text-xs font-bold"
+                  aria-label="Sign In"
+                >
+                  <LogIn className="w-4 h-4 text-brand-green" />
+                  <span className="hidden sm:inline">Sign In</span>
+                </Link>
+              )}
             </div>
           </div>
 
@@ -218,7 +277,7 @@ export default function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-4 py-3 rounded-xl font-bold text-sm text-brand-ink hover:bg-brand-green-soft hover:text-brand-green transition-colors"
                 >
-                  My Orders &amp; Tracking
+                  {sessionUser ? 'My Orders & Tracking' : 'Sign In / Register'}
                 </Link>
                 {/* Staff Portal link removed – admin is a separate portal */}
               </div>
