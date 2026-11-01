@@ -16,7 +16,7 @@ export interface Recipe {
   cookTime: string;
   servings: number;
   difficulty: 'Easy' | 'Medium' | 'Chef';
-  category: 'Soups & Stews' | 'Rice & Grains' | 'Breakfast' | 'Swallows' | 'Snacks';
+  category: string;
   description: string;
   instructions: string[];
   ingredients: RecipeIngredient[];

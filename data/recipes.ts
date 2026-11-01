@@ -44,7 +44,7 @@ export const RECIPES: Recipe[] = [
     cookTime: '10 mins',
     servings: 2,
     difficulty: 'Easy',
-    category: 'Snacks & Noodles',
+    category: 'Snacks',
     description: 'Transform regular instant noodles into a rich gourmet meal in 10 minutes. Sautéed with pepper and onion paste, whole Titus sardine in oil, and noodle seasoning.',
     instructions: [
       'Boil 2 packs of Indomie noodles in 1.5 cups of boiling water for 3 minutes until parboiled, then drain excess liquid.',
@@ -70,7 +70,7 @@ export const RECIPES: Recipe[] = [
     cookTime: '4 mins',
     servings: 3,
     difficulty: 'Easy',
-    category: 'Breakfast Cereals',
+    category: 'Breakfast',
     description: 'The beloved traditional Nigerian morning breakfast. Silky smooth Checkers vanilla custard prepared with boiling water, enriched with Peak full cream powdered milk and sweet sugar cubes.',
     instructions: [
       'In a wide cereal bowl, dissolve 4 heaped tablespoons of Checkers custard powder in 3 tablespoons of cold water to form a smooth, lump-free paste.',
@@ -124,7 +124,7 @@ export const RECIPES: Recipe[] = [
     cookTime: '20 mins',
     servings: 4,
     difficulty: 'Easy',
-    category: 'Pasta & Noodles',
+    category: 'Rice & Grains',
     description: 'A beloved weekday dinner favorite across Nigerian homes. Golden Penny spaghetti tossed and simmered in a reduced tomato and pepper base, seasoned with Knorr cubes, thyme, and Exeter corned beef.',
     instructions: [
       'Bring a large pot of salted water to a rolling boil. Add Golden Penny spaghetti (broken into halves or whole) and cook for 6-7 minutes until al dente. Drain and set aside.',

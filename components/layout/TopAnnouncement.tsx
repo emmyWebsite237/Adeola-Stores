@@ -1,7 +1,17 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Truck, Phone } from 'lucide-react';
 
 export default function TopAnnouncement() {
+  const pathname = usePathname();
+
+  // Hide completely on administrative routes
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <div className="bg-brand-ink text-[#c3d6c9] text-xs font-medium py-2 px-4 border-b border-white/5">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
