@@ -37,7 +37,6 @@ import {
   StoreRecipeRecord
 } from '@/lib/db/supabase';
 import { PAYSTACK_PUBLIC_KEY } from '@/lib/paystack';
-import { uploadImageToCloudinary } from '@/lib/cloudinary';
 import DataMissing from '@/components/ui/DataMissing';
 
 // ─── Active Tab Type ────────────────────────────────────────────────────────
@@ -99,10 +98,8 @@ export default function AdminDashboardPage() {
   const [recipeDeleting, setRecipeDeleting] = useState<string | null>(null);
   const [recipeFeedback, setRecipeFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Cloudinary Uploader
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Copied asset feedback
+  const [copiedAsset, setCopiedAsset] = useState<string | null>(null);
 
   // ─── Data Fetching (Supabase Only – Zero Mocks) ────────────────────────
   const loadOrders = useCallback(async () => {
@@ -279,21 +276,11 @@ export default function AdminDashboardPage() {
     });
   };
 
-  // ─── Image Upload ──────────────────────────────────────────────────────
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingImage(true);
-    setUploadError(null);
-    setUploadedImageUrl(null);
-    try {
-      const res = await uploadImageToCloudinary(file);
-      setUploadedImageUrl(res.secure_url || res.url);
-    } catch (err: any) {
-      setUploadError(err.message || 'Upload failed. Check Cloudinary settings.');
-    } finally {
-      setUploadingImage(false);
-    }
+  // ─── Static Asset Copy Helper ───────────────────────────────────────────
+  const copyAssetPath = (path: string) => {
+    navigator.clipboard.writeText(path);
+    setCopiedAsset(path);
+    setTimeout(() => setCopiedAsset(null), 2500);
   };
 
   // ─── Computed Stats ────────────────────────────────────────────────────
@@ -399,9 +386,9 @@ export default function AdminDashboardPage() {
               <Upload className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Image Hosting</div>
-              <div className="text-sm font-bold text-slate-900">Cloudinary CDN</div>
-              <div className="text-[11px] text-slate-500">Auto-compression &amp; WebP ready</div>
+              <div className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Product Assets</div>
+              <div className="text-sm font-bold text-slate-900">GitHub &amp; Static WebP</div>
+              <div className="text-[11px] text-slate-500">Direct repository hosting</div>
             </div>
           </div>
         </div>
@@ -682,7 +669,7 @@ export default function AdminDashboardPage() {
                       value={editingRecipe.image}
                       onChange={(e) => setEditingRecipe({ ...editingRecipe, image: e.target.value })}
                       className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-store-forest"
-                      placeholder="Paste Cloudinary URL here"
+                      placeholder="e.g. /images/products/jollof-paste.webp"
                     />
                   </div>
                   <div>
@@ -940,79 +927,71 @@ export default function AdminDashboardPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════
-            TAB 3: TOOLS & LINKS (Cloudinary uploader + external links)
+            TAB 3: TOOLS & LINKS (Static assets + external developer links)
         ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'tools' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Cloudinary Quick Uploader */}
+            {/* Local Catalog Product Image Asset Picker */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center gap-2 mb-2">
-                <Upload className="w-4 h-4 text-store-forest" />
-                <h3 className="text-sm font-bold text-slate-900">Cloudinary Image Uploader</h3>
+                <CheckCircle className="w-4 h-4 text-store-forest" />
+                <h3 className="text-sm font-bold text-slate-900">Store Product Assets (GitHub Hosted)</h3>
               </div>
               <p className="text-xs text-slate-500 mb-4">
-                Upload grocery product photos directly to your Cloudinary cloud. You get instant optimized URLs ready for products!
+                All 86 store products use optimized WebP images stored directly in GitHub (<code>/public/images/products/</code>). Click any asset path below to copy it for use in recipes or new inventory items:
               </p>
 
-              <label className="block w-full border-2 border-dashed border-slate-200 hover:border-store-forest rounded-xl p-4 text-center cursor-pointer transition bg-slate-50/50">
-                <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-                <span className="text-xs font-semibold text-store-forest">
-                  {uploadingImage ? 'Uploading to Cloudinary…' : 'Click to choose image'}
-                </span>
-                <span className="block text-[11px] text-slate-400 mt-1">PNG, JPG, WEBP up to 5MB</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  disabled={uploadingImage}
-                  className="hidden"
-                />
-              </label>
-
-              {uploadError && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Cloudinary notice:</span>
-                    <p className="mt-0.5">{uploadError}</p>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      See <code>SETUP_GUIDE.md</code> to configure your unsigned upload preset.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {uploadedImageUrl && (
-                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 mb-1">
-                    <CheckCircle className="w-4 h-4 text-store-forest" />
-                    Uploaded Successfully!
-                  </div>
-                  <img
-                    src={uploadedImageUrl}
-                    alt="Uploaded preview"
-                    className="w-full h-32 object-cover rounded-lg border border-emerald-200 my-2"
-                  />
-                  <div className="text-[11px] text-slate-600 font-mono break-all bg-white p-2 rounded border border-slate-200">
-                    {uploadedImageUrl}
-                  </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(uploadedImageUrl);
-                      alert('Cloudinary URL copied to clipboard!');
-                    }}
-                    className="w-full mt-2 py-1.5 text-xs bg-store-forest text-white font-bold rounded-lg hover:bg-emerald-800 transition"
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1 text-xs font-mono">
+                {[
+                  '/images/products/kings-pure-vegetable-oil.webp',
+                  '/images/products/knorr-chicken-seasoning-cubes.webp',
+                  '/images/products/milo-big-tin.webp',
+                  '/images/products/peak-full-cream-milk-powder-refill.webp',
+                  '/images/products/super-pack-indomie-carton.webp',
+                  '/images/products/indomie-onion-flavor-carton.webp',
+                  '/images/products/spaghetti-golden-penny-carton.webp',
+                  '/images/products/my-choice-rice-wholesale-bag.webp',
+                  '/images/products/gino-tomato-party-jollof-paste.webp',
+                  '/images/products/titus-sardines-can.webp',
+                  '/images/products/exeter-corned-beef-can.webp',
+                  '/images/products/golden-morn-big-size.webp',
+                  '/images/products/coca-cola-plastic-pack.webp',
+                  '/images/products/pepsi-plastic-pack.webp',
+                  '/images/products/fanta-orange-plastic-pack.webp',
+                  '/images/products/st-louis-sugar-cube-box.webp',
+                  '/images/products/kisskids-diapers.webp',
+                  '/images/products/bama-mayonnaise.webp',
+                  '/images/products/sonia-tomato-paste.webp',
+                  '/images/products/custard-3-in-1-refill.webp',
+                  '/images/products/cornflakes-roll.webp'
+                ].map((asset) => (
+                  <div
+                    key={asset}
+                    onClick={() => copyAssetPath(asset)}
+                    className="flex items-center justify-between p-2 rounded-lg border border-slate-200 hover:border-store-forest bg-slate-50/50 cursor-pointer transition"
                   >
-                    Copy Image URL
-                  </button>
-                </div>
-              )}
+                    <span className="truncate">{asset}</span>
+                    <span className="text-[10px] text-store-forest font-bold shrink-0 ml-2">
+                      {copiedAsset === asset ? 'Copied!' : 'Copy'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Quick Links & Setup Guide */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-              <h3 className="text-sm font-bold text-slate-900">Developer &amp; Store Links</h3>
+              <h3 className="text-sm font-bold text-slate-900">Developer &amp; Platform Portals</h3>
               <div className="space-y-2 text-xs">
+                <a
+                  href="https://github.com/emmyWebsite237/Adeola-Stores"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-store-forest text-slate-700 transition"
+                >
+                  <span className="font-semibold">GitHub Repository (Code &amp; Assets)</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </a>
                 <a
                   href="https://dashboard.paystack.com"
                   target="_blank"
@@ -1032,12 +1011,12 @@ export default function AdminDashboardPage() {
                   <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </a>
                 <a
-                  href="https://cloudinary.com/console"
+                  href="https://vercel.com/dashboard"
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-store-forest text-slate-700 transition"
                 >
-                  <span className="font-semibold">Cloudinary Media Console</span>
+                  <span className="font-semibold">Vercel Deployment Dashboard</span>
                   <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </a>
               </div>

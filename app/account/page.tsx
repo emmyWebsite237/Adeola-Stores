@@ -34,7 +34,6 @@ import {
   UserProfile,
   StoreOrderRecord
 } from '@/lib/db/supabase';
-import { uploadImageToCloudinary } from '@/lib/cloudinary';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -113,37 +112,46 @@ export default function AccountPage() {
     router.refresh();
   };
 
-  // Avatar Upload via Cloudinary bridged to Supabase
+  // Avatar Photo Upload (Direct Local / Supabase User Profile)
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileFeedback({ type: 'error', message: 'Profile picture must be under 2MB.' });
+      return;
+    }
+
     setUploadingAvatar(true);
     setProfileFeedback(null);
     try {
-      const result = await uploadImageToCloudinary(file);
-      const newAvatarUrl = result.secure_url || result.url;
+      // Read as Data URL for immediate responsive avatar display
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Url = reader.result as string;
 
-      // Bridge and persist to Supabase User Profile
-      const updated = await upsertUserProfile({
-        id: user.id,
-        full_name: fullName || user.email?.split('@')[0] || 'Customer',
-        email: user.email,
-        phone,
-        avatar_url: newAvatarUrl,
-        default_address: defaultAddress,
-        default_zone: defaultZone,
-      });
+        // Persist to Supabase User Profile
+        const updated = await upsertUserProfile({
+          id: user.id,
+          full_name: fullName || user.email?.split('@')[0] || 'Customer',
+          email: user.email,
+          phone,
+          avatar_url: base64Url,
+          default_address: defaultAddress,
+          default_zone: defaultZone,
+        });
 
-      setProfile(updated);
-      setProfileFeedback({ type: 'success', message: 'Profile picture updated successfully!' });
+        setProfile(updated);
+        setProfileFeedback({ type: 'success', message: 'Profile picture updated successfully!' });
+        setUploadingAvatar(false);
+      };
+      reader.readAsDataURL(file);
     } catch (err: any) {
-      console.error('Avatar upload error:', err);
+      console.error('Avatar error:', err);
       setProfileFeedback({
         type: 'error',
-        message: err.message || 'Failed to upload photo. Check Cloudinary upload preset.',
+        message: err.message || 'Failed to update profile picture.',
       });
-    } finally {
       setUploadingAvatar(false);
     }
   };
@@ -225,7 +233,7 @@ export default function AccountPage() {
       {/* User Header Profile Card */}
       <div className="bg-white rounded-3xl border border-brand-line p-6 shadow-soft flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          {/* Avatar with Cloudinary Upload Badge */}
+          {/* Avatar with Photo Upload Badge */}
           <div className="relative group">
             {displayAvatar ? (
               <img
@@ -241,7 +249,7 @@ export default function AccountPage() {
             <label
               htmlFor="avatar-upload"
               className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-brand-ink hover:bg-brand-green text-white cursor-pointer shadow-md transition-colors"
-              title="Upload profile picture to Cloudinary"
+              title="Upload profile picture"
             >
               <Camera className="w-3.5 h-3.5" />
               <input
@@ -265,7 +273,7 @@ export default function AccountPage() {
             <p className="text-xs text-brand-muted mt-0.5">{user.email} · {phone || 'No phone set'}</p>
             {uploadingAvatar && (
               <p className="text-[10px] text-brand-green font-bold flex items-center gap-1 mt-1">
-                <Loader2 className="w-3 h-3 animate-spin" /> Uploading image to Cloudinary...
+                <Loader2 className="w-3 h-3 animate-spin" /> Updating profile photo...
               </p>
             )}
           </div>
@@ -446,13 +454,13 @@ export default function AccountPage() {
         </div>
       )}
 
-      {/* TAB 2: PROFILE SETTINGS (Supabase text metadata + Cloudinary Avatar) */}
+      {/* TAB 2: PROFILE SETTINGS (Supabase text metadata + Avatar) */}
       {activeTab === 'profile' && (
         <div className="bg-white rounded-3xl border border-brand-line p-6 sm:p-8 shadow-soft max-w-2xl">
           <div className="mb-6">
             <h2 className="text-lg font-extrabold text-brand-ink">Profile Settings</h2>
             <p className="text-xs text-brand-muted mt-1">
-              Update your contact metadata and Lagos delivery information. Backed live by Supabase and Cloudinary.
+              Update your contact metadata and Lagos delivery information. Backed live by Supabase.
             </p>
           </div>
 

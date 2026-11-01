@@ -113,7 +113,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 }
 
 /**
- * Upsert user profile metadata bridged to Cloudinary avatar URL
+ * Upsert user profile metadata with avatar URL
  */
 export async function upsertUserProfile(profile: Partial<UserProfile> & { id: string }): Promise<UserProfile | null> {
   if (!supabase) {

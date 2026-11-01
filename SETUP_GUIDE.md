@@ -1,13 +1,13 @@
 # 🛒 Adeola Stores (Lady Dee Minimart) - Full Setup & Deployment Guide
 
-This guide walks you through setting up every piece of your reconstructed modern React + TypeScript e-commerce platform, including **Supabase**, **Cloudinary**, **Paystack**, and **Vercel**.
+This guide walks you through setting up every piece of your reconstructed modern React + TypeScript e-commerce platform, including **Supabase**, **Paystack**, **Brevo**, **FormSubmit**, and **Vercel**.
 
 ---
 
 ## 📋 Table of Contents
 1. [Fast Start: Run Locally in 2 Minutes](#1-fast-start-run-locally-in-2-minutes)
 2. [Database Setup: Supabase (PostgreSQL)](#2-database-setup-supabase-postgresql)
-3. [Image Hosting & CDN: Cloudinary](#3-image-hosting--cdn-cloudinary)
+3. [Product Image Assets: Direct GitHub Hosting](#3-product-image-assets-direct-github-hosting)
 4. [Nigerian Payment Gateway: Paystack](#4-nigerian-payment-gateway-paystack)
 5. [Email Newsletter: Brevo](#5-email-newsletter-brevo)
 6. [Suggestions & Delivery Support: FormSubmit](#6-suggestions--delivery-support-formsubmit)
@@ -18,7 +18,7 @@ This guide walks you through setting up every piece of your reconstructed modern
 
 ## 1. Fast Start: Run Locally in 2 Minutes
 
-You can run this project on your computer immediately. Even without setting up Supabase, Cloudinary, or Paystack yet, the app runs smoothly with offline mock fallbacks and local storage persistence!
+You can run this project on your computer immediately. Even without setting up Supabase or Paystack yet, the app runs smoothly with offline fallbacks and local storage persistence! All product images are already packaged directly into the repository!
 
 ### Step 1: Open Terminal in Project Directory
 ```bash
@@ -115,34 +115,14 @@ Now all online and offline checkout orders will sync directly to your Supabase c
 
 ---
 
-## 3. Image Hosting & CDN: Cloudinary
+## 3. Product Image Assets: Direct GitHub Hosting
 
-Cloudinary automatically compresses your grocery photos, converts them to modern next-gen WebP/AVIF formats, and delivers them instantly over global CDNs so mobile users on 3G/4G in Lagos load the site in under 1 second.
+All grocery product images are already pre-compressed into lightweight WebP format on crisp pure white backgrounds (`#ffffff`), located directly in `/public/images/products/`.
 
-### Step 1: Create a Free Account
-1. Go to [https://cloudinary.com](https://cloudinary.com) and click **Sign Up For Free**.
-2. Note your **Cloud Name** displayed on the dashboard home screen (e.g. `adeola-stores`).
-
-### Step 2: Create an "Unsigned" Upload Preset
-This allows you or your staff to upload product photos directly from the browser without exposing private API secrets:
-1. In Cloudinary, click the **Settings** (gear icon) in the bottom left.
-2. Select the **Upload** tab.
-3. Scroll down to **Upload presets** and click **Add upload preset**.
-4. Set **Signing Mode** to **Unsigned**.
-5. Set **Preset name** to `adeola_products`.
-6. Set **Folder** to `adeola_stores/products`.
-7. Click **Save**.
-
-### Step 3: Add Keys to `.env.local`
-```env
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=adeola-stores
-NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=adeola_products
-```
-
-### Step 4: Use the Built-in Image Uploader
-1. Open your admin dashboard at `http://localhost:3000/admin`.
-2. Look at the right sidebar: **Cloudinary Image Uploader**.
-3. Choose any image from your computer or phone — it uploads instantly and gives you a clean CDN URL that you can paste into your product list!
+- **No external accounts or upload presets required**
+- Zero latency: images load in milliseconds from Vercel's global edge network
+- Version controlled directly in your GitHub repository alongside your code
+- When adding new items, simply place a WebP/PNG image in `/public/images/products/` and reference its path in `data/products.ts` or the Admin recipe tool.
 
 ---
 
@@ -262,7 +242,7 @@ Vercel builds the Next.js application and gives you a live global HTTPS URL (e.g
 | **Checkout** | `/checkout` | Delivery address form, Paystack inline modal (Card/USSD/Transfer), terms agreement. |
 | **Order Receipt** | `/checkout/confirmation` | Clean printable digital receipt with order reference and WhatsApp dispatch tracking. |
 | **Customer Account** | `/account` | Live 4-stage delivery tracker ladder, saved delivery addresses, past order history. |
-| **Merchant Admin** | `/admin` | Total revenue KPI, live orders table, rider dispatch status updates, and Cloudinary image uploader. |
+| **Merchant Admin** | `/admin` | Total revenue KPI, live orders table, rider dispatch status updates, and product image asset manager. |
 | **Terms of Service** | `/terms` | Paystack-compliant grocery sales, delivery schedules, and cancellation policies. |
 | **Returns & Refunds** | `/returns` | 100% doorstep inspection guarantee and 24-48h Paystack refund terms. |
 | **Privacy Policy** | `/privacy` | NDPR-compliant customer data security policies. |
