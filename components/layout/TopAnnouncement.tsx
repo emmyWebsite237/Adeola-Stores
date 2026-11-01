@@ -10,7 +10,7 @@ export default function TopAnnouncement() {
   const { settings } = useSiteSettings();
 
   // Hide completely on administrative routes
-  if (pathname?.startsWith('/admin')) {
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/admin-portal')) {
     return null;
   }
 

@@ -11,6 +11,7 @@ import MobileSearchRow from './MobileSearchRow';
 export default function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const totalCount = useCartStore((s) => s.getTotalCount());
   const wishlistCount = useCartStore((s) => s.wishlist.length);
 
@@ -19,6 +20,7 @@ export default function Header() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
+    setMounted(true);
     if (!supabase || !isSupabaseConfigured) return;
 
     // Check current session
@@ -151,7 +153,7 @@ export default function Header() {
                 aria-label="Shopping Cart"
               >
                 <ShoppingBag className="w-5 h-5" />
-                {totalCount > 0 && (
+                {mounted && totalCount > 0 && (
                   <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-brand-green text-white text-[10px] font-extrabold flex items-center justify-center">
                     {totalCount > 99 ? '99+' : totalCount}
                   </span>
@@ -159,7 +161,7 @@ export default function Header() {
               </Link>
 
               {/* User Account / Sign In Indicator */}
-              {sessionUser ? (
+              {mounted && sessionUser ? (
                 <Link
                   href="/account"
                   className="flex items-center gap-2 p-1 sm:px-3 sm:py-1.5 rounded-full bg-brand-green-soft text-brand-green hover:bg-[#d8ebe0] transition-colors"

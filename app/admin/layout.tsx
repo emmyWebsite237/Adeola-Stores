@@ -1,5 +1,7 @@
+import AdminAuthGate from '@/components/admin/AdminAuthGate';
+
 /**
- * Admin-specific layout – NO store header, footer, or category pills.
+ * Admin-specific layout – Protected with Supabase Admin Authentication.
  * The admin portal is visually and functionally distinct from the storefront.
  */
 export default function AdminLayout({
@@ -8,8 +10,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col overflow-y-auto">
-      {children}
-    </div>
+    <AdminAuthGate>
+      <div className="min-h-screen bg-slate-50 flex flex-col overflow-y-auto">
+        {children}
+      </div>
+    </AdminAuthGate>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, ShoppingBasket, ChefHat, ShoppingBag, User } from 'lucide-react';
@@ -7,13 +8,18 @@ import { useCartStore } from '@/lib/store/useCartStore';
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const totalCount = useCartStore((s) => s.getTotalCount());
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navItems = [
     { label: 'Home', href: '/', icon: Home },
     { label: 'Shop', href: '/shop', icon: ShoppingBasket },
     { label: 'Cook', href: '/cook', icon: ChefHat, badge: 'New' },
-    { label: 'Cart', href: '/cart', icon: ShoppingBag, count: totalCount },
+    { label: 'Cart', href: '/cart', icon: ShoppingBag, count: mounted ? totalCount : 0 },
     { label: 'Account', href: '/account', icon: User },
   ];
 

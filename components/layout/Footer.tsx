@@ -220,7 +220,7 @@ export default function Footer() {
         </div>
 
         <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
-          <p>&copy; {new Date().getFullYear()} Ladydee Minimart Store. All rights reserved.</p>
+          <p suppressHydrationWarning>&copy; {new Date().getFullYear()} Ladydee Minimart Store. All rights reserved.</p>
           <p>Powered by Next.js &amp; TypeScript</p>
         </div>
       </div>

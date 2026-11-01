@@ -17,7 +17,7 @@ import PeriodicEngagementModal from '@/components/ui/PeriodicEngagementModal';
  */
 export default function StoreShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin = pathname?.startsWith('/admin');
+  const isAdmin = pathname?.startsWith('/admin') || pathname?.startsWith('/admin-portal');
 
   if (isAdmin) {
     // Admin pages get NO store chrome – they render their own layout

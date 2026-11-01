@@ -32,7 +32,10 @@ import {
   Facebook,
   Twitter,
   Globe,
-  Sliders
+  Sliders,
+  LogOut,
+  Lock,
+  Key
 } from 'lucide-react';
 import { formatNaira } from '@/lib/utils';
 import {
@@ -118,6 +121,13 @@ export default function AdminDashboardPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsFeedback, setSettingsFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Admin Credentials Change State
+  const [adminCurrentPassword, setAdminCurrentPassword] = useState('');
+  const [adminNewUsername, setAdminNewUsername] = useState('adeola_admin');
+  const [adminNewPassword, setAdminNewPassword] = useState('');
+  const [adminCredSaving, setAdminCredSaving] = useState(false);
+  const [adminCredFeedback, setAdminCredFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   // ─── Data Fetching (Supabase Only – Zero Mocks) ────────────────────────
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
@@ -199,6 +209,37 @@ export default function AdminDashboardPage() {
       setSettingsFeedback({ type: 'error', message: err.message || 'Error saving settings' });
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleUpdateAdminCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminCredSaving(true);
+    setAdminCredFeedback(null);
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentUsername: 'adeola_admin',
+          currentPassword: adminCurrentPassword,
+          newUsername: adminNewUsername.trim(),
+          newPassword: adminNewPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setAdminCredFeedback({ type: 'error', message: data.error || 'Failed to update admin credentials' });
+      } else {
+        setAdminCredFeedback({ type: 'success', message: 'Admin credentials successfully updated in Supabase!' });
+        setAdminCurrentPassword('');
+        setAdminNewPassword('');
+        setTimeout(() => setAdminCredFeedback(null), 5000);
+      }
+    } catch (err: any) {
+      setAdminCredFeedback({ type: 'error', message: err.message || 'Error updating password' });
+    } finally {
+      setAdminCredSaving(false);
     }
   };
 
@@ -403,6 +444,18 @@ export default function AdminDashboardPage() {
               <ExternalLink className="w-3.5 h-3.5" />
               View Storefront
             </Link>
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('ladydee_admin_authenticated');
+                sessionStorage.removeItem('ladydee_admin_user');
+                window.location.reload();
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 rounded-xl text-xs font-semibold transition"
+              title="Sign Out of Admin Portal"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
           </div>
         </div>
       </div>
@@ -1266,6 +1319,98 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </form>
+
+            {/* Group 5: Admin Security & Password Change */}
+            <div className="pt-8 border-t border-slate-200 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                    <Key className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Admin Portal Security &amp; Credentials</h3>
+                    <p className="text-xs text-slate-500">Update the username or password used to access this admin panel (saved in Supabase).</p>
+                  </div>
+                </div>
+
+                {adminCredFeedback && (
+                  <div
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                      adminCredFeedback.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}
+                  >
+                    <span>{adminCredFeedback.message}</span>
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={handleUpdateAdminCredentials} className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Admin Username
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={adminNewUsername}
+                      onChange={(e) => setAdminNewUsername(e.target.value)}
+                      placeholder="e.g. adeola_admin"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Current Password (Required)
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={adminCurrentPassword}
+                      onChange={(e) => setAdminCurrentPassword(e.target.value)}
+                      placeholder="Enter current password"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={adminNewPassword}
+                      onChange={(e) => setAdminNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[11px] text-slate-500">
+                    Default credentials: <code>adeola_admin</code> / <code>AdeolaStores2026!</code>
+                  </span>
+
+                  <button
+                    type="submit"
+                    disabled={adminCredSaving}
+                    className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    {adminCredSaving ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Lock className="w-3.5 h-3.5" />
+                    )}
+                    <span>Update Admin Password</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
