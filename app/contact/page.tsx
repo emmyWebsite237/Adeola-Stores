@@ -14,12 +14,18 @@ import {
   Phone,
   Mail,
   MapPin,
-  Clock
+  Clock,
+  MessageCircle
 } from 'lucide-react';
+import { useSiteSettings } from '@/lib/useSiteSettings';
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [topic, setTopic] = useState('product-suggestion');
+  const { settings } = useSiteSettings();
+
+  const cleanPhone = (settings.phone || '').replace(/[^0-9+]/g, '');
+  const cleanWhatsApp = (settings.whatsapp || '').replace(/[^0-9]/g, '');
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-14 space-y-10">
@@ -57,11 +63,30 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <span className="block font-bold text-brand-ink">Customer Support Line</span>
-                  <a href="tel:+2348000000000" className="text-brand-muted hover:text-brand-green transition-colors">
-                    080 000 0000 / 081 2345 6789
+                  <a href={`tel:${cleanPhone || '+2348000000000'}`} className="text-brand-muted hover:text-brand-green transition-colors font-medium">
+                    {settings.phone || '080 000 0000'}
                   </a>
                 </div>
               </div>
+
+              {cleanWhatsApp && (
+                <div className="flex items-start gap-3 text-xs">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <MessageCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="block font-bold text-brand-ink">WhatsApp Desk</span>
+                    <a
+                      href={`https://wa.me/${cleanWhatsApp}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-700 hover:underline font-semibold"
+                    >
+                      Chat on WhatsApp ({settings.whatsapp})
+                    </a>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-start gap-3 text-xs">
                 <div className="w-8 h-8 rounded-xl bg-brand-amber-soft text-brand-amber flex items-center justify-center shrink-0">
@@ -69,8 +94,8 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <span className="block font-bold text-brand-ink">Official Email Address</span>
-                  <a href="mailto:support@ladydeestores.com" className="text-brand-muted hover:text-brand-green transition-colors">
-                    support@ladydeestores.com
+                  <a href={`mailto:${settings.email || 'support@ladydeestores.com'}`} className="text-brand-muted hover:text-brand-green transition-colors font-medium">
+                    {settings.email || 'support@ladydeestores.com'}
                   </a>
                 </div>
               </div>
@@ -81,7 +106,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <span className="block font-bold text-brand-ink">Central Lagos Hub</span>
-                  <span className="text-brand-muted">Ladydee Minimart Store, Lagos, Nigeria</span>
+                  <span className="text-brand-muted">{settings.address || 'Ladydee Minimart Store, Lagos, Nigeria'}</span>
                 </div>
               </div>
 

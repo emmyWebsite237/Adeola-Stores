@@ -8,6 +8,7 @@ import CategoryPillBar from './CategoryPillBar';
 import MobileBottomNav from './MobileBottomNav';
 import Footer from './Footer';
 import WelcomeLeadModal from '@/components/ui/WelcomeLeadModal';
+import PeriodicEngagementModal from '@/components/ui/PeriodicEngagementModal';
 
 /**
  * Client-side wrapper that renders the standard store chrome
@@ -36,6 +37,7 @@ export default function StoreShell({ children }: { children: React.ReactNode }) 
       <Footer />
       <MobileBottomNav />
       <WelcomeLeadModal />
+      <PeriodicEngagementModal />
     </>
   );
 }

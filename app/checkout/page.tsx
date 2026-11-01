@@ -9,6 +9,7 @@ import { DELIVERY_ZONES } from '@/data/products';
 import { formatNaira } from '@/lib/utils';
 import { openPaystackModal } from '@/lib/paystack';
 import { supabase, isSupabaseConfigured, getUserProfile, upsertUserProfile } from '@/lib/db/supabase';
+import AuthModal from '@/components/ui/AuthModal';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -37,6 +38,32 @@ export default function CheckoutPage() {
   const [termsAccepted, setTermsAccepted] = useState(true);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
+
+  const openCheckoutAuth = (mode: 'signin' | 'signup' = 'signin') => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+  };
+
+  const handleAuthSuccess = async (authUser: any) => {
+    setUser(authUser);
+    setEmail(authUser.email || '');
+    if (authUser.id) {
+      const profile = await getUserProfile(authUser.id);
+      if (profile) {
+        if (profile.full_name) setName(profile.full_name);
+        if (profile.phone) setPhone(profile.phone);
+        if (profile.default_address) setAddress(profile.default_address);
+        if (profile.default_zone) {
+          const matched = DELIVERY_ZONES.find(
+            (z) => z.name.toLowerCase() === profile.default_zone?.toLowerCase()
+          );
+          if (matched) setZoneId(matched.id);
+        }
+      }
+    }
+  };
 
   const subtotal = getSubtotal();
   const discount = getDiscount();
@@ -106,7 +133,8 @@ export default function CheckoutPage() {
     setErrorMessage('');
 
     if (!user) {
-      setErrorMessage('You must be logged in to complete your checkout and payment.');
+      setErrorMessage('You cannot pay until you sign up or sign in. Please log in below.');
+      openCheckoutAuth('signin');
       return;
     }
 
@@ -290,18 +318,20 @@ export default function CheckoutPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                <Link
-                  href="/login?redirect=/checkout"
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand-green hover:bg-emerald-800 text-white font-extrabold text-xs shadow-md shadow-brand-green/20 text-center transition-colors"
+                <button
+                  type="button"
+                  onClick={() => openCheckoutAuth('signin')}
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand-green hover:bg-emerald-800 text-white font-extrabold text-xs shadow-md shadow-brand-green/20 text-center transition-colors cursor-pointer"
                 >
                   Sign In to Continue
-                </Link>
-                <Link
-                  href="/signup?redirect=/checkout"
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-white border border-brand-line hover:border-brand-green text-brand-ink font-bold text-xs text-center transition-colors"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openCheckoutAuth('signup')}
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-white border border-brand-line hover:border-brand-green text-brand-ink font-bold text-xs text-center transition-colors cursor-pointer"
                 >
                   Create New Account
-                </Link>
+                </button>
               </div>
             </div>
           )}
@@ -322,7 +352,20 @@ export default function CheckoutPage() {
           )}
 
           {/* Customer Details Form */}
-          <div className="bg-white rounded-3xl border border-brand-line p-6 shadow-soft space-y-4">
+          <div className="bg-white rounded-3xl border border-brand-line p-6 shadow-soft space-y-4 relative overflow-hidden">
+            {!user && (
+              <div
+                onClick={() => openCheckoutAuth('signin')}
+                className="absolute inset-0 bg-white/60 backdrop-blur-[1px] rounded-3xl z-10 cursor-pointer flex items-center justify-center p-4 hover:bg-white/40 transition-all"
+                title="Click to Sign In or Sign Up"
+              >
+                <div className="bg-white border border-amber-300 shadow-xl rounded-2xl px-6 py-3.5 text-center flex items-center gap-2.5 text-xs font-bold text-slate-900 hover:scale-105 transition-transform">
+                  <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Sign In or Sign Up to unlock delivery details &amp; pay</span>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-extrabold text-brand-ink uppercase tracking-wider">
                 1. Recipient &amp; Delivery Details
@@ -599,18 +642,23 @@ export default function CheckoutPage() {
 
             {!user ? (
               <div className="space-y-2 pt-2">
-                <Link
-                  href="/login?redirect=/checkout"
-                  className="w-full py-3.5 rounded-full bg-slate-900 hover:bg-black text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all text-center"
+                <button
+                  type="button"
+                  onClick={() => openCheckoutAuth('signin')}
+                  className="w-full py-3.5 rounded-full bg-slate-900 hover:bg-black text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all text-center cursor-pointer"
                 >
                   <Lock className="w-4 h-4" />
                   <span>Sign In to Fill Details &amp; Pay</span>
-                </Link>
+                </button>
                 <p className="text-[11px] text-center text-slate-500">
                   New customer?{' '}
-                  <Link href="/signup?redirect=/checkout" className="text-brand-green font-bold hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => openCheckoutAuth('signup')}
+                    className="text-brand-green font-bold hover:underline"
+                  >
                     Create account here
-                  </Link>
+                  </button>
                 </p>
               </div>
             ) : (
@@ -626,6 +674,16 @@ export default function CheckoutPage() {
           </div>
         </div>
       </form>
+
+      {/* Interactive Auth Popup Modal for Checkout */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authModalMode}
+        title="Account Required to Fill Details & Pay"
+        subtitle="You cannot enter delivery details or complete payment without an account. Please sign in or create an account so your details are saved."
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }

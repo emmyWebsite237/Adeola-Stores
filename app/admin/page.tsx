@@ -22,7 +22,17 @@ import {
   X,
   Save,
   Loader2,
-  ShoppingBasket
+  ShoppingBasket,
+  Share2,
+  Phone,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Instagram,
+  Facebook,
+  Twitter,
+  Globe,
+  Sliders
 } from 'lucide-react';
 import { formatNaira } from '@/lib/utils';
 import {
@@ -38,9 +48,10 @@ import {
 } from '@/lib/db/supabase';
 import { PAYSTACK_PUBLIC_KEY } from '@/lib/paystack';
 import DataMissing from '@/components/ui/DataMissing';
+import { SiteSettings, DEFAULT_SITE_SETTINGS } from '@/lib/useSiteSettings';
 
 // ─── Active Tab Type ────────────────────────────────────────────────────────
-type AdminTab = 'orders' | 'recipes' | 'tools';
+type AdminTab = 'orders' | 'recipes' | 'settings' | 'tools';
 
 // ─── Recipe Form State ──────────────────────────────────────────────────────
 interface RecipeFormState {
@@ -101,6 +112,12 @@ export default function AdminDashboardPage() {
   // Copied asset feedback
   const [copiedAsset, setCopiedAsset] = useState<string | null>(null);
 
+  // Store & Social Settings
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsFeedback, setSettingsFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   // ─── Data Fetching (Supabase Only – Zero Mocks) ────────────────────────
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
@@ -138,10 +155,52 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
+  const loadSettings = useCallback(async () => {
+    setSettingsLoading(true);
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.settings) {
+          setSiteSettings((prev) => ({ ...prev, ...data.settings }));
+        }
+      }
+    } catch (e) {
+      console.warn('[Admin]: Failed to load settings', e);
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadOrders();
     loadRecipes();
-  }, [loadOrders, loadRecipes]);
+    loadSettings();
+  }, [loadOrders, loadRecipes, loadSettings]);
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsSaving(true);
+    setSettingsFeedback(null);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: siteSettings }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSettingsFeedback({ type: 'error', message: data.error || 'Failed to save settings' });
+      } else {
+        setSettingsFeedback({ type: 'success', message: 'Settings successfully updated and published to the live store!' });
+        setTimeout(() => setSettingsFeedback(null), 4000);
+      }
+    } catch (err: any) {
+      setSettingsFeedback({ type: 'error', message: err.message || 'Error saving settings' });
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
 
   // ─── Order Actions ─────────────────────────────────────────────────────
   const handleUpdateStatus = async (reference: string, newStatus: string) => {
@@ -426,6 +485,7 @@ export default function AdminDashboardPage() {
           {([
             { id: 'orders' as AdminTab, label: 'Orders & Fulfillment', icon: Package },
             { id: 'recipes' as AdminTab, label: 'Cook Tonight (Recipes)', icon: ChefHat },
+            { id: 'settings' as AdminTab, label: 'Store & Social Handles', icon: Share2 },
             { id: 'tools' as AdminTab, label: 'Tools & Links', icon: Upload },
           ]).map(({ id, label, icon: Icon }) => (
             <button
@@ -927,7 +987,290 @@ export default function AdminDashboardPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════
-            TAB 3: TOOLS & LINKS (Static assets + external developer links)
+            TAB 3: STORE & SOCIAL SETTINGS (Live sync to Supabase)
+        ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'settings' && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-store-forest flex items-center justify-center">
+                    <Share2 className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-900">Store Contact &amp; Social Handles</h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Manage all public social links, customer hotlines, and address. Updates appear live on your storefront instantly.
+                </p>
+              </div>
+
+              {settingsFeedback && (
+                <div
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 animate-fadeIn ${
+                    settingsFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}
+                >
+                  {settingsFeedback.type === 'success' ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                  )}
+                  <span>{settingsFeedback.message}</span>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSaveSettings} className="space-y-8">
+              {/* Group 1: Hotlines & Direct Messaging */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-store-forest" />
+                  <span>1. Direct Hotlines &amp; Messaging</span>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Customer Service Phone Line
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={siteSettings.phone}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, phone: e.target.value })}
+                        placeholder="e.g. +234 800 000 0000"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Displayed on header top bar, footer, and contact desk.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      WhatsApp Business Number
+                    </label>
+                    <div className="relative">
+                      <MessageCircle className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={siteSettings.whatsapp}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, whatsapp: e.target.value })}
+                        placeholder="e.g. +234 800 000 0000"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-slate-400">
+                        Links to direct chat on WhatsApp across footer and contact page.
+                      </span>
+                      {siteSettings.whatsapp && (
+                        <a
+                          href={`https://wa.me/${siteSettings.whatsapp.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-bold text-emerald-600 hover:underline inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-2.5 h-2.5" /> Test Link
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group 2: Support Email & Warehouse Location */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-store-forest" />
+                  <span>2. Official Email &amp; Lagos Warehouse Address</span>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Support Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        value={siteSettings.email}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, email: e.target.value })}
+                        placeholder="e.g. support@ladydeestores.com"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Storefront Physical Address / Hub
+                    </label>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={siteSettings.address}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, address: e.target.value })}
+                        placeholder="e.g. Ladydee Minimart Store, Lagos, Nigeria"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Delivery Coverage Zones (Comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.delivery_zones}
+                      onChange={(e) => setSiteSettings({ ...siteSettings, delivery_zones: e.target.value })}
+                      placeholder="e.g. Ikeja, Lekki, Victoria Island, Surulere, Yaba, Maryland"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Group 3: Public Social Media Handles */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Share2 className="w-3.5 h-3.5 text-store-forest" />
+                  <span>3. Public Social Media Handles (Displays in Store Footer)</span>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Instagram */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Instagram Profile / URL
+                    </label>
+                    <div className="relative">
+                      <Instagram className="w-4 h-4 text-pink-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={siteSettings.instagram}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, instagram: e.target.value })}
+                        placeholder="e.g. @ladydeeminimart or https://instagram.com/ladydeeminimart"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Facebook */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Facebook Page / URL
+                    </label>
+                    <div className="relative">
+                      <Facebook className="w-4 h-4 text-blue-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={siteSettings.facebook}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, facebook: e.target.value })}
+                        placeholder="e.g. ladydeeminimart or https://facebook.com/ladydeeminimart"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Twitter / X */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Twitter / X Profile or URL
+                    </label>
+                    <div className="relative">
+                      <Twitter className="w-4 h-4 text-slate-800 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={siteSettings.twitter}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, twitter: e.target.value })}
+                        placeholder="e.g. @ladydeeminimart or https://twitter.com/ladydeeminimart"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* TikTok */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      TikTok Profile or URL
+                    </label>
+                    <div className="relative">
+                      <Globe className="w-4 h-4 text-slate-800 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={siteSettings.tiktok}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, tiktok: e.target.value })}
+                        placeholder="e.g. @ladydeeminimart or https://tiktok.com/@ladydeeminimart"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group 4: Announcement Bar */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-store-forest" />
+                  <span>4. Top Announcement Notification Banner</span>
+                </h3>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Announcement Banner Text (Appears at top of every store page)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteSettings.announcement}
+                    onChange={(e) => setSiteSettings({ ...siteSettings, announcement: e.target.value })}
+                    placeholder="e.g. Free delivery on orders over ₦50,000 across Lagos"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-store-forest outline-none text-slate-900"
+                  />
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={settingsSaving}
+                  className="px-6 py-3 rounded-xl bg-store-forest hover:bg-emerald-900 text-white font-extrabold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {settingsSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving to Supabase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Save &amp; Publish Store Settings</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={loadSettings}
+                  className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                >
+                  Discard Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB 4: TOOLS & LINKS (Static assets + external developer links)
         ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'tools' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
