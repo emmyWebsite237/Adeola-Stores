@@ -16,7 +16,8 @@ import {
   Loader2,
   CheckCircle2,
   AtSign,
-  ShieldCheck
+  ShieldCheck,
+  Calendar
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured, upsertUserProfile } from '@/lib/db/supabase';
 import RobotVerification from '@/components/ui/RobotVerification';
@@ -32,6 +33,8 @@ function SignUpForm() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [dob, setDob] = useState('');
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,8 +45,45 @@ function SignUpForm() {
 
   // State
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+
+  const calculateAge = (dobString: string): number => {
+    if (!dobString) return 0;
+    const birthDate = new Date(dobString);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (!supabase || !isSupabaseConfigured) {
+      setErrorMsg('Database configuration missing for Google Sign In.');
+      return;
+    }
+    setGoogleLoading(true);
+    setErrorMsg(null);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}${redirectTarget}`,
+        },
+      });
+      if (error) {
+        setErrorMsg(error.message);
+        setGoogleLoading(false);
+      }
+    } catch (gErr: any) {
+      setErrorMsg(gErr.message || 'Google Sign-In failed');
+      setGoogleLoading(false);
+    }
+  };
 
   const validateUsername = (u: string) => {
     // Must contain both letters and numbers, at least 3 characters
@@ -57,19 +97,32 @@ function SignUpForm() {
     setErrorMsg(null);
 
     // 1. Basic Fields validation
-    if (!fullName.trim() || !username.trim() || !email.trim() || !phone.trim() || !password || !confirmPassword) {
-      setErrorMsg('Please fill in all registration fields.');
+    if (!fullName.trim() || !username.trim() || !email.trim() || !phone.trim() || !dob || !password || !confirmPassword) {
+      setErrorMsg('Please fill in all registration fields including Date of Birth.');
       return;
     }
 
-    // 2. Username validation (must be mixture of letters and numbers)
+    // 2. Age 18+ validation
+    const userAge = calculateAge(dob);
+    if (userAge < 18) {
+      setErrorMsg('You must be at least 18 years of age to register and place grocery orders on Ladydee Minimart.');
+      return;
+    }
+
+    // 3. Username validation (must be mixture of letters and numbers)
     const cleanUsername = username.trim().toLowerCase();
     if (!validateUsername(cleanUsername)) {
       setErrorMsg('Username must be a combination of letters and numbers (e.g. adeola92, emmy237).');
       return;
     }
 
-    // 3. Password match validation
+    // 4. Terms agreement
+    if (!termsAgreed) {
+      setErrorMsg('You must agree to the Terms of Service & Privacy Policy to create an account.');
+      return;
+    }
+
+    // 5. Password match validation
     if (password !== confirmPassword) {
       setErrorMsg('Create Password and Confirm Password do not match.');
       return;
@@ -80,7 +133,7 @@ function SignUpForm() {
       return;
     }
 
-    // 4. Robot check validation
+    // 6. Robot check validation
     if (!isRobotVerified) {
       setErrorMsg('Please complete the "I am not a robot" verification check below.');
       return;
@@ -101,6 +154,7 @@ function SignUpForm() {
             full_name: fullName.trim(),
             username: cleanUsername,
             phone: phone.trim(),
+            date_of_birth: dob,
           },
         },
       });
@@ -118,12 +172,13 @@ function SignUpForm() {
             full_name: fullName.trim(),
             email: email.trim(),
             phone: phone.trim(),
-          });
+            date_of_birth: dob,
+          } as any);
         } catch (profileErr) {
           console.warn('[Signup] Profile initial notice:', profileErr);
         }
 
-        // Send Brevo welcome email with Nigerian grocery vibes
+        // Send Brevo welcome email (falls back gracefully if daily 300 limit reached)
         try {
           await fetch('/api/auth/welcome-email', {
             method: 'POST',
@@ -173,6 +228,54 @@ function SignUpForm() {
             <span>{errorMsg}</span>
           </div>
         )}
+
+        {/* Quick Google Sign In */}
+        <div>
+          <button
+            type="button"
+            disabled={googleLoading}
+            onClick={handleGoogleSignIn}
+            className="w-full py-3 px-4 rounded-2xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all cursor-pointer shadow-sm disabled:opacity-60"
+          >
+            {googleLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-brand-green" />
+                <span>Connecting to Google…</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </>
+            )}
+          </button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-[11px] uppercase tracking-wider font-extrabold text-slate-400">
+              <span className="bg-white px-3">or create with email</span>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleSignUp} className="space-y-4">
           {/* 1. Full Name */}
@@ -252,7 +355,33 @@ function SignUpForm() {
             </div>
           </div>
 
-          {/* 5. Create Password & 6. Confirm Password */}
+          {/* 5. Date of Birth (Must be 18+) */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-brand-ink uppercase tracking-wider">
+                Date of Birth
+              </label>
+              <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md">
+                Strictly 18+ Only
+              </span>
+            </div>
+            <div className="relative">
+              <Calendar className="w-4 h-4 text-brand-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="date"
+                required
+                value={dob}
+                max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                onChange={(e) => setDob(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-line text-xs font-semibold focus:border-brand-green outline-none transition-all text-slate-700"
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              Used solely to verify legal purchase eligibility under Nigerian commercial regulations.
+            </p>
+          </div>
+
+          {/* 6. Create Password & 7. Confirm Password */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-brand-ink uppercase tracking-wider mb-1.5">
@@ -309,6 +438,30 @@ function SignUpForm() {
               verified={isRobotVerified}
               onVerify={setIsRobotVerified}
             />
+          </div>
+
+          {/* Terms & Conditions Agreement (18+ Requirement) */}
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+            <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-700 select-none">
+              <input
+                type="checkbox"
+                required
+                checked={termsAgreed}
+                onChange={(e) => setTermsAgreed(e.target.checked)}
+                className="mt-0.5 rounded text-brand-green focus:ring-brand-green accent-brand-green"
+              />
+              <span className="leading-relaxed">
+                I agree to the{' '}
+                <Link href="/terms" className="text-brand-green font-bold underline" target="_blank">
+                  Terms of Service
+                </Link>
+                {' '}and{' '}
+                <Link href="/privacy" className="text-brand-green font-bold underline" target="_blank">
+                  Privacy Policy
+                </Link>
+                , and certify that I am <strong>18 years of age or older</strong>.
+              </span>
+            </label>
           </div>
 
           {/* Submit Button */}

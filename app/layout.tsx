@@ -3,9 +3,44 @@ import './globals.css';
 import StoreShell from '@/components/layout/StoreShell';
 
 export const metadata: Metadata = {
-  title: 'Ladydee Minimart Store — Everyday Groceries Delivered Across Nigeria',
+  metadataBase: new URL('https://ladydeeminimartstores.vercel.app'),
+  title: 'Ladydee Minimart Stores — Fresh Nigerian Groceries Delivered Across Lagos',
   description:
-    'Fresh sealed groceries delivered across Lagos and Nigeria. Rice, noodles, cooking oil, canned goods, breakfast cereals, beverages and baby essentials.',
+    'Fresh sealed groceries and authentic Nigerian foodstuffs delivered across Lagos. Mama Gold Rice, Kings Oil, Yam tubers, Golden Penny Semovita, fresh peppers and household provisions with same-day doorstep delivery.',
+  keywords: [
+    'Ladydee Minimart',
+    'Adeola Stores',
+    'Lagos groceries',
+    'online supermarket Lagos',
+    'Nigerian foodstuffs delivery',
+    'Jollof rice ingredients',
+    'Lekki grocery delivery',
+    'Ikeja food market'
+  ],
+  openGraph: {
+    title: 'Ladydee Minimart Stores — Fresh Nigerian Groceries Delivered Across Lagos 🛒🍅',
+    description:
+      'Order fresh food items, rice, oils, seasonings, and recipe bundles with Same-Day Lagos Delivery. Secure Paystack & Ladydee Wallet checkout.',
+    url: 'https://ladydeeminimartstores.vercel.app',
+    siteName: 'Ladydee Minimart Stores',
+    images: [
+      {
+        url: '/images/scene-hero.png',
+        width: 1200,
+        height: 630,
+        alt: 'Ladydee Minimart Stores Lagos Nigeria',
+      },
+    ],
+    locale: 'en_NG',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Ladydee Minimart Stores — Lagos Online Grocery Market',
+    description:
+      'Authentic Nigerian food staples delivered to your doorstep in Lagos. Fast same-day dispatch and zero-hassle ordering.',
+    images: ['/images/scene-hero.png'],
+  },
 };
 
 export default function RootLayout({

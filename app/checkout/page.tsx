@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShieldCheck, Lock, CreditCard, Banknote, CheckCircle2, User, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { ShieldCheck, Lock, CreditCard, Banknote, CheckCircle2, User, AlertCircle, ArrowRight, Loader2, Wallet, KeyRound, X } from 'lucide-react';
 import { useCartStore } from '@/lib/store/useCartStore';
 import { DELIVERY_ZONES } from '@/data/products';
 import { formatNaira } from '@/lib/utils';
@@ -34,7 +34,14 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('Lagos');
   const [notes, setNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'delivery'>('paystack');
+  const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'wallet' | 'delivery'>('paystack');
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [hasWalletPin, setHasWalletPin] = useState<boolean>(false);
+  const [walletPinModalOpen, setWalletPinModalOpen] = useState(false);
+  const [walletPinInput, setWalletPinInput] = useState('');
+  const [walletPinBusy, setWalletPinBusy] = useState(false);
+  const [walletPinError, setWalletPinError] = useState('');
+
   const [termsAccepted, setTermsAccepted] = useState(true);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -46,22 +53,40 @@ export default function CheckoutPage() {
     setAuthModalOpen(true);
   };
 
-  const handleAuthSuccess = async (authUser: any) => {
-    setUser(authUser);
-    setEmail(authUser.email || '');
-    if (authUser.id) {
-      const profile = await getUserProfile(authUser.id);
-      if (profile) {
-        if (profile.full_name) setName(profile.full_name);
-        if (profile.phone) setPhone(profile.phone);
-        if (profile.default_address) setAddress(profile.default_address);
-        if (profile.default_zone) {
+  const loadUserProfileData = async (userId: string) => {
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (data) {
+        if (data.full_name) setName(data.full_name);
+        if (data.phone) setPhone(data.phone);
+        if (data.default_address) setAddress(data.default_address);
+        if (data.wallet_balance !== undefined && data.wallet_balance !== null) {
+          setWalletBalance(Number(data.wallet_balance));
+        }
+        setHasWalletPin(Boolean(data.wallet_pin));
+        if (data.default_zone) {
           const matched = DELIVERY_ZONES.find(
-            (z) => z.name.toLowerCase() === profile.default_zone?.toLowerCase()
+            (z) => z.name.toLowerCase() === data.default_zone?.toLowerCase()
           );
           if (matched) setZoneId(matched.id);
         }
       }
+    } catch (e) {
+      console.warn('[Checkout]: Could not load profile details', e);
+    }
+  };
+
+  const handleAuthSuccess = async (authUser: any) => {
+    setUser(authUser);
+    setEmail(authUser.email || '');
+    if (authUser.id) {
+      await loadUserProfileData(authUser.id);
     }
   };
 
@@ -88,18 +113,7 @@ export default function CheckoutPage() {
 
         if (user) {
           setEmail(user.email || '');
-          const profile = await getUserProfile(user.id);
-          if (profile) {
-            if (profile.full_name) setName(profile.full_name);
-            if (profile.phone) setPhone(profile.phone);
-            if (profile.default_address) setAddress(profile.default_address);
-            if (profile.default_zone) {
-              const matched = DELIVERY_ZONES.find(
-                (z) => z.name.toLowerCase() === profile.default_zone?.toLowerCase()
-              );
-              if (matched) setZoneId(matched.id);
-            }
-          }
+          await loadUserProfileData(user.id);
         }
       } catch (err) {
         console.warn('Checkout auth initialization notice:', err);
@@ -116,12 +130,7 @@ export default function CheckoutPage() {
         setUser(currentUser);
         if (currentUser) {
           setEmail(currentUser.email || '');
-          const profile = await getUserProfile(currentUser.id);
-          if (profile) {
-            if (profile.full_name) setName(profile.full_name);
-            if (profile.phone) setPhone(profile.phone);
-            if (profile.default_address) setAddress(profile.default_address);
-          }
+          await loadUserProfileData(currentUser.id);
         }
       });
       return () => subscription.unsubscribe();
@@ -173,7 +182,23 @@ export default function CheckoutPage() {
 
     const orderRef = 'LDM-' + Math.random().toString(36).substring(2, 9).toUpperCase();
 
-    // If online payment (Paystack)
+    // ─── If Ladydee Wallet Payment ──────────────────────────────────────────
+    if (paymentMethod === 'wallet') {
+      if (walletBalance < total) {
+        setBusy(false);
+        setErrorMessage(
+          `Insufficient wallet balance (₦${walletBalance.toLocaleString()}). Your order total is ₦${total.toLocaleString()}. Please fund your wallet or select Paystack.`
+        );
+        return;
+      }
+      setBusy(false);
+      setWalletPinError('');
+      setWalletPinInput('');
+      setWalletPinModalOpen(true);
+      return;
+    }
+
+    // ─── If Online Payment (Paystack) ───────────────────────────────────────
     if (paymentMethod === 'paystack') {
       openPaystackModal({
         email,
@@ -237,6 +262,29 @@ export default function CheckoutPage() {
             console.warn('API order logging notice:', e);
           }
 
+          // Trigger email alert to admin store owner
+          try {
+            await fetch('/api/orders/notify-admin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                reference: resp.reference || orderRef,
+                customer_name: name,
+                customer_email: email,
+                customer_phone: phone,
+                delivery_address: address,
+                delivery_zone: selectedZone.name,
+                items: orderPayload.items,
+                subtotal,
+                delivery_fee: deliveryFee,
+                total,
+                payment_method: 'Paystack Online (Paid)',
+              }),
+            });
+          } catch (notifyErr) {
+            console.warn('[Admin Notify Notice]:', notifyErr);
+          }
+
           clearCart();
           router.push('/checkout/confirmation');
         },
@@ -245,46 +293,123 @@ export default function CheckoutPage() {
         },
       });
     } else {
-      // Pay on Delivery
-      setTimeout(async () => {
-        setBusy(false);
-        const podPayload = {
-          reference: orderRef,
-          user_id: user.id,
-          name,
-          email,
-          phone,
-          address,
-          city,
-          zone: selectedZone.name,
-          items,
-          total,
-          subtotal,
-          deliveryFee,
-          date: new Date().toISOString(),
-          method: 'Pay on Delivery (Pending)',
-          payment_status: 'pending',
-          fulfillment_status: 'packing',
-        };
+      // Pay on Delivery blocked
+      setBusy(false);
+      setErrorMessage('Pay on delivery is temporarily unavailable. Please pay online via Paystack or via your Ladydee Wallet.');
+    }
+  };
 
-        sessionStorage.setItem('latest_order', JSON.stringify(podPayload));
+  const handleConfirmWalletPayment = async () => {
+    if (!walletPinInput || walletPinInput.length !== 4) {
+      setWalletPinError('Please enter your 4-digit security PIN.');
+      return;
+    }
 
-        try {
-          await fetch('/api/checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              reference: orderRef,
-              orderData: podPayload,
-            }),
-          });
-        } catch (e) {
-          console.warn('API order logging notice:', e);
-        }
+    setWalletPinBusy(true);
+    setWalletPinError('');
 
-        clearCart();
-        router.push('/checkout/confirmation');
-      }, 1000);
+    const orderRef = 'LDM-WAL-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+
+    try {
+      const res = await fetch('/api/wallet/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          pin: walletPinInput.trim(),
+          amount: total,
+          orderReference: orderRef,
+          description: `Order payment for ${items.length} grocery items`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setWalletPinError(data.error || 'Wallet payment failed. Please check your PIN.');
+        setWalletPinBusy(false);
+        return;
+      }
+
+      setWalletPinBusy(false);
+      setWalletPinModalOpen(false);
+
+      const orderPayload = {
+        reference: orderRef,
+        user_id: user.id,
+        name,
+        firstName: name.split(' ')[0],
+        lastName: name.split(' ').slice(1).join(' '),
+        email,
+        phone,
+        address,
+        city,
+        zone: selectedZone.name,
+        items: items.map((i) => ({
+          id: i.product.id,
+          name: i.product.name,
+          qty: i.quantity,
+          price: i.product.price,
+        })),
+        total,
+        subtotal,
+        deliveryFee,
+        discount,
+        vat,
+        date: new Date().toISOString(),
+        method: 'Ladydee Customer Wallet (Paid)',
+        paymentMethod: 'wallet',
+        payment_status: 'paid',
+        fulfillment_status: 'confirmed',
+      };
+
+      sessionStorage.setItem('latest_order', JSON.stringify(orderPayload));
+      try {
+        const existing = JSON.parse(localStorage.getItem('adeola_local_orders') || '[]');
+        localStorage.setItem('adeola_local_orders', JSON.stringify([orderPayload, ...existing]));
+      } catch (e) {}
+
+      // Log order to Supabase
+      try {
+        await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reference: orderRef,
+            orderData: orderPayload,
+          }),
+        });
+      } catch (e) {
+        console.warn('API order logging notice:', e);
+      }
+
+      // Send email alert to admin store owner
+      try {
+        await fetch('/api/orders/notify-admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reference: orderRef,
+            customer_name: name,
+            customer_email: email,
+            customer_phone: phone,
+            delivery_address: address,
+            delivery_zone: selectedZone.name,
+            items: orderPayload.items,
+            subtotal,
+            delivery_fee: deliveryFee,
+            total,
+            payment_method: 'Ladydee Customer Wallet (Paid)',
+          }),
+        });
+      } catch (notifyErr) {
+        console.warn('[Admin Notify Notice]:', notifyErr);
+      }
+
+      clearCart();
+      router.push('/checkout/confirmation');
+    } catch (err: any) {
+      setWalletPinBusy(false);
+      setWalletPinError(err.message || 'Payment processing error');
     }
   };
 
@@ -506,7 +631,8 @@ export default function CheckoutPage() {
               2. Select Payment Method
             </h3>
 
-            <div className="space-y-2.5">
+            <div className="space-y-3">
+              {/* Option 1: Paystack */}
               <label
                 className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
                   !user
@@ -527,19 +653,20 @@ export default function CheckoutPage() {
                   />
                   <div>
                     <span className="font-bold text-xs sm:text-sm block">Pay Online via Paystack</span>
-                    <span className="text-[11px] text-brand-muted">Debit Card, Direct Bank Transfer, USSD, OPay</span>
+                    <span className="text-[11px] text-brand-muted">Debit Card, Bank Transfer, USSD, OPay</span>
                   </div>
                 </div>
                 <CreditCard className="w-5 h-5 text-brand-green" />
               </label>
 
+              {/* Option 2: Ladydee Wallet */}
               <label
                 className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
                   !user
                     ? 'opacity-60 cursor-not-allowed border-brand-line bg-slate-50'
-                    : paymentMethod === 'delivery'
-                    ? 'border-brand-green bg-brand-green-soft text-brand-green-dark shadow-sm cursor-pointer'
-                    : 'border-brand-line bg-white hover:border-gray-300 cursor-pointer'
+                    : paymentMethod === 'wallet'
+                    ? 'border-emerald-600 bg-emerald-50 text-emerald-950 shadow-sm cursor-pointer ring-1 ring-emerald-500'
+                    : 'border-brand-line bg-white hover:border-emerald-300 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -547,21 +674,64 @@ export default function CheckoutPage() {
                     type="radio"
                     name="payMethod"
                     disabled={!user}
-                    checked={paymentMethod === 'delivery'}
-                    onChange={() => setPaymentMethod('delivery')}
+                    checked={paymentMethod === 'wallet'}
+                    onChange={() => setPaymentMethod('wallet')}
                     className="accent-brand-green"
                   />
                   <div>
-                    <span className="font-bold text-xs sm:text-sm block">Pay on Delivery</span>
-                    <span className="text-[11px] text-brand-muted">Cash or POS transfer upon arrival (Lagos Only)</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs sm:text-sm block">Pay with Ladydee Wallet</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                        Balance: ₦{walletBalance.toLocaleString()}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-brand-muted">
+                      {walletBalance >= total ? (
+                        <span className="text-emerald-700 font-semibold">Ready &bull; 4-Digit PIN required</span>
+                      ) : (
+                        <span className="text-amber-700 font-semibold">
+                          Insufficient funds (Need ₦{(total - walletBalance).toLocaleString()} more &bull; Top up in Account)
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
-                <Banknote className="w-5 h-5 text-brand-amber" />
+                <Wallet className="w-5 h-5 text-emerald-700" />
               </label>
+
+              {/* Option 3: Pay on Delivery (Disabled with Harsh / Coming Soon Style) */}
+              <div
+                className="flex items-center justify-between p-4 rounded-2xl border-2 border-amber-300 bg-amber-50/70 text-slate-500 cursor-not-allowed select-none opacity-85"
+                title="Pay on delivery is temporarily unavailable"
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    name="payMethod"
+                    disabled
+                    checked={false}
+                    className="accent-slate-400 cursor-not-allowed"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs sm:text-sm line-through text-slate-600">
+                        Pay on Delivery
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-400 text-amber-950 uppercase tracking-wider animate-pulse">
+                        Coming Soon ⏳
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-amber-900/80 font-medium">
+                      Cash/POS upon arrival is temporarily disabled while logistics is being upgraded.
+                    </span>
+                  </div>
+                </div>
+                <Banknote className="w-5 h-5 text-amber-600" />
+              </div>
             </div>
           </div>
 
-          {/* Terms & Conditions Checkbox */}
+          {/* Terms & Conditions & 18+ Checkbox */}
           <div className="p-4 bg-brand-cream rounded-2xl border border-brand-line-2">
             <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-700">
               <input
@@ -575,12 +745,12 @@ export default function CheckoutPage() {
                 I agree to the{' '}
                 <Link href="/terms" className="text-brand-green font-bold underline" target="_blank">
                   Terms of Service
-                </Link>{' '}
-                and the{' '}
-                <Link href="/returns" className="text-brand-green font-bold underline" target="_blank">
-                  Return &amp; Refund Policy
                 </Link>
-                .
+                , the{' '}
+                <Link href="/privacy" className="text-brand-green font-bold underline" target="_blank">
+                  Privacy Policy
+                </Link>
+                , and confirm I am <strong>18 years of age or older</strong>.
               </span>
             </label>
           </div>
@@ -684,6 +854,88 @@ export default function CheckoutPage() {
         subtitle="You cannot enter delivery details or complete payment without an account. Please sign in or create an account so your details are saved."
         onSuccess={handleAuthSuccess}
       />
+
+      {/* 4-Digit Wallet PIN Authorization Modal */}
+      {walletPinModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-emerald-100 text-center relative">
+            <button
+              type="button"
+              onClick={() => {
+                setWalletPinModalOpen(false);
+                setWalletPinError('');
+              }}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto mb-3">
+              <KeyRound className="w-6 h-6 text-brand-green" />
+            </div>
+
+            <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+              Authorize Wallet Payment
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 mb-4">
+              Enter your 4-digit Ladydee Security PIN to complete payment of{' '}
+              <strong className="text-emerald-800 font-extrabold">{formatNaira(total)}</strong>
+            </p>
+
+            <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 mb-4 text-xs flex justify-between items-center">
+              <span className="text-emerald-800 font-bold">Wallet Balance:</span>
+              <span className="font-extrabold text-emerald-950 text-sm">{formatNaira(walletBalance)}</span>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="password"
+                maxLength={4}
+                autoFocus
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="• • • •"
+                value={walletPinInput}
+                onChange={(e) => setWalletPinInput(e.target.value.replace(/[^0-9]/g, ''))}
+                className="w-full text-center tracking-[1em] text-2xl font-extrabold py-3 px-4 rounded-2xl border-2 border-slate-200 focus:border-brand-green focus:ring-0 outline-none transition-all"
+              />
+
+              {walletPinError && (
+                <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-bold">
+                  {walletPinError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={walletPinBusy || walletPinInput.length !== 4}
+                onClick={handleConfirmWalletPayment}
+                className="w-full py-3 rounded-2xl bg-brand-green hover:bg-brand-green-dark text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+              >
+                {walletPinBusy ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Verifying PIN…</span>
+                  </>
+                ) : (
+                  <span>Confirm &amp; Deduct {formatNaira(total)}</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setWalletPinModalOpen(false);
+                  setWalletPinError('');
+                }}
+                className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                Cancel and Pay Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

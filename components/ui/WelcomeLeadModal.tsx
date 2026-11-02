@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Sparkles, ArrowRight, X, UserPlus, Gift, LogIn } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/db/supabase';
 import AuthModal from './AuthModal';
 
 export default function WelcomeLeadModal() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signup');
@@ -14,6 +16,15 @@ export default function WelcomeLeadModal() {
   useEffect(() => {
     // Only run in client browser
     if (typeof window === 'undefined') return;
+
+    if (
+      pathname?.startsWith('/admin') ||
+      pathname?.startsWith('/admin-portal') ||
+      pathname?.startsWith('/adeadmin112') ||
+      pathname?.startsWith('/checkout')
+    ) {
+      return;
+    }
 
     // Check if dismissed recently (within 12 hours)
     const dismissedAt = localStorage.getItem('ladydee_welcome_popup_dismissed');

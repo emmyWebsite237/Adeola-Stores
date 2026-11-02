@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, ShoppingBasket } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ShieldCheck, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
 interface AdminAuthGateProps {
   children: React.ReactNode;
 }
+
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // Exactly 1 hour
 
 export default function AdminAuthGate({ children }: AdminAuthGateProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -15,15 +17,65 @@ export default function AdminAuthGate({ children }: AdminAuthGateProps) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const checkInactivity = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const auth = sessionStorage.getItem('ladydee_admin_authenticated');
+    if (auth !== 'true') return;
+
+    const lastActivityStr = sessionStorage.getItem('ladydee_admin_last_activity');
+    if (lastActivityStr) {
+      const elapsed = Date.now() - Number(lastActivityStr);
+      if (elapsed > INACTIVITY_TIMEOUT_MS) {
+        // Expired after 1 hour
+        sessionStorage.removeItem('ladydee_admin_authenticated');
+        sessionStorage.removeItem('ladydee_admin_last_activity');
+        setIsAuthenticated(false);
+        setErrorMsg('Session expired due to 1 hour of inactivity. Please enter your credentials.');
+        return;
+      }
+    }
+    // Update timestamp on active session
+    sessionStorage.setItem('ladydee_admin_last_activity', Date.now().toString());
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const session = sessionStorage.getItem('ladydee_admin_authenticated');
+    const lastActivity = sessionStorage.getItem('ladydee_admin_last_activity');
+
     if (session === 'true') {
-      setIsAuthenticated(true);
+      if (lastActivity && Date.now() - Number(lastActivity) > INACTIVITY_TIMEOUT_MS) {
+        sessionStorage.removeItem('ladydee_admin_authenticated');
+        sessionStorage.removeItem('ladydee_admin_last_activity');
+        setIsAuthenticated(false);
+        setErrorMsg('Session expired due to 1 hour of inactivity.');
+      } else {
+        sessionStorage.setItem('ladydee_admin_last_activity', Date.now().toString());
+        setIsAuthenticated(true);
+      }
     } else {
       setIsAuthenticated(false);
     }
-  }, []);
+
+    // Activity listeners to reset the 1-hour inactivity clock
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    const handleActivity = () => {
+      const auth = sessionStorage.getItem('ladydee_admin_authenticated');
+      if (auth === 'true') {
+        sessionStorage.setItem('ladydee_admin_last_activity', Date.now().toString());
+      }
+    };
+
+    events.forEach((evt) => window.addEventListener(evt, handleActivity));
+
+    // Periodic check every 30 seconds
+    const interval = setInterval(checkInactivity, 30000);
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, handleActivity));
+      clearInterval(interval);
+    };
+  }, [checkInactivity]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +103,7 @@ export default function AdminAuthGate({ children }: AdminAuthGateProps) {
       } else {
         sessionStorage.setItem('ladydee_admin_authenticated', 'true');
         sessionStorage.setItem('ladydee_admin_user', username.trim());
+        sessionStorage.setItem('ladydee_admin_last_activity', Date.now().toString());
         setIsAuthenticated(true);
       }
     } catch (err: any) {
@@ -87,7 +140,7 @@ export default function AdminAuthGate({ children }: AdminAuthGateProps) {
             Restricted Admin Portal
           </h1>
           <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-            Ladydee Minimart Stores Management. Authorized credentials required to access orders and store settings.
+            Ladydee Minimart Stores Management. 1-Hour Inactivity Timeout Enforced.
           </p>
         </div>
 

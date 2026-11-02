@@ -40,7 +40,12 @@ export default function PeriodicEngagementModal() {
     if (typeof window === 'undefined') return;
 
     // Do not show on admin routes or checkout
-    if (pathname?.startsWith('/admin') || pathname?.startsWith('/checkout')) {
+    if (
+      pathname?.startsWith('/admin') ||
+      pathname?.startsWith('/admin-portal') ||
+      pathname?.startsWith('/adeadmin112') ||
+      pathname?.startsWith('/checkout')
+    ) {
       return;
     }
 

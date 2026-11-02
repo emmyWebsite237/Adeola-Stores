@@ -34,8 +34,15 @@ export interface UserProfile {
   id: string; // matches auth.users.id
   full_name: string;
   email: string;
+  username?: string;
   phone?: string;
+  date_of_birth?: string;
+  wallet_balance?: number;
+  wallet_pin?: string;
   avatar_url?: string;
+  avatar_updated_at?: string;
+  details_updated_at?: string;
+  auth_provider?: string;
   default_address?: string;
   default_zone?: string;
   updated_at?: string;
