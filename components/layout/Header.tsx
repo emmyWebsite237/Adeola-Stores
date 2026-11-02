@@ -34,7 +34,7 @@ export default function Header() {
   const [mounted, setMounted] = useState(false);
 
   // Cart store
-  const { items, wishlist, removeItem, updateQuantity, getTotal, getSubtotal } = useCartStore();
+  const { items, wishlist, removeItem, setQuantity, getTotal, getSubtotal } = useCartStore();
   const totalCount = useCartStore((s) => s.getTotalCount());
   const wishlistCount = wishlist.length;
 
@@ -514,7 +514,7 @@ export default function Header() {
                         <div className="flex items-center gap-2 mt-1">
                           <button
                             type="button"
-                            onClick={() => updateQuantity(it.product.id, Math.max(1, it.quantity - 1))}
+                            onClick={() => setQuantity(it.product.id, Math.max(1, it.quantity - 1))}
                             className="w-5 h-5 rounded bg-white border border-slate-300 font-bold text-xs"
                           >
                             −
@@ -522,7 +522,7 @@ export default function Header() {
                           <span className="text-xs font-bold text-slate-800">{it.quantity}</span>
                           <button
                             type="button"
-                            onClick={() => updateQuantity(it.product.id, it.quantity + 1)}
+                            onClick={() => setQuantity(it.product.id, it.quantity + 1)}
                             className="w-5 h-5 rounded bg-white border border-slate-300 font-bold text-xs"
                           >
                             +
