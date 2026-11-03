@@ -192,11 +192,12 @@ export default function AIAssistantWidget() {
     const foundProds = PRODUCTS.filter((p) => {
       const name = p.name.toLowerCase();
       const cat = p.category.toLowerCase();
-      const tags = (p.tags || []).map((t) => t.toLowerCase());
+      const desc = (p.description || '').toLowerCase();
+      const short = (p.short || '').toLowerCase();
       const words = q.split(/\s+/).filter((w) => w.length > 2);
       return (
         name.includes(q) ||
-        words.some((w) => name.includes(w) || cat.includes(w) || tags.includes(w))
+        words.some((w) => name.includes(w) || cat.includes(w) || desc.includes(w) || short.includes(w))
       );
     }).slice(0, 3);
 
