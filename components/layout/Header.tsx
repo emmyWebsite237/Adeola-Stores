@@ -80,7 +80,12 @@ export default function Header() {
   const cleanWhatsapp = (settings.whatsapp || settings.phone || '').replace(/[^0-9]/g, '');
 
   const isGoogleUser = sessionUser?.app_metadata?.provider === 'google' || Boolean(sessionUser?.user_metadata?.avatar_url);
-  const googleAvatar = sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.picture;
+  const googleAvatar =
+    userProfile?.google_avatar_url ||
+    sessionUser?.user_metadata?.avatar_url ||
+    sessionUser?.user_metadata?.picture ||
+    sessionUser?.identities?.find((i: any) => i.provider === 'google')?.identity_data?.avatar_url ||
+    sessionUser?.identities?.find((i: any) => i.provider === 'google')?.identity_data?.picture;
   const avatarToDisplay = userProfile?.avatar_url || googleAvatar;
 
   return (
@@ -109,7 +114,7 @@ export default function Header() {
                     Ladydee Minimart
                   </span>
                   <span className="text-[10px] text-brand-muted font-bold tracking-wide block uppercase">
-                    Adeola Stores &bull; Lagos
+                    Lagos, Nigeria
                   </span>
                 </div>
               </Link>
@@ -230,8 +235,8 @@ export default function Header() {
                 </div>
               </div>
 
-              {/* Cart Button with Desktop Hover Card Preview */}
-              <div className="relative group">
+              {/* Cart Button with Desktop Hover Card Preview (Hidden on mobile since mobile has bottom nav cart) */}
+              <div className="relative group hidden md:block">
                 <button
                   type="button"
                   onClick={() => setCartDrawerOpen(true)}
@@ -322,15 +327,15 @@ export default function Header() {
                     <img
                       src={avatarToDisplay}
                       alt="Avatar"
-                      className="w-7 h-7 rounded-full object-cover border border-brand-green"
+                      className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full object-cover shrink-0 aspect-square border border-brand-green overflow-hidden"
                     />
                   ) : (
-                    <div className="w-7 h-7 sm:w-7 sm:h-7 rounded-full bg-brand-green text-white text-xs font-bold flex items-center justify-center">
-                      {(userProfile?.full_name || sessionUser.email || 'U').charAt(0).toUpperCase()}
+                    <div className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full bg-brand-green text-white text-xs font-bold flex items-center justify-center shrink-0 aspect-square">
+                      {(userProfile?.username || userProfile?.full_name || sessionUser.email || 'U').charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <span className="hidden sm:inline font-bold text-xs max-w-[80px] truncate">
-                    {userProfile?.full_name ? userProfile.full_name.split(' ')[0] : 'My Account'}
+                  <span className="hidden sm:inline font-bold text-xs max-w-[90px] truncate">
+                    {userProfile?.username ? `@${userProfile.username}` : (userProfile?.full_name ? userProfile.full_name.split(' ')[0] : 'Account')}
                   </span>
                 </Link>
               ) : (

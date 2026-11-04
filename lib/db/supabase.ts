@@ -40,6 +40,7 @@ export interface UserProfile {
   wallet_balance?: number;
   wallet_pin?: string;
   avatar_url?: string;
+  google_avatar_url?: string;
   avatar_updated_at?: string;
   details_updated_at?: string;
   auth_provider?: string;
@@ -271,15 +272,36 @@ export async function updateOrderStatus(reference: string, fulfillment_status: s
  */
 export async function fetchLiveProducts(): Promise<any[]> {
   if (!supabase) {
-    console.error('[Supabase Error]: Cannot fetch products - client unconfigured.');
     return [];
   }
-  const { data, error } = await supabase.from('store_products').select('*');
+  const { data, error } = await supabase.from('store_products').select('*').order('name');
   if (error) {
-    console.error('[Supabase Error]: fetchLiveProducts failed', error.message);
     return [];
   }
   return data as any[];
+}
+
+/**
+ * Update an existing product in the database.
+ */
+export async function updateLiveProduct(
+  id: string,
+  updates: Partial<{ name: string; description: string; price: number; stock: number }>
+): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from('store_products')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Failed to update product:', error.message);
+    return false;
+  }
+  return true;
 }
 
 /**

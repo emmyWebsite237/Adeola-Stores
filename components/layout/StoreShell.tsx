@@ -10,6 +10,7 @@ import Footer from './Footer';
 import WelcomeLeadModal from '@/components/ui/WelcomeLeadModal';
 import PeriodicEngagementModal from '@/components/ui/PeriodicEngagementModal';
 import AIAssistantWidget from '@/components/ui/AIAssistantWidget';
+import UsernameSetupModal from '@/components/ui/UsernameSetupModal';
 
 /**
  * Client-side wrapper that renders the standard store chrome
@@ -43,6 +44,7 @@ export default function StoreShell({ children }: { children: React.ReactNode }) 
       <WelcomeLeadModal />
       <PeriodicEngagementModal />
       <AIAssistantWidget />
+      <UsernameSetupModal />
     </>
   );
 }

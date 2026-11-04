@@ -23,6 +23,7 @@ import {
   Save,
   Loader2,
   ShoppingBasket,
+  ShoppingBag,
   Share2,
   Phone,
   Mail,
@@ -46,6 +47,8 @@ import {
   upsertLiveRecipe,
   deleteLiveRecipe,
   updateOrderStatus,
+  fetchLiveProducts,
+  updateLiveProduct,
   StoreOrderRecord,
   StoreRecipeRecord
 } from '@/lib/db/supabase';
@@ -54,7 +57,7 @@ import DataMissing from '@/components/ui/DataMissing';
 import { SiteSettings, DEFAULT_SITE_SETTINGS } from '@/lib/useSiteSettings';
 
 // ─── Active Tab Type ────────────────────────────────────────────────────────
-type AdminTab = 'orders' | 'recipes' | 'settings' | 'tools';
+type AdminTab = 'products' | 'orders' | 'recipes' | 'settings' | 'tools';
 
 // ─── Recipe Form State ──────────────────────────────────────────────────────
 interface RecipeFormState {
@@ -96,7 +99,24 @@ const EMPTY_RECIPE: RecipeFormState = {
 
 export default function AdminDashboardPage() {
   // ─── State ──────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<AdminTab>('orders');
+  const [activeTab, setActiveTab] = useState<AdminTab>('products');
+
+  // Products
+  const [products, setProducts] = useState<any[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productSearch, setProductSearch] = useState('');
+  const [editingProduct, setEditingProduct] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    size?: string;
+    stock?: number;
+    image?: string;
+    category?: string;
+  } | null>(null);
+  const [productSaving, setProductSaving] = useState(false);
+  const [productFeedback, setProductFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Orders
   const [orders, setOrders] = useState<StoreOrderRecord[]>([]);
@@ -128,7 +148,20 @@ export default function AdminDashboardPage() {
   const [adminCredSaving, setAdminCredSaving] = useState(false);
   const [adminCredFeedback, setAdminCredFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // ─── Data Fetching (Supabase Only – Zero Mocks) ────────────────────────
+  // ─── Data Fetching ───────────────────────────────────────────────────
+  const loadProducts = useCallback(async () => {
+    setProductsLoading(true);
+    try {
+      const data = await fetchLiveProducts();
+      setProducts(data);
+    } catch (e) {
+      console.error('[Admin]: Failed to load products', e);
+      setProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
     try {
@@ -183,10 +216,11 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
+    loadProducts();
     loadOrders();
     loadRecipes();
     loadSettings();
-  }, [loadOrders, loadRecipes, loadSettings]);
+  }, [loadProducts, loadOrders, loadRecipes, loadSettings]);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,6 +246,57 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    setProductSaving(true);
+    setProductFeedback(null);
+    try {
+      const success = await updateLiveProduct(editingProduct.id, {
+        name: editingProduct.name.trim(),
+        description: editingProduct.description.trim(),
+        price: Number(editingProduct.price),
+        stock: Number(editingProduct.stock || 50),
+      });
+
+      if (success) {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === editingProduct.id
+              ? {
+                  ...p,
+                  name: editingProduct.name.trim(),
+                  description: editingProduct.description.trim(),
+                  price: Number(editingProduct.price),
+                  stock: Number(editingProduct.stock || 50),
+                }
+              : p
+          )
+        );
+        setProductFeedback({
+          type: 'success',
+          message: `"${editingProduct.name}" saved to database successfully!`,
+        });
+        setTimeout(() => {
+          setEditingProduct(null);
+          setProductFeedback(null);
+        }, 1200);
+      } else {
+        setProductFeedback({
+          type: 'error',
+          message: 'Failed to update product in database.',
+        });
+      }
+    } catch (err: any) {
+      setProductFeedback({
+        type: 'error',
+        message: err.message || 'Error updating product in database.',
+      });
+    } finally {
+      setProductSaving(false);
+    }
+  };
+
   const handleUpdateAdminCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminCredSaving(true);
@@ -231,7 +316,7 @@ export default function AdminDashboardPage() {
       if (!res.ok || !data.success) {
         setAdminCredFeedback({ type: 'error', message: data.error || 'Failed to update admin credentials' });
       } else {
-        setAdminCredFeedback({ type: 'success', message: 'Admin credentials successfully updated in Supabase!' });
+        setAdminCredFeedback({ type: 'success', message: 'Admin credentials successfully updated in database!' });
         setAdminCurrentPassword('');
         setAdminNewPassword('');
         setTimeout(() => setAdminCredFeedback(null), 5000);
@@ -308,7 +393,7 @@ export default function AdminDashboardPage() {
         instructions: editingRecipe.instructions.filter((s) => s.trim()),
         ingredients: editingRecipe.ingredients.filter((i) => i.name.trim()),
       });
-      setRecipeFeedback({ type: 'success', message: `"${editingRecipe.name}" saved to Supabase!` });
+      setRecipeFeedback({ type: 'success', message: `"${editingRecipe.name}" saved to database!` });
       setEditingRecipe(null);
       await loadRecipes();
     } catch (err: any) {
@@ -406,6 +491,18 @@ export default function AdminDashboardPage() {
     return matchesFilter && matchesSearch;
   });
 
+  // Filtered products
+  const filteredProducts = products.filter((p) => {
+    if (!productSearch.trim()) return true;
+    const term = productSearch.toLowerCase();
+    return (
+      (p.name && p.name.toLowerCase().includes(term)) ||
+      (p.category && p.category.toLowerCase().includes(term)) ||
+      (p.description && p.description.toLowerCase().includes(term)) ||
+      (p.id && p.id.toLowerCase().includes(term))
+    );
+  });
+
   // ═════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═════════════════════════════════════════════════════════════════════════
@@ -431,7 +528,7 @@ export default function AdminDashboardPage() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { loadOrders(); loadRecipes(); }}
+              onClick={() => { loadProducts(); loadOrders(); loadRecipes(); }}
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold transition"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -470,10 +567,10 @@ export default function AdminDashboardPage() {
             <div>
               <div className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Database</div>
               <div className="text-sm font-bold text-slate-900">
-                {isSupabaseConfigured ? 'Supabase PostgreSQL' : 'Not Configured'}
+                {isSupabaseConfigured ? 'Live Cloud Database' : 'Not Connected'}
               </div>
               <div className="text-[11px] text-slate-500">
-                {isSupabaseConfigured ? 'Cloud sync connected' : 'Add keys to .env to enable'}
+                {isSupabaseConfigured ? 'Realtime sync active' : 'Offline'}
               </div>
             </div>
           </div>
@@ -534,37 +631,333 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* ─── Tab Navigation ────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 mb-6 border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-2 mb-6 border-b border-slate-200 pb-4 overflow-x-auto scrollbar-none">
           {([
-            { id: 'orders' as AdminTab, label: 'Orders & Fulfillment', icon: Package },
-            { id: 'recipes' as AdminTab, label: 'Cook Tonight (Recipes)', icon: ChefHat },
+            { id: 'products' as AdminTab, label: 'Store Products', icon: ShoppingBag, count: products.length },
+            { id: 'orders' as AdminTab, label: 'Orders & Fulfillment', icon: Package, count: orders.length },
+            { id: 'recipes' as AdminTab, label: 'Cook Tonight (Recipes)', icon: ChefHat, count: recipes.length },
             { id: 'settings' as AdminTab, label: 'Store & Social Handles', icon: Share2 },
             { id: 'tools' as AdminTab, label: 'Tools & Links', icon: Upload },
-          ]).map(({ id, label, icon: Icon }) => (
+          ]).map(({ id, label, icon: Icon, count }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === id
                   ? 'bg-store-forest text-white shadow-sm'
                   : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
               }`}
             >
               <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{label}</span>
+              <span>{label}</span>
+              {typeof count === 'number' && (
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  activeTab === id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {count}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            TAB 1: ORDERS & FULFILLMENT (Supabase-only, zero mock data)
+            TAB 0: STORE PRODUCTS & PRICING
+        ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'products' && (
+          <div className="space-y-6">
+            {/* Products Control Header */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Store Products &amp; Pricing</h2>
+                  <p className="text-xs text-slate-500">
+                    Live inventory synchronized with database. Click &ldquo;Edit&rdquo; on any item to update its name, description, or price.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500">
+                    {filteredProducts.length} of {products.length} Products
+                  </span>
+                  <button
+                    type="button"
+                    onClick={loadProducts}
+                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer"
+                    title="Refresh Products"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Search products by name, category, or description..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-store-forest"
+                />
+                {productSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setProductSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Product List */}
+            {productsLoading ? (
+              <div className="p-12 text-center text-slate-400 text-xs bg-white rounded-2xl border border-slate-200">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-store-forest mb-2" />
+                Loading store products from database…
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 text-xs bg-white rounded-2xl border border-slate-200">
+                No products found matching &ldquo;{productSearch}&rdquo;.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredProducts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+                  >
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden aspect-square">
+                        {p.image ? (
+                          <img
+                            src={p.image}
+                            alt={p.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ShoppingBag className="w-6 h-6 text-slate-300" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-bold uppercase tracking-wider truncate">
+                            {p.category}
+                          </span>
+                          {p.size && (
+                            <span className="text-[10px] text-slate-400 font-semibold truncate">
+                              • {p.size}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="font-extrabold text-xs text-slate-900 leading-snug truncate" title={p.name}>
+                          {p.name}
+                        </h3>
+
+                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                          {p.description || p.short || 'No description provided.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <div>
+                        <span className="text-sm font-black text-store-forest">
+                          {formatNaira(Number(p.price))}
+                        </span>
+                        {p.stock !== undefined && (
+                          <span className="text-[10px] text-slate-400 block font-semibold">
+                            {p.stock} units in stock
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingProduct({
+                            id: p.id,
+                            name: p.name,
+                            description: p.description || p.short || '',
+                            price: Number(p.price),
+                            size: p.size || '',
+                            stock: Number(p.stock || 50),
+                            image: p.image || '',
+                            category: p.category || '',
+                          });
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Product Edit Popup Modal */}
+            {editingProduct && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+                <div className="bg-white w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-emerald-100 relative max-h-[90vh] overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setProductFeedback(null);
+                    }}
+                    className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                      <ShoppingBag className="w-6 h-6 text-store-forest" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                        Edit Product Details
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Updates save directly to the database and reflect across the store immediately.
+                      </p>
+                    </div>
+                  </div>
+
+                  {productFeedback && (
+                    <div
+                      className={`p-3 rounded-xl mb-4 text-xs font-bold ${
+                        productFeedback.type === 'success'
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : 'bg-red-50 text-red-700 border border-red-200'
+                      }`}
+                    >
+                      {productFeedback.message}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSaveProduct} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Product Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editingProduct.name}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:border-store-forest outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Price (₦)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          step="50"
+                          value={editingProduct.price}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:border-store-forest outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Pack Size
+                        </label>
+                        <input
+                          type="text"
+                          value={editingProduct.size || ''}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, size: e.target.value })}
+                          placeholder="e.g. 50kg Bag, 1 Tin"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:border-store-forest outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Stock Quantity (Units)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editingProduct.stock || 50}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:border-store-forest outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        rows={4}
+                        required
+                        value={editingProduct.description}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:border-store-forest outline-none resize-none leading-relaxed"
+                      />
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingProduct(null);
+                          setProductFeedback(null);
+                        }}
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={productSaving}
+                        className="px-5 py-2.5 rounded-xl bg-store-forest hover:bg-emerald-900 text-white text-xs font-extrabold flex items-center gap-2 shadow-sm transition disabled:opacity-50 cursor-pointer"
+                      >
+                        {productSaving ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Saving Changes…</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3.5 h-3.5" />
+                            <span>Save to Database</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            TAB 1: ORDERS & FULFILLMENT (zero mock data)
         ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'orders' && (
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Recent Customer Orders</h2>
-                <p className="text-xs text-slate-500">Live order fulfillment &amp; rider tracking (Supabase)</p>
+                <p className="text-xs text-slate-500">Live order fulfillment &amp; dispatch tracking</p>
               </div>
               <div className="flex flex-wrap gap-1.5 text-xs">
                 {[
@@ -605,12 +998,12 @@ export default function AdminDashboardPage() {
             {ordersLoading ? (
               <div className="py-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
                 <Loader2 className="w-5 h-5 animate-spin text-store-forest" />
-                Loading orders from Supabase…
+                Loading live customer orders…
               </div>
             ) : !isSupabaseConfigured ? (
               <DataMissing
-                title="Supabase Not Configured"
-                message="Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env to see live orders."
+                title="Database Not Connected"
+                message="Connect database environment variables to view live orders."
               />
             ) : filteredOrders.length === 0 ? (
               <div className="py-12 text-center text-xs text-slate-500">
@@ -939,7 +1332,7 @@ export default function AdminDashboardPage() {
                     className="px-5 py-2.5 rounded-xl bg-store-forest text-white text-xs font-bold flex items-center gap-2 hover:bg-emerald-800 transition disabled:opacity-50"
                   >
                     {recipeSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    {recipeSaving ? 'Saving…' : 'Save Recipe to Supabase'}
+                    {recipeSaving ? 'Saving…' : 'Save Recipe to Database'}
                   </button>
                   <button
                     onClick={() => setEditingRecipe(null)}
@@ -970,16 +1363,16 @@ export default function AdminDashboardPage() {
               {recipesLoading ? (
                 <div className="py-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
                   <Loader2 className="w-5 h-5 animate-spin text-store-forest" />
-                  Loading recipes from Supabase…
+                  Loading recipes from database…
                 </div>
               ) : !isSupabaseConfigured ? (
                 <DataMissing
-                  title="Supabase Not Configured"
-                  message="Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env to manage recipes. The client storefront will still display the static recipes from data/recipes.ts."
+                  title="Database Not Connected"
+                  message="Connect database environment variables to manage recipes."
                 />
               ) : recipes.length === 0 ? (
                 <div className="py-12 text-center text-xs text-slate-500">
-                  No recipes in Supabase yet. Click &ldquo;New Recipe&rdquo; to create one, or seed data from the SQL editor.
+                  No recipes in database yet. Click &ldquo;New Recipe&rdquo; to create one.
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1300,7 +1693,7 @@ export default function AdminDashboardPage() {
                   {settingsSaving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Saving to Supabase...</span>
+                      <span>Saving to database...</span>
                     </>
                   ) : (
                     <>
@@ -1329,7 +1722,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Admin Portal Security &amp; Credentials</h3>
-                    <p className="text-xs text-slate-500">Update the username or password used to access this admin panel (saved in Supabase).</p>
+                    <p className="text-xs text-slate-500">Update the username or password used to access this admin panel (saved in database).</p>
                   </div>
                 </div>
 
@@ -1495,7 +1888,7 @@ export default function AdminDashboardPage() {
                   rel="noreferrer"
                   className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 hover:border-store-forest text-slate-700 transition"
                 >
-                  <span className="font-semibold">Supabase Cloud Database</span>
+                  <span className="font-semibold">Cloud Database Console</span>
                   <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </a>
                 <a

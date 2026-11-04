@@ -52,7 +52,7 @@ function LoginForm() {
     }
 
     if (!supabase || !isSupabaseConfigured) {
-      setErrorMsg('Supabase is not configured yet. Please check your environment variables.');
+      setErrorMsg('Service is temporarily unavailable. Please try again shortly.');
       return;
     }
 

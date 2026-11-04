@@ -12,7 +12,7 @@ interface DataMissingProps {
  */
 export default function DataMissing({
   title = 'Data Not Found',
-  message = 'Could not load data. Please ensure Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY) are configured in your Vercel or local .env file.',
+  message = 'Could not load data. Please ensure database connection is established.',
   icon = 'database',
 }: DataMissingProps) {
   const Icon = icon === 'database' ? Database : AlertCircle;

@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       </div>
 
       <p style="font-size: 13px; color: #64748b;">
-        Please make sure you verify your email address via the Supabase confirmation link sent to your inbox to keep your delivery address and order tracking completely secure.
+        Please make sure you verify your email address via the confirmation link sent to your inbox to keep your delivery address and order tracking completely secure.
       </p>
 
       <a href="https://ladydeeminimartstores.vercel.app/shop" class="cta-btn" target="_blank">

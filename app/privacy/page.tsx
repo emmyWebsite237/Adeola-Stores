@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy &amp; Data Protection
           </h1>
           <p className="text-xs text-slate-500 mt-2">
-            Last Updated: November 2026 &bull; Ladydee Minimart Stores (Adeola Stores, Lagos, Nigeria)
+            Last Updated: November 2026 &bull; Ladydee Minimart Stores, Lagos, Nigeria
           </p>
         </div>
 
@@ -37,13 +37,13 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs flex items-center justify-center font-bold">1</span>
-              Information We Collect &amp; Age Verification
+              Information We Collect &amp; Account Details
             </h2>
             <p>
               When you create an account or order groceries through Ladydee Minimart Stores, we collect details strictly required to process and dispatch your food items:
             </p>
             <ul className="list-disc list-inside space-y-1.5 text-xs text-slate-600 mt-2">
-              <li><strong>Personal Identity:</strong> Full name, chosen username, and <strong>Date of Birth</strong> (to verify you meet the mandatory 18+ age threshold).</li>
+              <li><strong>Personal Identity:</strong> Full name, chosen username, and <strong>Date of Birth</strong> for account security.</li>
               <li><strong>Contact &amp; Delivery:</strong> Active Nigerian telephone number, email address, physical delivery address, and landmark notes in Lagos.</li>
               <li><strong>Wallet Information:</strong> Stored balance and encrypted 4-digit security PIN for authorizing wallet payouts.</li>
               <li><strong>Order History:</strong> Product items, recipe bundles, order timestamps, and fulfillment progress.</li>
@@ -53,14 +53,14 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs flex items-center justify-center font-bold">2</span>
-              Age Verification &amp; Minors Policy
+              Data Protection &amp; Customer Privacy
             </h2>
-            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs sm:text-sm">
-              <p className="font-bold flex items-center gap-2 mb-1 text-amber-950">
-                <AlertCircle className="w-4 h-4 text-amber-700" />
-                Children &amp; Under-18 Privacy Notice
+            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-emerald-950 text-xs sm:text-sm">
+              <p className="font-bold flex items-center gap-2 mb-1 text-emerald-950">
+                <Shield className="w-4 h-4 text-emerald-700" />
+                Customer Data Privacy Commitment
               </p>
-              Our platform does not intentionally collect or solicit personal information from individuals under the age of 18. If we discover an account was registered by an individual under 18 years old without verified legal guardian consent, the account and personal records will be promptly terminated.
+              Your personal data, including delivery address, telephone contact, and date of birth, is strictly kept confidential and only utilized to fulfill your orders and protect your account. We never sell, lease, or distribute customer details to third parties.
             </div>
           </section>
 
@@ -90,7 +90,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 mt-2">
               <li><strong>Designated Dispatch Drivers:</strong> Receiving your phone number and address solely for direct order delivery in Lagos.</li>
-              <li><strong>Transactional Email Relays:</strong> Brevo / Supabase for sending official email receipts and verification links.</li>
+              <li><strong>Transactional Email Relays:</strong> Certified email systems for sending official order receipts and verification links.</li>
             </ul>
           </section>
 

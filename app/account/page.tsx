@@ -185,7 +185,7 @@ export default function AccountPage() {
     };
   };
 
-  const handleSelectPresetAvatar = async (avatar: PresetAvatar) => {
+  const handleSelectCustomAvatarUrl = async (url: string) => {
     if (!user) return;
     const check = canChangeAvatar();
     if (!check.allowed) {
@@ -202,7 +202,7 @@ export default function AccountPage() {
       const nowIso = new Date().toISOString();
       const updated = await upsertUserProfile({
         id: user.id,
-        avatar_url: avatar.svgUrl,
+        avatar_url: url,
         avatar_updated_at: nowIso,
       } as any);
 
@@ -213,6 +213,16 @@ export default function AccountPage() {
       setProfileFeedback({ type: 'error', message: err.message || 'Failed to update avatar.' });
     } finally {
       setSavingAvatar(false);
+    }
+  };
+
+  const handleSelectPresetAvatar = async (avatar: PresetAvatar) => {
+    await handleSelectCustomAvatarUrl(avatar.svgUrl);
+  };
+
+  const handleSelectGoogleAvatar = async () => {
+    if (googleAvatar) {
+      await handleSelectCustomAvatarUrl(googleAvatar);
     }
   };
 
@@ -359,7 +369,7 @@ export default function AccountPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 flex flex-col items-center justify-center min-h-[50vh] text-brand-muted">
         <Loader2 className="w-8 h-8 animate-spin text-brand-green mb-3" />
-        <p className="text-xs font-bold">Loading account data from Supabase...</p>
+        <p className="text-xs font-bold">Loading account data...</p>
       </div>
     );
   }
@@ -397,10 +407,20 @@ export default function AccountPage() {
 
   // Google sign in round picture detection
   const isGoogleUser = user?.app_metadata?.provider === 'google' || Boolean(user?.user_metadata?.avatar_url);
-  const googleAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+  const googleAvatar =
+    profile?.google_avatar_url ||
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture ||
+    user?.identities?.find((i: any) => i.provider === 'google')?.identity_data?.avatar_url ||
+    user?.identities?.find((i: any) => i.provider === 'google')?.identity_data?.picture;
   const displayAvatar = profile?.avatar_url || googleAvatar;
+  const usernameDisplay = profile?.username
+    ? `@${profile.username}`
+    : user?.user_metadata?.username
+    ? `@${user.user_metadata.username}`
+    : '@member';
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Valued Shopper';
-  const initial = displayName.charAt(0).toUpperCase();
+  const initial = (profile?.username || displayName).charAt(0).toUpperCase();
   const walletBal = Number(profile?.wallet_balance || 0);
 
   const avatarCheck = canChangeAvatar();
@@ -414,17 +434,17 @@ export default function AccountPage() {
           {/* Avatar with Click to Choose Preset */}
           <div
             onClick={() => setAvatarModalOpen(true)}
-            className="relative cursor-pointer group"
+            className="relative cursor-pointer group shrink-0 aspect-square w-16 h-16 min-w-[64px] min-h-[64px]"
             title={avatarCheck.allowed ? 'Click to choose profile avatar' : `Avatar locked until ${avatarCheck.nextDate}`}
           >
             {displayAvatar ? (
               <img
                 src={displayAvatar}
-                alt={displayName}
-                className="w-16 h-16 rounded-full object-cover border-2 border-brand-green shadow-md group-hover:scale-105 transition-transform"
+                alt={usernameDisplay}
+                className="w-16 h-16 min-w-[64px] min-h-[64px] max-w-[64px] max-h-[64px] rounded-full object-cover shrink-0 aspect-square overflow-hidden border-2 border-brand-green shadow-md group-hover:scale-105 transition-transform"
               />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-brand-green text-white text-2xl font-extrabold flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-16 h-16 min-w-[64px] min-h-[64px] rounded-full bg-brand-green text-white text-2xl font-extrabold flex items-center justify-center shrink-0 aspect-square shadow-md group-hover:scale-105 transition-transform">
                 {initial}
               </div>
             )}
@@ -435,7 +455,7 @@ export default function AccountPage() {
 
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-extrabold text-brand-ink">{displayName}</h1>
+              <h1 className="text-xl font-extrabold text-brand-ink">{usernameDisplay}</h1>
               {isGoogleUser ? (
                 <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-extrabold flex items-center gap-1 border border-blue-200">
                   <svg className="w-3 h-3" viewBox="0 0 24 24">
@@ -808,9 +828,9 @@ export default function AccountPage() {
               </div>
 
               <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">Date of Birth (18+)</label>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">Date of Birth</label>
                 <div className="p-2.5 bg-white rounded-xl border border-slate-200 text-slate-700 font-bold">
-                  {profile?.date_of_birth || user.user_metadata?.date_of_birth || 'Verified 18+'}
+                  {profile?.date_of_birth || user.user_metadata?.date_of_birth || 'Not specified'}
                 </div>
               </div>
             </div>
@@ -1114,6 +1134,27 @@ export default function AccountPage() {
               </div>
             ) : null}
 
+            {googleAvatar && (
+              <button
+                type="button"
+                disabled={!avatarCheck.allowed || savingAvatar}
+                onClick={handleSelectGoogleAvatar}
+                className="w-full flex items-center gap-3 p-3 mb-4 rounded-2xl border-2 border-blue-200 bg-blue-50/60 hover:bg-blue-100/60 transition-all text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed group"
+              >
+                <img
+                  src={googleAvatar}
+                  alt="Google Profile"
+                  className="w-12 h-12 rounded-full object-cover shrink-0 aspect-square border-2 border-blue-500 shadow-sm"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-blue-950 flex items-center gap-1.5">
+                    Switch to Google Profile Picture
+                  </p>
+                  <p className="text-[10px] text-blue-700">Restore your real circular Google account photo</p>
+                </div>
+              </button>
+            )}
+
             <div className="grid grid-cols-4 gap-3 mb-4">
               {PRESET_AVATARS.map((av) => (
                 <button
@@ -1123,7 +1164,7 @@ export default function AccountPage() {
                   onClick={() => handleSelectPresetAvatar(av)}
                   className="flex flex-col items-center p-2 rounded-2xl border-2 hover:border-brand-green hover:bg-emerald-50/50 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed group"
                 >
-                  <img src={av.svgUrl} alt={av.name} className="w-14 h-14 rounded-full shadow-sm group-hover:scale-110 transition-transform" />
+                  <img src={av.svgUrl} alt={av.name} className="w-14 h-14 rounded-full shrink-0 aspect-square shadow-sm group-hover:scale-110 transition-transform" />
                   <span className="text-[10px] font-bold text-slate-700 mt-1.5 text-center leading-tight">
                     {av.name}
                   </span>

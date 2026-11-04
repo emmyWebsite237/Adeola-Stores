@@ -153,17 +153,10 @@ export default function AuthModal({
       return;
     }
 
-    // 2. Age 18+ validation
-    const userAge = calculateAge(dob);
-    if (userAge < 18) {
-      setErrorMsg('You must be at least 18 years of age to register and place orders on Ladydee Minimart.');
-      return;
-    }
-
-    // 3. Username validation (must be mixture of letters and numbers)
+    // 2. Username validation (must be mixture of letters and numbers)
     const cleanUsername = username.trim().toLowerCase();
     if (!validateUsername(cleanUsername)) {
-      setErrorMsg('Username must be a combination of letters and numbers (e.g. adeola92, emmy237).');
+      setErrorMsg('Username must be a combination of letters and numbers (e.g. emmy237, ladydee01).');
       return;
     }
 
@@ -459,7 +452,7 @@ export default function AuthModal({
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Adeola Johnson"
+                    placeholder="e.g. Emmanuel Samson"
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-line text-xs font-semibold focus:border-brand-green outline-none transition-all"
                   />
                 </div>
@@ -478,7 +471,7 @@ export default function AuthModal({
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. adeola92"
+                    placeholder="e.g. emmy237"
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-line text-xs font-semibold focus:border-brand-green outline-none transition-all"
                   />
                 </div>
@@ -520,21 +513,16 @@ export default function AuthModal({
                 </div>
               </div>
 
-              {/* Date of Birth (Must be 18+) */}
+              {/* Date of Birth */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-brand-ink">Date of Birth</label>
-                  <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md">
-                    Strictly 18+
-                  </span>
-                </div>
+                <label className="text-xs font-bold text-brand-ink block mb-1">Date of Birth</label>
                 <div className="relative">
                   <Calendar className="w-4 h-4 text-brand-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="date"
                     required
                     value={dob}
-                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                    max={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setDob(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-line text-xs font-semibold focus:border-brand-green outline-none transition-all text-slate-700"
                   />
@@ -618,7 +606,7 @@ export default function AuthModal({
                     <Link href="/privacy" className="text-brand-green font-bold underline" target="_blank">
                       Privacy Policy
                     </Link>
-                    , and confirm I am <strong>18+ years old</strong>.
+                    , and agree to the store terms.
                   </span>
                 </label>
               </div>

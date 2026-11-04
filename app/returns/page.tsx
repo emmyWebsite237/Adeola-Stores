@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { RotateCcw, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 
 export const metadata = {
-  title: 'Return & Refund Policy | Adeola Stores Lagos',
-  description: 'Easy returns, inspection on delivery, and Paystack refund policies for Lady Dee Adeola Stores.',
+  title: 'Return & Refund Policy | Ladydee Minimart Lagos',
+  description: 'Easy returns, inspection on delivery, and Paystack refund policies for Ladydee Minimart.',
 };
 
 export default function ReturnsPolicyPage() {
@@ -40,7 +40,7 @@ export default function ReturnsPolicyPage() {
               Doorstep Inspection Guarantee
             </h2>
             <p>
-              At Lady Dee Adeola Stores, we treat every food item as if it were going onto our own family table. We encourage all customers to inspect perishable goods (fresh tomatoes, scotch bonnets, leafy vegetables, meat, and frozen poultry) immediately upon rider delivery.
+              At Ladydee Minimart, we treat every food item as if it were going onto our own family table. We encourage all customers to inspect perishable goods (fresh tomatoes, scotch bonnets, leafy vegetables, meat, and frozen poultry) immediately upon rider delivery.
             </p>
             <div className="mt-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-xs text-emerald-950">
               <div className="flex items-center gap-2 font-bold mb-1">

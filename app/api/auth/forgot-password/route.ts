@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reset Your Password - Adeola Stores</title>
+  <title>Reset Your Password - Ladydee Minimart</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f7f9f6; margin: 0; padding: 24px; color: #1e293b; }
     .container { max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
@@ -56,10 +56,10 @@ export async function POST(req: Request) {
 </head>
 <body>
   <div class="container">
-    <div class="logo">Adeola Stores</div>
+    <div class="logo">Ladydee Minimart</div>
     <h1>Reset Your Account Password</h1>
     <p>Hello,</p>
-    <p>We received a request to reset the password for your Adeola Stores (Ladydee Minimart) customer account associated with <strong>${cleanEmail}</strong>.</p>
+    <p>We received a request to reset the password for your Ladydee Minimart customer account associated with <strong>${cleanEmail}</strong>.</p>
     <p>Click the secure button below to set a new password:</p>
     <div style="text-align: center;">
       <a href="${resetUrl}" class="btn" target="_blank">Reset My Password</a>
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     <p style="font-size: 12px; color: #64748b;">If the button above does not work, copy and paste this link into your browser:<br /><a href="${resetUrl}" style="color: #15803d; word-break: break-all;">${resetUrl}</a></p>
     <p style="font-size: 12px; color: #94a3b8; margin-top: 24px;">If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
     <div class="footer">
-      Adeola Stores &bull; Lagos, Nigeria &bull; Fresh Groceries Delivered to Your Door
+      Ladydee Minimart &bull; Lagos, Nigeria &bull; Fresh Groceries Delivered to Your Door
     </div>
   </div>
 </body>
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
                 email: cleanEmail,
               },
             ],
-            subject: 'Reset your Adeola Stores Password',
+            subject: 'Reset your Ladydee Minimart Password',
             htmlContent: emailHtml,
           }),
         });

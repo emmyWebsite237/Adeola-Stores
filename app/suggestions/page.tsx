@@ -1,0 +1,223 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { ChefHat, Sparkles, Send, CheckCircle2, ArrowLeft, Heart, Utensils } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '@/lib/db/supabase';
+
+export default function SuggestionsPage() {
+  const [comboName, setComboName] = useState('');
+  const [ingredients, setIngredients] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Autofill user details if logged in
+    if (supabase && isSupabaseConfigured) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setName(session.user.user_metadata?.full_name || session.user.user_metadata?.name || '');
+          setEmail(session.user.email || '');
+        }
+      });
+    }
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!comboName.trim()) {
+      setErrorMsg('Please enter a combo or dish name.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      if (supabase && isSupabaseConfigured) {
+        const { error } = await supabase.from('recipe_suggestions').insert({
+          combo_name: comboName.trim(),
+          ingredients: ingredients.trim() || null,
+          customer_name: name.trim() || null,
+          customer_email: email.trim() || null,
+          notes: notes.trim() || null,
+        });
+
+        if (error) {
+          console.error('Error saving suggestion:', error.message);
+        }
+      }
+
+      setSubmitted(true);
+    } catch (err: any) {
+      console.error('Failed to submit suggestion:', err);
+      // Still show success to customer
+      setSubmitted(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+      {/* Back button */}
+      <Link
+        href="/cook"
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-green mb-6 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span>Back to Cook Tonight Recipes</span>
+      </Link>
+
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-12 shadow-sm relative overflow-hidden">
+        {/* Header */}
+        <div className="max-w-2xl mb-8">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-50 text-brand-green text-xs font-black mb-3 border border-emerald-100">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Community Recipe Kitchen</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            Suggest a Cooking Combo or Recipe Pack 🍲
+          </h1>
+
+          <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+            Have a special Nigerian meal or family delicacy you want pre-bundled on Ladydee Minimart? Tell us the dish name and ingredients, and our procurement team will curate it as a 1-click bundle with exact portions and market-fresh pricing!
+          </p>
+        </div>
+
+        {submitted ? (
+          <div className="p-8 sm:p-12 rounded-3xl bg-emerald-50/70 border-2 border-emerald-200 text-center space-y-4 animate-bounceModal">
+            <div className="w-16 h-16 rounded-full bg-brand-green text-white flex items-center justify-center mx-auto shadow-md">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+              Thank You! Combo Suggestion Received!
+            </h3>
+
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+              We loved your suggestion for <strong>&ldquo;{comboName}&rdquo;</strong>. Our kitchen &amp; procurement teams will review the recipe and notify you once it&rsquo;s available in the store!
+            </p>
+
+            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmitted(false);
+                  setComboName('');
+                  setIngredients('');
+                  setNotes('');
+                }}
+                className="px-5 py-2.5 rounded-xl border border-emerald-300 bg-white text-brand-green font-bold text-xs hover:bg-emerald-50 transition-colors"
+              >
+                Suggest Another Dish
+              </button>
+
+              <Link
+                href="/cook"
+                className="px-6 py-2.5 rounded-xl bg-brand-green text-white font-extrabold text-xs hover:bg-brand-green-dark transition-colors shadow-sm"
+              >
+                Browse Current Recipes
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {errorMsg && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-bold">
+                {errorMsg}
+              </div>
+            )}
+
+            {/* Dish Name */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Combo / Dish Name <span className="text-brand-green">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={comboName}
+                onChange={(e) => setComboName(e.target.value)}
+                placeholder="e.g. Fisherman Soup & Poundo Yam, Asaro (Yam Porridge) with Smoked Catfish"
+                className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:border-brand-green focus:ring-2 focus:ring-brand-green/20 outline-none text-xs sm:text-sm font-semibold text-slate-900"
+              />
+            </div>
+
+            {/* Ingredients */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Key Ingredients You Want Included
+              </label>
+              <textarea
+                rows={3}
+                value={ingredients}
+                onChange={(e) => setIngredients(e.target.value)}
+                placeholder="e.g. Yam cubes, Palm oil, Dried fish, Ground crayfish, Fresh scent leaves, Scotch bonnets"
+                className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:border-brand-green focus:ring-2 focus:ring-brand-green/20 outline-none text-xs sm:text-sm font-medium text-slate-900 resize-none"
+              />
+            </div>
+
+            {/* Customer Details Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                  Your Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Mrs. Adebayo"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-green outline-none text-xs font-semibold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                  Your Email (Optional)
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="For launch alert: e.g. you@gmail.com"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-green outline-none text-xs font-semibold text-slate-900"
+                />
+              </div>
+            </div>
+
+            {/* Extra Notes */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Any Special Cooking Notes or Preferences
+              </label>
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g. Include mild pepper option, family size pack for 6 people"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-green outline-none text-xs font-medium text-slate-900"
+              />
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 rounded-2xl bg-brand-green hover:bg-brand-green-dark text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+              <span>{loading ? 'Submitting Suggestion…' : 'Submit Cooking Combo Suggestion'}</span>
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}

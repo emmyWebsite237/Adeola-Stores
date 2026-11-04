@@ -201,7 +201,7 @@ export default function AdminAuthGate({ children }: AdminAuthGateProps) {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Authenticating with Supabase...</span>
+                <span>Verifying credentials...</span>
               </>
             ) : (
               <>

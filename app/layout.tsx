@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     'Fresh sealed groceries and authentic Nigerian foodstuffs delivered across Lagos. Mama Gold Rice, Kings Oil, Yam tubers, Golden Penny Semovita, fresh peppers and household provisions with same-day doorstep delivery.',
   keywords: [
     'Ladydee Minimart',
-    'Adeola Stores',
+    'Ladydee Minimart Stores',
     'Lagos groceries',
     'online supermarket Lagos',
     'Nigerian foodstuffs delivery',

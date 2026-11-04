@@ -28,19 +28,8 @@ export default function TermsPage() {
             Terms of Service &amp; Conditions of Use
           </h1>
           <p className="text-xs text-slate-500 mt-2">
-            Last Updated: November 2026 &bull; Ladydee Minimart Stores (Adeola Stores, Lagos, Nigeria)
+            Last Updated: November 2026 &bull; Ladydee Minimart Stores, Lagos, Nigeria
           </p>
-        </div>
-
-        {/* Age Restriction Banner */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 mb-8 flex items-start gap-3 text-amber-900">
-          <AlertTriangle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
-          <div className="text-xs sm:text-sm">
-            <strong className="font-extrabold block text-amber-950 mb-1">
-              Strict Age Eligibility Requirement (18 Years &amp; Above)
-            </strong>
-            By creating an account or placing an order on Ladydee Minimart Stores, you certify that you are at least 18 years of age. We require Date of Birth verification upon registration. Individuals under the age of 18 are not permitted to execute purchase transactions independently on this platform.
-          </div>
         </div>
 
         {/* Content Sections */}
@@ -51,7 +40,7 @@ export default function TermsPage() {
               Operating Entity &amp; Acceptance
             </h2>
             <p>
-              Welcome to Ladydee Minimart Stores (&ldquo;Adeola Stores&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;). By accessing our website, registering an account, depositing into your customer wallet, or purchasing food items and household provisions from our platform, you agree to be bound by these Terms of Service.
+              Welcome to Ladydee Minimart Stores (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;). By accessing our website, registering an account, depositing into your customer wallet, or purchasing food items and household provisions from our platform, you agree to be bound by these Terms of Service.
             </p>
             <p className="mt-2">
               We operate fresh grocery procurement, bulk grains supply, frozen food distribution, and doorstep delivery within designated delivery zones across Lagos State, Nigeria.

@@ -6,9 +6,7 @@ import {
   X,
   Send,
   Bot,
-  Move,
   ShoppingBag,
-  ExternalLink,
   ChevronRight,
   RefreshCw,
 } from 'lucide-react';
@@ -28,27 +26,210 @@ interface ChatMessage {
   suggestedPrompts?: string[];
 }
 
+// Training matrix for conversational AI matching
+interface TrainingPattern {
+  intents: string[];
+  patterns: RegExp[];
+  generateReply: (q: string) => {
+    text: string;
+    quickLink?: { text: string; href: string };
+    suggestedPrompts?: string[];
+  };
+}
+
+const CONVERSATIONAL_TRAINING: TrainingPattern[] = [
+  // 1. Nigerian Slang & Pidgin Greetings
+  {
+    intents: ['pidgin_greeting'],
+    patterns: [
+      /\bhow far\b/i,
+      /\bhow far na\b/i,
+      /\bwetin dey\b/i,
+      /\bbawo\b/i,
+      /\bkedu\b/i,
+      /\be kaaro\b/i,
+      /\be kaasan\b/i,
+      /\be kale\b/i,
+      /\bhow body\b/i,
+      /\bhow market\b/i,
+      /\bmy guy\b/i,
+      /\bmy brother\b/i,
+      /\bmy sister\b/i,
+    ],
+    generateReply: () => ({
+      text: `Everything dey soft! 🛒 Market dey pure and fresh today. How is the family? Wetin you want cook or shop for house today? Jollof, Egusi, fresh stew, or provision?`,
+      quickLink: { text: 'Browse Fresh Groceries 🛒', href: '/shop' },
+      suggestedPrompts: [
+        'How much is rice?',
+        'Jollof rice ingredients 🥘',
+        'How does Lagos delivery work?',
+      ],
+    }),
+  },
+
+  // 2. Standard Greetings & Time-of-Day
+  {
+    intents: ['greeting_morning'],
+    patterns: [
+      /\bgood morning\b/i,
+      /\bmorning\b/i,
+      /\bgm\b/i,
+      /\bhow was your night\b/i,
+    ],
+    generateReply: () => ({
+      text: `Good morning! ☀️ Hope your day is starting off well! Need anything for breakfast (Milo, Peak Milk, Golden Penny Oats, Titus Sardines) or cooking provisions for later today?`,
+      quickLink: { text: 'Shop Breakfast & Dairy 🥛', href: '/shop' },
+      suggestedPrompts: ['How much is Peak milk?', 'Quick breakfast recipe', 'Delivery cutoff times'],
+    }),
+  },
+  {
+    intents: ['greeting_afternoon_evening'],
+    patterns: [
+      /\bgood afternoon\b/i,
+      /\bgood evening\b/i,
+      /\bafternoon\b/i,
+      /\bevening\b/i,
+      /\bgood day\b/i,
+      /\bhappy sunday\b/i,
+      /\bweekend\b/i,
+    ],
+    generateReply: () => ({
+      text: `Good day! 😊 Welcome to Ladydee Minimart. How is your day going? Need fresh ingredients for tonight's dinner or restocking pantry staples?`,
+      quickLink: { text: 'Explore Cook Tonight Recipes 🥘', href: '/cook' },
+      suggestedPrompts: ['Egusi soup ingredients', 'Price of vegetable oil', 'Check Lagos delivery zones'],
+    }),
+  },
+  {
+    intents: ['greeting_casual'],
+    patterns: [
+      /\bhello\b/i,
+      /\bhi\b/i,
+      /\bhey\b/i,
+      /\bheyy\b/i,
+      /\byo\b/i,
+      /\bsup\b/i,
+      /\bwhat'?s up\b/i,
+      /\bhowdy\b/i,
+      /\bhiya\b/i,
+      /\bare you there\b/i,
+      /\banyone there\b/i,
+      /\bdeebot\b/i,
+    ],
+    generateReply: () => ({
+      text: `Hello there! 👋 I am DeeBot, your 24/7 Ladydee grocery concierge. I can check live prices, recommend Nigerian recipe combos, explain delivery schedules, or help with your wallet. What's on your mind?`,
+      suggestedPrompts: [
+        'How much is 50kg rice?',
+        'Ingredients for smoky Jollof 🥘',
+        'What discount codes are available?',
+      ],
+    }),
+  },
+
+  // 3. Wellness & Small Talk
+  {
+    intents: ['smalltalk_wellness'],
+    patterns: [
+      /\bhow are you\b/i,
+      /\bhow are you doing\b/i,
+      /\bhow do you do\b/i,
+      /\bhope you are good\b/i,
+      /\bhow is it going\b/i,
+      /\bwhat are you doing\b/i,
+    ],
+    generateReply: () => ({
+      text: `I'm doing fantastic, thank you for asking! 😊 Ready to help you get the best market deals in Lagos without the stress of open markets. How can I assist you right now?`,
+      suggestedPrompts: ['Show me popular bundles', 'Lagos delivery timeline', 'Fund my wallet'],
+    }),
+  },
+
+  // 4. Hunger / Meal Recommendations
+  {
+    intents: ['food_recommendation'],
+    patterns: [
+      /\bi am hungry\b/i,
+      /\bi'm hungry\b/i,
+      /\bwhat should i cook\b/i,
+      /\bwhat can i cook\b/i,
+      /\bgive me food idea\b/i,
+      /\bmeal idea\b/i,
+      /\bwhat to eat\b/i,
+      /\bdinner idea\b/i,
+      /\blunch idea\b/i,
+    ],
+    generateReply: () => ({
+      text: `Here are three delicious Nigerian meals you can prepare easily:\n\n1. 🥘 **Smoky Party Jollof Rice** — cooked with concentrated Gino paste, pepper relish, and seasoned chicken.\n2. 🍲 **Egusi Soup with Hand-Peeled Melon & Stockfish** — pairs perfectly with Semovita or Poundo!\n3. 🍜 **Gourmet Indomie with Titus Sardines** — takes just 10 minutes for instant satisfaction!`,
+      quickLink: { text: 'View 1-Click Recipe Bundles 🍳', href: '/cook' },
+      suggestedPrompts: [
+        'Ingredients for Jollof rice',
+        'Ingredients for Egusi soup',
+        'Check active discount codes',
+      ],
+    }),
+  },
+
+  // 5. Compliments & Gratitude
+  {
+    intents: ['appreciation'],
+    patterns: [
+      /\bthank you\b/i,
+      /\bthanks\b/i,
+      /\bwelldone\b/i,
+      /\bwell done\b/i,
+      /\bdaalu\b/i,
+      /\bese\b/i,
+      /\bnagode\b/i,
+      /\bbless you\b/i,
+      /\byou are sweet\b/i,
+      /\bgreat job\b/i,
+      /\bgood bot\b/i,
+      /\bnice\b/i,
+      /\bawesome\b/i,
+    ],
+    generateReply: () => ({
+      text: `You're very welcome! 🙏 Always a pleasure assisting you. Let me know if you need any other price checks or cooking tips. Happy shopping and enjoy your meal!`,
+      quickLink: { text: 'Return to Store Home 🏡', href: '/' },
+      suggestedPrompts: ['How do I fund my wallet?', 'What are delivery rates?'],
+    }),
+  },
+
+  // 6. Identity & Capabilities
+  {
+    intents: ['bot_identity'],
+    patterns: [
+      /\bwho are you\b/i,
+      /\bwhat is your name\b/i,
+      /\bwhat can you do\b/i,
+      /\bare you human\b/i,
+      /\bare you a robot\b/i,
+      /\bwho made you\b/i,
+    ],
+    generateReply: () => ({
+      text: `I am **DeeBot** 🤖, your smart grocery concierge for Ladydee Minimart Stores in Lagos. I am programmed with real-time catalog prices, authentic Nigerian recipes, delivery zone rates, and wallet payment guidance to make your shopping seamless!`,
+      suggestedPrompts: ['Browse all groceries', 'Check coupon codes', 'View delivery zones'],
+    }),
+  },
+];
+
 export default function AIAssistantWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Position coordinates: { x, y } in pixels from top-left of viewport
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  // Snapped side: 'left' | 'right'
+  const [dockSide, setDockSide] = useState<'left' | 'right'>('right');
+  const [verticalOffset, setVerticalOffset] = useState<number>(100);
 
   // Drag tracking refs
   const dragRef = useRef<{
     startX: number;
     startY: number;
-    startPosX: number;
-    startPosY: number;
+    currentX: number;
     hasDragged: boolean;
   }>({
     startX: 0,
     startY: 0,
-    startPosX: 0,
-    startPosY: 0,
+    currentX: 0,
     hasDragged: false,
   });
 
@@ -56,7 +237,7 @@ export default function AIAssistantWidget() {
     {
       id: 'welcome',
       sender: 'bot',
-      text: 'E kaabo! 👋 I am DeeBot, your 24/7 Ladydee Grocery & Cooking Concierge. How can I help you today? You can ask me about product prices, Nigerian recipe ingredients, Lagos delivery, or how to use your wallet!',
+      text: 'Hello! 👋 I am DeeBot, your 24/7 Ladydee Grocery & Cooking Concierge. How can I help you today? Ask me about product prices, Nigerian recipe ingredients, Lagos delivery, or your wallet!',
       timestamp: 'Just now',
       suggestedPrompts: [
         'How much is rice?',
@@ -75,27 +256,16 @@ export default function AIAssistantWidget() {
 
   useEffect(() => {
     setMounted(true);
-    // Initialize position from localStorage or default to bottom-right
     try {
-      const saved = localStorage.getItem('deebot_pos');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          // Clamp to current viewport
-          const clampedX = Math.min(Math.max(10, parsed.x), window.innerWidth - 75);
-          const clampedY = Math.min(Math.max(10, parsed.y), window.innerHeight - 75);
-          setPosition({ x: clampedX, y: clampedY });
-          return;
-        }
+      const savedSide = localStorage.getItem('deebot_dock') as 'left' | 'right' | null;
+      if (savedSide === 'left' || savedSide === 'right') {
+        setDockSide(savedSide);
+      }
+      const savedY = localStorage.getItem('deebot_y');
+      if (savedY) {
+        setVerticalOffset(Number(savedY));
       }
     } catch {}
-
-    // Default: bottom-right
-    if (typeof window !== 'undefined') {
-      const defaultX = Math.max(10, window.innerWidth - 80);
-      const defaultY = Math.max(10, window.innerHeight - (window.innerWidth < 640 ? 110 : 80));
-      setPosition({ x: defaultX, y: defaultY });
-    }
   }, []);
 
   useEffect(() => {
@@ -104,44 +274,38 @@ export default function AIAssistantWidget() {
     }
   }, [messages, isOpen]);
 
-  // Touch & Mouse Drag Handlers
+  // Touch & Mouse Drag Handlers (Left-to-Right Snapping)
   const handleStartDrag = (clientX: number, clientY: number) => {
-    if (!position) return;
     dragRef.current = {
       startX: clientX,
       startY: clientY,
-      startPosX: position.x,
-      startPosY: position.y,
+      currentX: clientX,
       hasDragged: false,
     };
   };
 
   const handleMoveDrag = useCallback((clientX: number, clientY: number) => {
-    const { startX, startY, startPosX, startPosY } = dragRef.current;
+    const { startX, startY } = dragRef.current;
     const dx = clientX - startX;
     const dy = clientY - startY;
 
-    if (Math.hypot(dx, dy) > 6) {
+    if (Math.hypot(dx, dy) > 8) {
       dragRef.current.hasDragged = true;
-    }
-
-    if (dragRef.current.hasDragged && typeof window !== 'undefined') {
-      const newX = Math.min(Math.max(10, startPosX + dx), window.innerWidth - 75);
-      const newY = Math.min(Math.max(10, startPosY + dy), window.innerHeight - 75);
-      setPosition({ x: newX, y: newY });
+      dragRef.current.currentX = clientX;
     }
   }, []);
 
   const handleEndDrag = () => {
-    if (dragRef.current.hasDragged) {
-      // Save position to localStorage
-      if (position) {
-        try {
-          localStorage.setItem('deebot_pos', JSON.stringify(position));
-        } catch {}
-      }
+    if (dragRef.current.hasDragged && typeof window !== 'undefined') {
+      const mid = window.innerWidth / 2;
+      // Snap to whichever side the user is closer to!
+      const newSide: 'left' | 'right' = dragRef.current.currentX < mid ? 'left' : 'right';
+      setDockSide(newSide);
+      try {
+        localStorage.setItem('deebot_dock', newSide);
+      } catch {}
     } else {
-      // It was a tap/click, toggle assistant open
+      // Tap / Click without dragging -> toggle chat
       setIsOpen((prev) => !prev);
     }
   };
@@ -184,11 +348,18 @@ export default function AIAssistantWidget() {
     handleEndDrag();
   };
 
-  // Local Intelligence Engine
+  // Comprehensive Machine Learning Intent Engine
   const generateLocalResponse = (query: string): Omit<ChatMessage, 'id' | 'timestamp' | 'sender'> => {
     const q = query.toLowerCase().trim();
 
-    // 1. Check for product price / search inquiries
+    // 1. Check conversational training matrix (greetings, slang, small talk, identity)
+    for (const item of CONVERSATIONAL_TRAINING) {
+      if (item.patterns.some((rgx) => rgx.test(q))) {
+        return item.generateReply(q);
+      }
+    }
+
+    // 2. Product Search & Price Lookup across entire live PRODUCTS catalog
     const foundProds = PRODUCTS.filter((p) => {
       const name = p.name.toLowerCase();
       const cat = p.category.toLowerCase();
@@ -224,18 +395,18 @@ export default function AIAssistantWidget() {
 
     if (foundProds.length > 0 && isPriceOrProductQuery) {
       return {
-        text: `Here are the exact live items we have in stock matching "${query}":`,
+        text: `Here are live items in our store matching "${query}":`,
         matchedProducts: foundProds,
         quickLink: { text: 'Browse All Groceries in Shop 🛒', href: '/shop' },
         suggestedPrompts: [
           'What are your delivery fees?',
-          'Do you have any discount codes?',
+          'What coupon codes are active?',
           'How does the wallet work?',
         ],
       };
     }
 
-    // 2. Recipe Inquiries
+    // 3. Nigerian Recipe Inquiries
     const matchedRecipe = RECIPES.find((r) => {
       const name = r.name.toLowerCase();
       const headline = r.headline.toLowerCase();
@@ -247,7 +418,16 @@ export default function AIAssistantWidget() {
       );
     });
 
-    if (matchedRecipe || q.includes('cook') || q.includes('recipe') || q.includes('prepare') || q.includes('jollof') || q.includes('egusi') || q.includes('soup') || q.includes('noodles')) {
+    if (
+      matchedRecipe ||
+      q.includes('cook') ||
+      q.includes('recipe') ||
+      q.includes('prepare') ||
+      q.includes('jollof') ||
+      q.includes('egusi') ||
+      q.includes('soup') ||
+      q.includes('noodles')
+    ) {
       if (matchedRecipe) {
         const ingredientsList = matchedRecipe.ingredients
           .slice(0, 5)
@@ -255,7 +435,7 @@ export default function AIAssistantWidget() {
           .join('\n');
 
         return {
-          text: `🥘 **${matchedRecipe.name}**\n\n${matchedRecipe.headline}\n\n**Key Ingredients:**\n${ingredientsList}\n\nYou can order all pre-portioned ingredients together in 1 click!`,
+          text: `🥘 **${matchedRecipe.name}**\n\n${matchedRecipe.headline}\n\n**Key Ingredients:**\n${ingredientsList}\n\nYou can order all pre-portioned ingredients in 1 tap!`,
           quickLink: { text: `View Full Recipe & Instructions 🍳`, href: `/cook/${matchedRecipe.slug}` },
           suggestedPrompts: [
             'How long does Lagos delivery take?',
@@ -272,7 +452,7 @@ export default function AIAssistantWidget() {
       };
     }
 
-    // 3. Lagos Delivery
+    // 4. Lagos Delivery Policies
     if (
       q.includes('delivery') ||
       q.includes('deliver') ||
@@ -292,7 +472,7 @@ export default function AIAssistantWidget() {
       };
     }
 
-    // 4. Wallet & Payments
+    // 5. Wallet & Payments
     if (
       q.includes('wallet') ||
       q.includes('pin') ||
@@ -308,7 +488,7 @@ export default function AIAssistantWidget() {
       };
     }
 
-    // 5. Pay on Delivery
+    // 6. Pay on Delivery
     if (
       q.includes('pay on delivery') ||
       q.includes('pod') ||
@@ -316,13 +496,13 @@ export default function AIAssistantWidget() {
       q.includes('pay when receive')
     ) {
       return {
-        text: `⚠️ **Pay on Delivery Update:**\n\nPay on Delivery is currently **Coming Soon** while we finalize our automated dispatch logistics. In the meantime, you can pay safely using **Paystack** (Cards, Transfer, USSD) or your **Ladydee Wallet**!`,
+        text: `⚠️ **Pay on Delivery Notice:**\n\nPay on Delivery is currently **Coming Soon** while we finalize our automated dispatch logistics. In the meantime, you can pay safely using **Paystack** (Cards, Transfer, USSD) or your **Ladydee Wallet**!`,
         quickLink: { text: 'Proceed to Checkout 🛒', href: '/checkout' },
         suggestedPrompts: ['How do I fund my wallet?', 'What are your delivery fees?', 'Browse fresh food'],
       };
     }
 
-    // 6. Discounts & Coupons
+    // 7. Discounts & Promo Codes
     if (
       q.includes('coupon') ||
       q.includes('discount') ||
@@ -339,7 +519,7 @@ export default function AIAssistantWidget() {
       };
     }
 
-    // 7. Store Hours & Contact
+    // 8. Store Hours & Contact
     if (
       q.includes('contact') ||
       q.includes('phone') ||
@@ -352,44 +532,13 @@ export default function AIAssistantWidget() {
       q.includes('address')
     ) {
       return {
-        text: `📍 **Ladydee Minimart Store:**\n\n• **Location:** Lagos, Nigeria\n• **Working Hours:** Monday to Saturday: 7:30 AM – 7:00 PM (Closed Sundays)\n• **Support:** Call or WhatsApp our dispatch team anytime for instant help!`,
+        text: `📍 **Ladydee Minimart Store:**\n\n• **Location:** Lagos, Nigeria\n• **Working Hours:** Monday to Saturday: 7:30 AM – 7:00 PM (Closed Sundays)\n• **Support:** Call or WhatsApp our dispatch desk directly anytime!`,
         quickLink: { text: 'Open Contact Desk 💬', href: '/contact' },
         suggestedPrompts: ['What products do you have?', 'Delivery fees', 'Check active coupons'],
       };
     }
 
-    // 8. Age & Registration
-    if (q.includes('18') || q.includes('age') || q.includes('birth') || q.includes('register') || q.includes('sign up')) {
-      return {
-        text: `👤 **Registration & Age Policy:**\n\nYou must be 18 years or older to register and place orders. You can sign up with your email or use the one-tap **"Continue with Google"** button!`,
-        quickLink: { text: 'Read Terms of Service 📄', href: '/terms' },
-        suggestedPrompts: ['How much is Kings vegetable oil?', 'Lagos delivery timeline', 'Fund wallet'],
-      };
-    }
-
-    // 9. Greetings & Pleasantries
-    if (
-      q.includes('hello') ||
-      q.includes('hi') ||
-      q.includes('hey') ||
-      q.includes('good morning') ||
-      q.includes('good afternoon') ||
-      q.includes('good evening') ||
-      q.includes('how are you') ||
-      q.includes('bawo') ||
-      q.includes('kedu')
-    ) {
-      return {
-        text: `Hello! 😊 Welcome to Ladydee Minimart. How is your day going? I am ready to help you with groceries, quick Lagos delivery, prices, or authentic Nigerian meal ideas!`,
-        suggestedPrompts: [
-          'What is on special offer today?',
-          'Ingredients for Jollof Rice 🥘',
-          'Delivery zones & fees 🚚',
-        ],
-      };
-    }
-
-    // Fallback with rich options
+    // Fallback
     return {
       text: `I'm here to help you shop smart! You can ask me anything about our Lagos foodstuffs (Rice, Titus, Vegetable Oil, Tomato Paste, Egusi, Spices), delivery fees, recipe bundles, or your digital wallet.`,
       quickLink: { text: 'Explore All Groceries 🛒', href: '/shop' },
@@ -448,9 +597,7 @@ export default function AIAssistantWidget() {
           return;
         }
       }
-    } catch {
-      // Fallback to local intelligent engine
-    }
+    } catch {}
 
     // Step 2: Use enhanced local neural brain
     setTimeout(() => {
@@ -465,71 +612,61 @@ export default function AIAssistantWidget() {
         },
       ]);
       setIsTyping(false);
-    }, 450);
+    }, 400);
   };
 
-  if (!mounted || !position) return null;
+  if (!mounted) return null;
 
   return (
     <>
-      {/* Draggable Floating Assistant Launcher Bubble */}
+      {/* Draggable Snapping Launcher Bubble */}
       {!isOpen && (
         <div
           style={{
             position: 'fixed',
-            left: `${position.x}px`,
-            top: `${position.y}px`,
+            bottom: '80px',
+            [dockSide]: '16px',
             zIndex: 49,
             touchAction: 'none',
+            transition: 'left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), right 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)',
           }}
-          className="select-none cursor-grab active:cursor-grabbing group"
+          className="select-none cursor-pointer group"
           onMouseDown={onMouseDown}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          <div className="relative flex items-center">
-            {/* Draggable button */}
-            <button
-              type="button"
-              aria-label="Open DeeBot AI Assistant (Drag to reposition)"
-              className="relative flex items-center gap-2 p-3 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-emerald-800 via-emerald-600 to-teal-700 text-white shadow-2xl shadow-emerald-950/40 border-2 border-emerald-300 hover:scale-105 active:scale-95 transition-transform"
-            >
-              {/* Animated Status Pulse */}
-              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500 border-2 border-white" />
-              </span>
+          <button
+            type="button"
+            aria-label="Open DeeBot AI Assistant"
+            className="relative flex items-center gap-2 p-3 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-emerald-800 via-emerald-600 to-teal-700 text-white shadow-2xl shadow-emerald-950/40 border-2 border-emerald-300 hover:scale-105 active:scale-95 transition-transform"
+          >
+            {/* Status Pulse */}
+            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500 border-2 border-white" />
+            </span>
 
-              {/* Bot Avatar Icon */}
-              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center animate-bounce">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
+            {/* Bot Avatar Icon */}
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center animate-bounce">
+              <Bot className="w-4 h-4 text-white" />
+            </div>
 
-              {/* Text label */}
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-black tracking-tight flex items-center gap-1">
-                  DeeBot AI <Sparkles className="w-3 h-3 text-amber-300" />
-                </span>
-                <span className="text-[9px] text-emerald-100 font-semibold leading-tight">
-                  Drag to move • Tap to chat
-                </span>
-              </div>
-
-              {/* Move Indicator Icon */}
-              <div className="sm:hidden text-emerald-200">
-                <Move className="w-3 h-3 opacity-60" />
-              </div>
-            </button>
-          </div>
+            {/* Sleek Label */}
+            <span className="text-xs font-black tracking-tight flex items-center gap-1">
+              DeeBot AI <Sparkles className="w-3 h-3 text-amber-300" />
+            </span>
+          </button>
         </div>
       )}
 
       {/* Floating AI Chat Window */}
       {isOpen && (
         <div
-          className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-50 w-[94vw] sm:w-[400px] max-h-[85vh] h-[550px] bg-white rounded-3xl shadow-2xl border-2 border-emerald-200 flex flex-col overflow-hidden animate-bounceModal"
-          style={{ maxWidth: '400px' }}
+          style={{
+            [dockSide]: '16px',
+          }}
+          className="fixed bottom-4 sm:bottom-6 z-50 w-[94vw] sm:w-[400px] max-h-[85vh] h-[550px] bg-white rounded-3xl shadow-2xl border-2 border-emerald-200 flex flex-col overflow-hidden animate-bounceModal"
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-[#14532d] to-[#166534] p-3.5 sm:p-4 text-white flex items-center justify-between shadow-md">

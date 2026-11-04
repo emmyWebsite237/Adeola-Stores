@@ -34,7 +34,7 @@ export async function POST(req: Request) {
         email: email.trim().toLowerCase(),
         updateEnabled: true,
         attributes: {
-          STORE: 'Ladydee Minimart Adeola Stores',
+          STORE: 'Ladydee Minimart Stores',
         },
       }),
     });
