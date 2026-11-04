@@ -17,8 +17,9 @@ export default function SuggestionsPage() {
 
   useEffect(() => {
     // Autofill user details if logged in
-    if (supabase && isSupabaseConfigured) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+    const client = supabase;
+    if (client && isSupabaseConfigured) {
+      client.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           setName(session.user.user_metadata?.full_name || session.user.user_metadata?.name || '');
           setEmail(session.user.email || '');
@@ -38,8 +39,9 @@ export default function SuggestionsPage() {
     setErrorMsg(null);
 
     try {
-      if (supabase && isSupabaseConfigured) {
-        const { error } = await supabase.from('recipe_suggestions').insert({
+      const client = supabase;
+      if (client && isSupabaseConfigured) {
+        const { error } = await client.from('recipe_suggestions').insert({
           combo_name: comboName.trim(),
           ingredients: ingredients.trim() || null,
           customer_name: name.trim() || null,

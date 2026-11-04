@@ -13,11 +13,12 @@ export default function UsernameSetupModal() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!supabase || !isSupabaseConfigured) return;
+    const client = supabase;
+    if (!client || !isSupabaseConfigured) return;
 
     const checkUser = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await client.auth.getSession();
         const user = session?.user ?? null;
         setSessionUser(user);
 
@@ -40,7 +41,7 @@ export default function UsernameSetupModal() {
 
     checkUser();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: authListener } = client.auth.onAuthStateChange(async (event, session) => {
       const user = session?.user ?? null;
       setSessionUser(user);
       if (user) {
@@ -81,9 +82,10 @@ export default function UsernameSetupModal() {
     setErrorMsg(null);
 
     try {
+      const client = supabase;
       // Check if username is already taken by another user
-      if (supabase) {
-        const { data: existing } = await supabase
+      if (client) {
+        const { data: existing } = await client
           .from('profiles')
           .select('id')
           .eq('username', clean)
@@ -106,8 +108,8 @@ export default function UsernameSetupModal() {
       });
 
       // Update Supabase auth metadata
-      if (supabase) {
-        await supabase.auth.updateUser({
+      if (client) {
+        await client.auth.updateUser({
           data: { username: clean },
         });
       }
