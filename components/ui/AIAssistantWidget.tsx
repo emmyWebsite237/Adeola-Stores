@@ -216,9 +216,10 @@ export default function AIAssistantWidget() {
   const [isTyping, setIsTyping] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Snapped side: 'left' | 'right'
+  // Snapped side: 'left' | 'right' (clinging to edge)
   const [dockSide, setDockSide] = useState<'left' | 'right'>('right');
-  const [verticalOffset, setVerticalOffset] = useState<number>(100);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragCurrentX, setDragCurrentX] = useState<number | null>(null);
 
   // Drag tracking refs
   const dragRef = useRef<{
@@ -261,10 +262,6 @@ export default function AIAssistantWidget() {
       if (savedSide === 'left' || savedSide === 'right') {
         setDockSide(savedSide);
       }
-      const savedY = localStorage.getItem('deebot_y');
-      if (savedY) {
-        setVerticalOffset(Number(savedY));
-      }
     } catch {}
   }, []);
 
@@ -274,7 +271,7 @@ export default function AIAssistantWidget() {
     }
   }, [messages, isOpen]);
 
-  // Touch & Mouse Drag Handlers (Left-to-Right Snapping)
+  // Touch & Mouse Drag Handlers (Clinging left-to-right snap)
   const handleStartDrag = (clientX: number, clientY: number) => {
     dragRef.current = {
       startX: clientX,
@@ -289,16 +286,18 @@ export default function AIAssistantWidget() {
     const dx = clientX - startX;
     const dy = clientY - startY;
 
-    if (Math.hypot(dx, dy) > 8) {
+    if (Math.hypot(dx, dy) > 8 || dragRef.current.hasDragged) {
       dragRef.current.hasDragged = true;
       dragRef.current.currentX = clientX;
+      setIsDragging(true);
+      setDragCurrentX(clientX);
     }
   }, []);
 
   const handleEndDrag = () => {
     if (dragRef.current.hasDragged && typeof window !== 'undefined') {
       const mid = window.innerWidth / 2;
-      // Snap to whichever side the user is closer to!
+      // Snap/cling to whichever edge is closer
       const newSide: 'left' | 'right' = dragRef.current.currentX < mid ? 'left' : 'right';
       setDockSide(newSide);
       try {
@@ -308,6 +307,9 @@ export default function AIAssistantWidget() {
       // Tap / Click without dragging -> toggle chat
       setIsOpen((prev) => !prev);
     }
+    setIsDragging(false);
+    setDragCurrentX(null);
+    dragRef.current.hasDragged = false;
   };
 
   // Mouse Listeners
@@ -513,7 +515,7 @@ export default function AIAssistantWidget() {
       q.includes('offer')
     ) {
       return {
-        text: `🏷️ **Active Promo Codes:**\n\n• **WELCOME10**: 10% off your order for new shoppers.\n• **ADEOLA5**: 5% off any grocery cart.\n• **FREEDEL**: Free delivery on orders ₦20,000+.\n\nJust enter the code at checkout!`,
+        text: `🏷️ **Active Promo Codes:**\n\n• **WELCOME10**: 10% off your order for new shoppers.\n• **LADYDEE5**: 5% off any grocery cart.\n• **FREEDEL**: Free delivery on orders ₦20,000+.\n\nJust enter the code at checkout!`,
         quickLink: { text: 'Use Coupons in Cart 🛒', href: '/cart' },
         suggestedPrompts: ['How much is rice?', 'Delivery timeline', 'Wallet payment guide'],
       };
@@ -619,18 +621,27 @@ export default function AIAssistantWidget() {
 
   return (
     <>
-      {/* Draggable Snapping Launcher Bubble */}
+      {/* Draggable Snapping Circular Launcher Bubble */}
       {!isOpen && (
         <div
           style={{
             position: 'fixed',
-            bottom: '80px',
-            [dockSide]: '16px',
+            bottom: '84px',
+            ...(isDragging && dragCurrentX !== null && typeof window !== 'undefined'
+              ? {
+                  left: `${Math.max(12, Math.min(window.innerWidth - 68, dragCurrentX - 28))}px`,
+                  right: 'auto',
+                }
+              : dockSide === 'left'
+              ? { left: '16px', right: 'auto' }
+              : { right: '16px', left: 'auto' }),
             zIndex: 49,
             touchAction: 'none',
-            transition: 'left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), right 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            transition: isDragging
+              ? 'none'
+              : 'left 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28), right 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28)',
           }}
-          className="select-none cursor-pointer group"
+          className="select-none cursor-pointer"
           onMouseDown={onMouseDown}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
@@ -639,23 +650,18 @@ export default function AIAssistantWidget() {
           <button
             type="button"
             aria-label="Open DeeBot AI Assistant"
-            className="relative flex items-center gap-2 p-3 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-emerald-800 via-emerald-600 to-teal-700 text-white shadow-2xl shadow-emerald-950/40 border-2 border-emerald-300 hover:scale-105 active:scale-95 transition-transform"
+            className="relative w-14 h-14 min-w-[56px] min-h-[56px] rounded-full aspect-square shrink-0 bg-gradient-to-tr from-emerald-800 via-emerald-600 to-teal-700 text-white shadow-2xl shadow-emerald-950/40 border-2 border-emerald-300 hover:scale-110 active:scale-95 transition-transform flex items-center justify-center group focus:outline-none focus:ring-4 focus:ring-emerald-400/40"
           >
-            {/* Status Pulse */}
-            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500 border-2 border-white" />
+            {/* Status Pulse on Top-Right */}
+            <span className="absolute top-0 right-0 flex h-3.5 w-3.5 pointer-events-none">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 border-2 border-white shadow-xs" />
             </span>
 
-            {/* Bot Avatar Icon */}
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center animate-bounce">
-              <Bot className="w-4 h-4 text-white" />
+            {/* Circular Bot Icon */}
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center pointer-events-none">
+              <Bot className="w-5 h-5 text-white drop-shadow-sm transition-transform group-hover:scale-110" />
             </div>
-
-            {/* Sleek Label */}
-            <span className="text-xs font-black tracking-tight flex items-center gap-1">
-              DeeBot AI <Sparkles className="w-3 h-3 text-amber-300" />
-            </span>
           </button>
         </div>
       )}
@@ -666,7 +672,9 @@ export default function AIAssistantWidget() {
           style={{
             [dockSide]: '16px',
           }}
-          className="fixed bottom-4 sm:bottom-6 z-50 w-[94vw] sm:w-[400px] max-h-[85vh] h-[550px] bg-white rounded-3xl shadow-2xl border-2 border-emerald-200 flex flex-col overflow-hidden animate-bounceModal"
+          className={`fixed bottom-4 sm:bottom-6 z-50 w-[94vw] sm:w-[400px] max-h-[85vh] h-[550px] bg-white rounded-3xl shadow-2xl border-2 border-emerald-200 flex flex-col overflow-hidden animate-bounceModal ${
+            dockSide === 'left' ? 'left-3 sm:left-4' : 'right-3 sm:right-4'
+          }`}
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-[#14532d] to-[#166534] p-3.5 sm:p-4 text-white flex items-center justify-between shadow-md">
