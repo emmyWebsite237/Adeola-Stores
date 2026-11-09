@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   AtSign,
   ShieldCheck,
-  Calendar
+  Calendar,
+  Sparkles
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured, upsertUserProfile } from '@/lib/db/supabase';
 import RobotVerification from '@/components/ui/RobotVerification';
@@ -197,26 +198,33 @@ function SignUpForm() {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6">
-      <div className="w-full max-w-lg bg-white rounded-3xl border border-brand-line p-6 sm:p-10 shadow-card space-y-6">
+    <div className="min-h-[85vh] bg-gradient-to-b from-[#f7f9f6] via-white to-emerald-50/40 flex items-center justify-center py-12 px-4 sm:px-6 relative overflow-hidden">
+      {/* Decorative Brand Ambience Glows */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-200/35 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-amber-200/30 blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-lg bg-white rounded-3xl border border-emerald-100 shadow-2xl shadow-emerald-950/10 p-6 sm:p-10 space-y-6 relative z-10 backdrop-blur-sm">
         {/* Brand Icon & Heading */}
         <div className="text-center space-y-2">
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-green text-white shadow-md shadow-brand-green/20 mb-2"
-          >
-            <ShoppingBasket className="w-6 h-6" />
+          <Link href="/" className="inline-flex flex-col items-center group">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-800 via-brand-green to-teal-800 text-white flex items-center justify-center shadow-lg shadow-emerald-900/25 mb-3 border border-emerald-400/40 group-hover:scale-105 transition-transform">
+              <ShoppingBasket className="w-7 h-7 text-white" />
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 text-[11px] font-black uppercase tracking-wider border border-emerald-200 shadow-2xs mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              Ladydee Minimart Lagos
+            </span>
           </Link>
-          <h1 className="text-2xl font-extrabold text-brand-ink">Create Your Account</h1>
-          <p className="text-xs text-brand-muted max-w-sm mx-auto">
+          <h1 className="text-2xl sm:text-3xl font-black text-brand-ink tracking-tight">Create Your Account</h1>
+          <p className="text-xs text-brand-muted max-w-sm mx-auto leading-relaxed">
             {redirectTarget === '/checkout'
-              ? 'Sign up to safely save your delivery address and complete checkout.'
+              ? 'Sign up to safely save your Lagos delivery address & complete checkout.'
               : 'Join Ladydee Minimart for wholesale price drops, lightning dispatch, and easy grocery reorders.'}
           </p>
         </div>
 
         {errorMsg && (
-          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5 text-xs text-red-700 animate-fadeIn">
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5 text-xs text-red-700 animate-fadeIn font-medium">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             <span>{errorMsg}</span>
           </div>
@@ -228,7 +236,7 @@ function SignUpForm() {
             type="button"
             disabled={googleLoading}
             onClick={handleGoogleSignIn}
-            className="w-full py-3 px-4 rounded-2xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all cursor-pointer shadow-sm disabled:opacity-60"
+            className="w-full py-3.5 px-4 rounded-2xl border-2 border-slate-200 hover:border-brand-green hover:bg-emerald-50/40 text-slate-800 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all cursor-pointer shadow-2xs disabled:opacity-60"
           >
             {googleLoading ? (
               <>
@@ -260,11 +268,11 @@ function SignUpForm() {
             )}
           </button>
 
-          <div className="relative my-4">
+          <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-200" />
             </div>
-            <div className="relative flex justify-center text-[11px] uppercase tracking-wider font-extrabold text-slate-400">
+            <div className="relative flex justify-center text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
               <span className="bg-white px-3">or create with email</span>
             </div>
           </div>
@@ -456,33 +464,38 @@ function SignUpForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-xl bg-brand-green hover:bg-brand-green-dark text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-brand-green/20 transition-all disabled:opacity-60 cursor-pointer pt-3"
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-800 via-brand-green to-teal-800 hover:brightness-110 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-60 cursor-pointer pt-3"
           >
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
                 <span>Creating Your Account...</span>
               </>
             ) : (
               <>
                 <span>Create Account &amp; Proceed</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-amber-300" />
               </>
             )}
           </button>
         </form>
 
         {/* Existing User Link */}
-        <div className="text-center pt-4 border-t border-brand-line">
+        <div className="space-y-4 pt-4 border-t border-slate-100 text-center">
           <p className="text-xs text-brand-muted">
             Already have an account?{' '}
             <Link
               href={redirectTarget ? `/login?redirect=${encodeURIComponent(redirectTarget)}` : '/login'}
-              className="font-bold text-brand-green hover:underline"
+              className="font-extrabold text-brand-green hover:underline"
             >
               Sign In here
             </Link>
           </p>
+
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-emerald-800/80 font-bold">
+            <ShieldCheck className="w-3.5 h-3.5 text-brand-green" />
+            <span>256-Bit SSL Encrypted • Ladydee Customer Protection</span>
+          </div>
         </div>
       </div>
 

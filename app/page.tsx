@@ -142,7 +142,7 @@ export default function HomePage() {
                 Value Bundles &amp; Packs
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-                Save Big with Aunt Adeola Packs
+                Save Big with Ladydee Packs
               </h2>
               <p className="text-xs sm:text-sm text-gray-300 mt-1 max-w-xl">
                 Bulk food bundles put together for Nigerian homes. Stack groceries together and pay far less than buying individual pieces!

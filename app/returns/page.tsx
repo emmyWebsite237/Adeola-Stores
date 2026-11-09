@@ -106,7 +106,7 @@ export default function ReturnsPolicyPage() {
               How to Lodge a Claim
             </h2>
             <p>
-              Snap a quick photo or short video of the damaged item along with your order reference number (e.g. <code>ADEOLA-123456</code>) and message our resolution team via:
+              Snap a quick photo or short video of the damaged item along with your order reference number (e.g. <code>LADYDEE-123456</code>) and message our resolution team via:
             </p>
             <div className="mt-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
               <div><strong>WhatsApp Priority:</strong> +234 802 345 6789</div>

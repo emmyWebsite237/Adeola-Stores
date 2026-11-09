@@ -21,19 +21,19 @@ export default function BundlesPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
       {/* Page Header */}
-      <div className="bg-gradient-to-r from-brand-ink via-[#1c2e22] to-brand-ink rounded-3xl p-6 sm:p-10 text-white shadow-card">
-        <div className="max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-coral text-white text-xs font-bold">
+      <div className="bg-gradient-to-r from-emerald-950 via-[#14532d] to-teal-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden border border-emerald-800/40">
+        <div className="max-w-2xl space-y-3 relative z-10">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-amber-950 text-xs font-black uppercase tracking-wider shadow-sm">
             <Tag className="w-3.5 h-3.5" />
-            <span>Market Bundles &amp; Household Packs</span>
+            <span>Market Bundles &amp; Student Campus Packs</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Aunt Adeola Household Bundles
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            Ladydee Household &amp; Campus Bundles
           </h1>
 
-          <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
-            Buying groceries piecemeal is expensive. Our curated market bundles pool your monthly and weekly staples together so you save thousands of Naira on every order.
+          <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+            Buying groceries piecemeal is expensive. Our curated market bundles and student campus packs pool your monthly and weekly staples together so you save thousands of Naira on every order.
           </p>
         </div>
       </div>

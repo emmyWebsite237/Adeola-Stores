@@ -65,36 +65,42 @@ export default function SuggestionsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-6">
       {/* Back button */}
       <Link
         href="/cook"
-        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-brand-green mb-6 transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-brand-green transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Back to Cook Tonight Recipes</span>
       </Link>
 
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-12 shadow-sm relative overflow-hidden">
-        {/* Header */}
-        <div className="max-w-2xl mb-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-50 text-brand-green text-xs font-black mb-3 border border-emerald-100">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+      {/* Hero Banner with Rich Emerald & Amber Cooking Theme */}
+      <div className="bg-gradient-to-r from-emerald-950 via-[#14532d] to-teal-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden border border-emerald-800/40">
+        <div className="max-w-2xl relative z-10 space-y-3">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-400 text-amber-950 text-xs font-black uppercase tracking-wider shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-amber-900" />
             <span>Community Recipe Kitchen</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Suggest a Cooking Combo or Recipe Pack 🍲
+          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+            Suggest a Cooking Combo or Recipe Pack 🍲✨
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+          <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
             Have a special Nigerian meal or family delicacy you want pre-bundled on Ladydee Minimart? Tell us the dish name and ingredients, and our procurement team will curate it as a 1-click bundle with exact portions and market-fresh pricing!
           </p>
         </div>
 
+        <div className="absolute -right-8 -bottom-8 opacity-15 pointer-events-none">
+          <ChefHat className="w-64 h-64 text-emerald-200" />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-emerald-100/80 p-6 sm:p-10 shadow-card relative overflow-hidden">
         {submitted ? (
-          <div className="p-8 sm:p-12 rounded-3xl bg-emerald-50/70 border-2 border-emerald-200 text-center space-y-4 animate-bounceModal">
-            <div className="w-16 h-16 rounded-full bg-brand-green text-white flex items-center justify-center mx-auto shadow-md">
+          <div className="p-8 sm:p-12 rounded-3xl bg-emerald-50/80 border-2 border-emerald-200 text-center space-y-4 animate-bounceModal">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-800 to-emerald-600 text-white flex items-center justify-center mx-auto shadow-md">
               <CheckCircle2 className="w-8 h-8" />
             </div>
 
@@ -115,14 +121,14 @@ export default function SuggestionsPage() {
                   setIngredients('');
                   setNotes('');
                 }}
-                className="px-5 py-2.5 rounded-xl border border-emerald-300 bg-white text-brand-green font-bold text-xs hover:bg-emerald-50 transition-colors"
+                className="px-5 py-2.5 rounded-xl border border-emerald-300 bg-white text-brand-green font-bold text-xs hover:bg-emerald-50 transition-colors cursor-pointer"
               >
                 Suggest Another Dish
               </button>
 
               <Link
                 href="/cook"
-                className="px-6 py-2.5 rounded-xl bg-brand-green text-white font-extrabold text-xs hover:bg-brand-green-dark transition-colors shadow-sm"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-800 to-emerald-700 text-white font-extrabold text-xs hover:brightness-110 transition-colors shadow-sm"
               >
                 Browse Current Recipes
               </Link>
@@ -212,9 +218,9 @@ export default function SuggestionsPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-2xl bg-brand-green hover:bg-brand-green-dark text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-800 via-brand-green to-teal-800 hover:brightness-110 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-4 h-4 text-amber-300" />
               <span>{loading ? 'Submitting Suggestion…' : 'Submit Cooking Combo Suggestion'}</span>
             </button>
           </form>

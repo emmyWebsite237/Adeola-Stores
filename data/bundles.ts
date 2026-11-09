@@ -19,7 +19,7 @@ export interface BundlePack {
 export const BUNDLE_PACKS: BundlePack[] = [
   {
     id: 'monthly-family-staples',
-    name: 'Aunt Adeola Monthly Family Feast Kit',
+    name: 'Ladydee Monthly Family Feast Kit',
     tagline: 'Complete household pantry restock for families of 3–6. All monthly staples in one delivery.',
     price: 68500,
     oldPrice: 79000,

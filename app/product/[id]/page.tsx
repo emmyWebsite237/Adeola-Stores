@@ -38,7 +38,7 @@ export default function ProductDetailPage() {
     router.push('/checkout');
   };
 
-  const whatsappMessage = `Hello Aunt Adeola, I would like to order: ${product.name} (${product.size}) - ${formatNaira(product.price * qty)} (Qty: ${qty})`;
+  const whatsappMessage = `Hello Ladydee Minimart, I would like to order: ${product.name} (${product.size}) - ${formatNaira(product.price * qty)} (Qty: ${qty})`;
   const waLink = generateWhatsAppLink('08000000000', whatsappMessage);
 
   return (

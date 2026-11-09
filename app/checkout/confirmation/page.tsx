@@ -35,7 +35,7 @@ export default function OrderConfirmationPage() {
             Order Confirmed &amp; Received
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-brand-ink">
-            Thank you for shopping with Aunt Adeola!
+            Thank you for shopping with Ladydee Minimart!
           </h1>
           <p className="text-xs sm:text-sm text-brand-muted mt-1 max-w-md mx-auto">
             Your grocery order is now confirmed. We are packing your sealed items for dispatch.

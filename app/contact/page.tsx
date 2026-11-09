@@ -259,7 +259,7 @@ export default function ContactPage() {
                     <input
                       type="text"
                       name="Order_Reference"
-                      placeholder="e.g. ADEOLA-123456"
+                      placeholder="e.g. LADYDEE-123456"
                       className="w-full px-4 py-2.5 bg-[#fbfcfb] text-xs text-brand-ink rounded-xl border border-brand-line focus:border-brand-green focus:bg-white outline-none"
                     />
                   </div>

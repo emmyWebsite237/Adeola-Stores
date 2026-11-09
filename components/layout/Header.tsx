@@ -11,6 +11,7 @@ import {
   X,
   ChefHat,
   Tag,
+  GraduationCap,
   User as UserIcon,
   LogIn,
   ArrowRight,
@@ -156,6 +157,17 @@ export default function Header() {
               >
                 <Tag className="w-3.5 h-3.5 text-brand-coral" />
                 <span>Household Bundles</span>
+              </Link>
+              <Link
+                href="/student"
+                className={`px-3.5 py-2 rounded-full text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                  pathname === '/student'
+                    ? 'bg-amber-100 text-amber-900 font-bold'
+                    : 'text-brand-muted hover:text-amber-800 hover:bg-amber-50'
+                }`}
+              >
+                <GraduationCap className="w-3.5 h-3.5 text-amber-600" />
+                <span>Student Deals</span>
               </Link>
               <Link
                 href="/contact"
@@ -418,6 +430,19 @@ export default function Header() {
                   <span className="flex items-center gap-2">
                     <Tag className="w-4 h-4 text-brand-coral" />
                     Household Bundles
+                  </span>
+                </Link>
+                <Link
+                  href="/student"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm text-brand-ink hover:bg-amber-50 hover:text-amber-900 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-amber-600" />
+                    Student &amp; Campus Deals
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[10px] font-black uppercase">
+                    Hostel Packs
                   </span>
                 </Link>
                 <Link

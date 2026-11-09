@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       }
     } else {
       // In sandbox/test development mode without secret key, accept test references
-      isVerified = reference.startsWith('ADEOLA-') || reference.startsWith('T');
+      isVerified = reference.startsWith('LADYDEE-') || reference.startsWith('ADEOLA-') || reference.startsWith('T');
     }
 
     // Persist verified order to Supabase if configured
